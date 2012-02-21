@@ -1,0 +1,18 @@
+#this is the submit file to condor for lvalert
+
+universe            = local
+
+executable          = lvalertlisten
+getenv              = True
+notification        = never
+environment         = DISPLAY=localhost:10.0
+
+log                 = logs/lvalertlisten.log
+output              = logs/lvalertlisten.out
+error               = logs/lvalertlisten.error
+
+## add attribute
+## condor_q -format "%s " Owner -format "%s " ClusterId -format "%s\n" lvalert_listener
++LVAlertListen      = "gdb_processor lvalert_listen"
+
+Queue
