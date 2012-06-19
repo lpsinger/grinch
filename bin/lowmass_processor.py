@@ -1,5 +1,6 @@
 #! /usr/bin/python
 
+import os
 import os.path
 import tempfile
 import urlparse
@@ -7,7 +8,6 @@ import logging
 import re
 import ConfigParser
 
-from subprocess     import Popen
 from sys            import argv, exit, stdin
 
 from glue.ligolw    import ligolw
@@ -204,10 +204,5 @@ f.close()
 logger.info('Submitting DAG')
 os.chdir(processor_gracedir)
 condorargs=['condor_submit_dag','lowmass_runner.dag']
-myenv={'PATH':'/usr/local/bin:/usr/bin:/bin:/home/gdb_processor/er1/gdb_processor',\
-'PYTHONPATH':'/home/cbiwer/lib/python:/home/gdb_processor/er1/gdb_processor/lib/python2.6/site-packages',\
-'LOGNAME':'gdb_processor',\
-'X509_USER_CERT':'/home/gdb_processor/.globus/gdb-processor_marlin.phys.uwm.edu.cert.pem',\
-'X509_USER_KEY':'/home/gdb_processor/.globus/gdb-processor_marlin.phys.uwm.edu.key.pem'}
-Popen(condorargs,env=myenv)
 logger.info('Completed new event sequence\n')
+os.execlp('condor_submit_dag', *condorargs)
