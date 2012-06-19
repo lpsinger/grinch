@@ -1,0 +1,12 @@
+## dt = event.GPStime-newEvent.GPStime
+## newEvent.node	event.node		dtMin (sec)	dtMax (sec)
+
+cbc_lowmass		skyalert_swift		-21600		21600
+
+#chris_test              skyalert_swift		-2208860.0	2208860.0
+chris_test              skyalert_swift		-2.0		2.0
+test_lowmass            skyalert_swift		-2.0		2.0
+
+#chris_test             chris_test	       -1.0		1.0
+#skyalert_swift         skyalert_swift         -1.0		1.0
+#skyalert_swift		chris_test	       -1.0		1.0
