@@ -31,33 +31,9 @@ handler  = ligolw.LIGOLWContentHandler(doc)
 ligolw.make_parser(handler).parse(stdin)
 lvatable = ligolwtable.get_table(doc,'LVAlert:table')
 
-## bayestar initializations
-subdir   = '/home/gdb_processor/leo/lib/python2.6/site-packages/bayestar/lvalert'
-sitekeys = ['PTF','Pi of the Sky North','Pi of the Sky South','QUEST','ROTSE III-a','ROTSE III-b','ROTSE III-c','ROTSE III-d','Skymapper','TAROT','TAROT-S','Zadko']
-dag = r"""
-JOB log_started   %(subdir)s/gracedb_log.sub
-JOB skymap2pickle %(subdir)s/skymap2pickle.sub
-JOB plan_pointing %(subdir)s/plan_pointing.sub
-JOB plot_pointing %(subdir)s/plot_pointing.sub
-JOB make_web_page %(subdir)s/make_web_page.sub
-JOB log_ready     %(subdir)s/gracedb_log.sub
-JOB log_done      %(subdir)s/gracedb_log.sub
-
-VARS log_started GRACEID="%(uid)s" LOGMSG="BAYESTAR: planning observations"
-VARS log_ready   GRACEID="%(uid)s" LOGMSG="BAYESTAR: observation planning complete, rendering skymaps"
-VARS log_done GRACEID="%(uid)s" LOGMSG="BAYESTAR: skymaps rendered: https://ldas-jobs.phys.uwm.edu/gracedb/data/%(uid)s/general/bayestar"
-
-PARENT log_started CHILD skymap2pickle
-PARENT skymap2pickle CHILD plan_pointing plot_pointing make_web_page
-PARENT plan_pointing CHILD log_ready plot_pointing make_web_page
-PARENT plot_pointing make_web_page CHILD log_done
-"""
-
 ## if labeled EM_READY
 if lvatable[0].alert_type == 'label' and lvatable[0].description == 'EM_READY':
     logger.info('Beginning EM_READY sequence')
-#    sys.path.append('/home/gdb_processor/er1/gdb_processor/lib/python2.6/site-packages')
-#    sys.path.append('/home/gdb_processor/er1/gdb_processor/bin')
     import bayestar.lvalert
     bayestar.lvalert.respond(lvatable[0].uid,submit=True)
     ## function ends processor
