@@ -65,6 +65,7 @@ coincdetscript     = cp.get('executable','coincdetscript')
 vetodefinerfile    = cp.get('veto','vetodefinerfile')
 ranksfile          = cp.get('skypoints','ranksfile')
 gridsfile          = cp.get('skypoints','gridsfile')
+coincdetconfig     = cp.get('coincdet','configfile')
 
 ## extract information about the event
 if re.search('.xml',lvatable[0].file):
@@ -159,7 +160,7 @@ contents   = """\
 universe            = local
 
 executable          = %(script)s
-arguments           = test_lowmass %(uid)s %(coincfile)s
+arguments           = test_lowmass %(uid)s %(coincfile)s %(configfile)s
 getenv              = True
 notification        = never
 
@@ -173,7 +174,7 @@ Queue
 """
 tmplog  = tempfile.mkstemp()[1]
 subFile = open('coincdet.sub','w')
-subFile.write(contents%{'script':coincdetscript,'coincfile':coincfile,'tmplog':tmplog,'uid':lvatable[0].uid})
+subFile.write(contents%{'script':coincdetscript,'coincfile':coincfile,'configfile':coincdetconfig,'tmplog':tmplog,'uid':lvatable[0].uid})
 subFile.close()
 
 ## write lowmass_runner.dag
