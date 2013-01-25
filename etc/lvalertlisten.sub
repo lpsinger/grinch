@@ -7,12 +7,12 @@ getenv              = True
 notification        = never
 environment         = DISPLAY=localhost:10.0
 
-log                 = logs/lvalertlisten.log
-output              = logs/lvalertlisten.out
-error               = logs/lvalertlisten.error
-
 ## add attribute
 ## condor_q -format "%s " Owner -format "%s " ClusterId -format "%s\n" lvalert_listener
 +LVAlertListen      = "gdb_processor lvalert_listen"
+
+log                 = lvalertlisten.condor.log 
+output              = lvalertlisten.condor.out
+error               = lvalertlist.condor.error
 
 Queue
