@@ -9,6 +9,8 @@ import ConfigParser
 
 from sys            import argv, exit, stdin
 
+from subprocess	    import call
+
 from glue.ligolw    import ligolw
 from glue.ligolw    import utils
 from glue.ligolw    import table
@@ -47,7 +49,7 @@ cp.read('lowmass_config.ini')
 homedir            = os.getcwd()
 private_gracedir   = os.path.split(urlparse.urlparse(streamdata['file'])[2])[0]
 general_gracedir   = private_gracedir.replace('private','general')
-processor_gracedir = "".join([general_gracedir,'/gdb_processor/'])
+processor_gracedir = '/home/gdb_processor/working/ER3/%s'%streamdata['uid'] # "".join([general_gracedir,'/gdb_processor/'])
 
 gracedbcommand     = cp.get('executable','gracedbcommand')
 dqwaitscript       = cp.get('executable','dqwaitscript')
@@ -60,10 +62,19 @@ ranksfile          = cp.get('skypoints','ranksfile')
 gridsfile          = cp.get('skypoints','gridsfile')
 coincdetconfig     = cp.get('coincdet','configfile')
 
+## gdb_processor directory on gracedb
+try:
+     os.makedirs(processor_gracedir)
+except OSError:
+     print 'Could not make directory %s'%processor_gracedir
+     pass
+
 ## extract information about the event
 if re.search('.xml',streamdata['file']):
      coincfile = urlparse.urlparse(streamdata['file'])[2]
-else:
+else: # download coinc file from gracedb web client; stick it in processor_gracedir
+     call('gracedb download' + ' %s'%streamdata['uid'] + ' coinc.xml', shell=True)
+     call('mv' + ' coinc.xml' + ' %s'%processor_gracedir, shell=True)
      coincfile = "".join([private_gracedir,'/coinc.xml'])
 doc        = utils.load_filename(coincfile)
 coinctable = table.get_table(doc,lsctables.CoincInspiralTable.tableName)
@@ -77,12 +88,6 @@ else:
 disable_ifos = [ifo for ifo in ifonames if ifo not in ifos]
 itime        = str(int(float(gpstime)+0.5))
 
-## gdb_processor directory on gracedb
-try:
-     os.makedirs(processor_gracedir)
-except OSError:
-     print 'Could not make directory %s'%processor_gracedir
-     pass
 os.chdir(processor_gracedir)
 
 ## write skypoints.sub
@@ -195,6 +200,6 @@ f.write('PARENT SKYPOINTS CHILD COINCDET\n')
 f.close()
 
 ## submit dag
-os.chdir(processor_gracedir)
-condorargs=['condor_submit_dag','lowmass_runner.dag']
-os.execlp('condor_submit_dag', *condorargs)
+#os.chdir(processor_gracedir)
+#condorargs=['condor_submit_dag','lowmass_runner.dag']
+#os.execlp('condor_submit_dag', *condorargs)
