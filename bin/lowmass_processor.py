@@ -20,20 +20,6 @@ import ligo.gracedb.rest
 ## create dict from gracedb table
 streamdata = get_LVAdata_from_stdin(stdin, as_dict=True)
 
-## if labeled EM_READY
-if streamdata['alert_type'] == 'label' and streamdata['description'] == 'EM_READY':
-    import bayestar.lvalert
-    bayestar.lvalert.respond(streamdata['uid'],submit=True)
-    ## function ends processor
-
-## check if new
-elif  streamdata['alert_type'] == 'new':
-    pass
-
-## else
-else:
-     exit()
-
 ## read lowmass_config.ini
 cp = ConfigParser.ConfigParser()
 cp.read('lowmass_config.ini')
@@ -61,6 +47,20 @@ except OSError:
      pass
 
 os.chdir(processor_gracedir)
+
+## if labeled EM_READY
+if streamdata['alert_type'] == 'label' and streamdata['description'] == 'EM_READY':
+    import bayestar.lvalert
+    bayestar.lvalert.respond(streamdata['uid'],submit=True)
+    ## function ends processor
+
+## check if new
+elif  streamdata['alert_type'] == 'new':
+    pass
+
+## else
+else:
+     exit()
 
 ## extract information about the event
 if re.search('.xml',streamdata['file']):
