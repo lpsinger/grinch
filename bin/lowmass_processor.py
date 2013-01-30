@@ -15,18 +15,10 @@ from glue.ligolw    import ligolw
 from glue.ligolw    import utils
 from glue.ligolw    import table
 from glue.ligolw    import lsctables
+from ligo.lvalert.utils import get_LVAdata_from_stdin
 
 ## create dict from gracedb table
-doc        = ligolw.Document()
-handler    = ligolw.LIGOLWContentHandler(doc)
-ligolw.make_parser(handler).parse(stdin)
-lvatable   = table.get_table(doc,'LVAlert:table')
-
-raw_stream = lvatable.childNodes[5].pcdata.replace('"','').replace('\t','').replace('\n','').split(',')
-streamdata = {'alert_type'  : raw_stream[1],
-              'uid'         : raw_stream[2],
-              'file'        : raw_stream[3],
-              'description' : raw_stream[4]}
+streamdata = get_LVAdata_from_stdin(stdin, as_dict=True)
 
 ## if labeled EM_READY
 if streamdata['alert_type'] == 'label' and streamdata['description'] == 'EM_READY':
