@@ -90,16 +90,14 @@ arguments           = --glob=%(coincfile)s --ranks=%(ranksfile)s --grids=%(grids
 getenv              = True
 notification        = never
 
-log                 = %(tmplog)s
 output              = skypoints.out
 error               = skypoints.error
 
 +LVAlertListen      = %(uid)s_skypoints
 Queue
 """
-tmplog  = tempfile.mkstemp()[1]
 subFile = open('skypoints.sub','w')
-subFile.write(contents%{'script':skypointscript,'coincfile':coincfile,'ranksfile':ranksfile,'gridsfile':gridsfile,'tmplog':tmplog,'uid':streamdata['uid']})
+subFile.write(contents%{'script':skypointscript,'coincfile':coincfile,'ranksfile':ranksfile,'gridsfile':gridsfile,'uid':streamdata['uid']})
 subFile.close()
 
 ## write data quality.sub
@@ -111,16 +109,14 @@ arguments           = /home/gdb_processor/dq-fake.xml dq.xml
 getenv              = True
 notification        = never
 
-log                 = %(tmplog)s
 output              = dq.out
 error               = dq.error
 
 +LVAlertListen      = %(uid)s_dq
 Queue
 """
-tmplog  = tempfile.mkstemp()[1]
 subFile = open('dq.sub','w')
-subFile.write(contents%{'tmplog':tmplog,'uid':streamdata['uid']})
+subFile.write(contents%{'uid':streamdata['uid']})
 subFile.close()
 
 ## write emlabel.sub
@@ -132,16 +128,14 @@ arguments           = --set-em-ready -f dq.xml -i %(uid)s -g %(gdbcommand)s --ve
 getenv              = True
 notification        = never
 
-log                 = %(tmplog)s
 error               = emlabel.err
 output              = emlabel.out
 
 +LVAlertListen      = %(uid)s_emlabel
 Queue
 """
-tmplog  = tempfile.mkstemp()[1]
 subFile = open('emlabel.sub','w')
-subFile.write(contents%{'script':dqtolabelscript,'gdbcommand':gracedbcommand,'vetodefinerfile':vetodefinerfile,'tmplog':tmplog,'uid':streamdata['uid']})
+subFile.write(contents%{'script':dqtolabelscript,'gdbcommand':gracedbcommand,'vetodefinerfile':vetodefinerfile,'uid':streamdata['uid']})
 subFile.close()
 
 ## write coincdet.sub
@@ -153,7 +147,6 @@ arguments           = test_lowmass %(uid)s %(coincfile)s %(configfile)s
 getenv              = True
 notification        = never
 
-log                 = %(tmplog)s
 error               = coincdet.err
 output              = coincdet.out
 
@@ -161,9 +154,8 @@ output              = coincdet.out
 
 Queue
 """
-tmplog  = tempfile.mkstemp()[1]
 subFile = open('coincdet.sub','w')
-subFile.write(contents%{'script':coincdetscript,'coincfile':coincfile,'configfile':coincdetconfig,'tmplog':tmplog,'uid':streamdata['uid']})
+subFile.write(contents%{'script':coincdetscript,'coincfile':coincfile,'configfile':coincdetconfig,'uid':streamdata['uid']})
 subFile.close()
 
 ## write lowmass_runner.dag
@@ -189,6 +181,13 @@ PARENT SKYPOINTS CHILD COINCDET
 f = open('lowmass_runner.dag','w')
 f.write(contents % {'gracedbcommand': gracedbcommand, 'uid': streamdata['uid']})
 f.close()
+
+# Create uniquely named log file.
+logfid, logpath = tempfile.mkstemp(suffix='.nodes.log', prefix=streamdata['uid'])
+
+# Set environment variable telling condor to use this log file
+# for communication with nodes.
+os.environ['_CONDOR_DAGMAN_DEFAULT_NODE_LOG'] = logpath
 
 # submit dag
 condorargs=['condor_submit_dag','lowmass_runner.dag']
