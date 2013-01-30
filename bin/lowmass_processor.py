@@ -199,7 +199,7 @@ f.write('PARENT SKYPOINTS CHILD EMLABEL\n')
 f.write('PARENT SKYPOINTS CHILD COINCDET\n')
 f.close()
 
-## submit dag
-#os.chdir(processor_gracedir)
-#condorargs=['condor_submit_dag','lowmass_runner.dag']
-#os.execlp('condor_submit_dag', *condorargs)
+# submit dag
+os.chdir(processor_gracedir)
+condorargs=['condor_submit_dag','lowmass_runner.dag']
+os.execlp('condor_submit_dag', *condorargs)
