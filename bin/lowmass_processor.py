@@ -60,13 +60,14 @@ except OSError:
      print 'Could not make directory %s'%processor_gracedir
      pass
 
+os.chdir(processor_gracedir)
+
 ## extract information about the event
 if re.search('.xml',streamdata['file']):
      coincfile = urlparse.urlparse(streamdata['file'])[2]
 else: # download coinc file from gracedb web client; stick it in processor_gracedir
      call('gracedb download' + ' %s'%streamdata['uid'] + ' coinc.xml', shell=True)
-     call('mv' + ' coinc.xml' + ' %s'%processor_gracedir, shell=True)
-     coincfile = "".join([private_gracedir,'/coinc.xml'])
+     coincfile = 'coinc.xml'
 doc        = utils.load_filename(coincfile)
 coinctable = table.get_table(doc,lsctables.CoincInspiralTable.tableName)
 
@@ -79,7 +80,6 @@ else:
 disable_ifos = [ifo for ifo in ifonames if ifo not in ifos]
 itime        = str(int(float(gpstime)+0.5))
 
-os.chdir(processor_gracedir)
 
 ## write skypoints.sub
 contents   = """\
