@@ -38,7 +38,6 @@ else:
 cp = ConfigParser.ConfigParser()
 cp.read('lowmass_config.ini')
 
-homedir            = os.getcwd()
 private_gracedir   = os.path.split(urlparse.urlparse(streamdata['file'])[2])[0]
 general_gracedir   = private_gracedir.replace('private','general')
 processor_gracedir = '/home/gdb_processor/working/ER3/%s'%streamdata['uid'] # "".join([general_gracedir,'/gdb_processor/'])
