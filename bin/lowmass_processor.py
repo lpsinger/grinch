@@ -168,27 +168,28 @@ subFile.write(contents%{'script':coincdetscript,'coincfile':coincfile,'configfil
 subFile.close()
 
 ## write lowmass_runner.dag
+contents = """\
+JOB SKYPOINTS skypoints.sub
+SCRIPT PRE SKYPOINTS %(gracedbcommand)s log %(uid)s Sky localization started
+SCRIPT POST SKYPOINTS %(gracedbcommand)s log %(uid)s Sky localization complete
+
+JOB DQ1 dq.sub
+
+JOB EMLABEL emlabel.sub
+SCRIPT PRE EMLABEL %(gracedbcommand)s log %(uid)s EM_READY labeling started
+SCRIPT POST EMLABEL %(gracedbcommand)s log %(uid)s EM_READY labeling complete
+
+JOB COINCDET coincdet.sub
+SCRIPT PRE COINCDET %(gracedbcommand)s log %(uid)s Coincidence search started
+SCRIPT POST COINCDET %(gracedbcommand)s log %(uid)s Coincidence search complete
+
+PARENT DQ1 CHILD EMLABEL
+PARENT SKYPOINTS CHILD EMLABEL
+PARENT SKYPOINTS CHILD COINCDET
+"""
 dagfile = "".join([processor_gracedir,'/lowmass_runner.dag'])
 f = open(dagfile,'w')
-f.write('JOB SKYPOINTS skypoints.sub\n')
-f.write(('SCRIPT PRE SKYPOINTS %s log %s Sky localization started\n' % (gracedbcommand, streamdata['uid'])))
-f.write(('SCRIPT POST SKYPOINTS %s log %s Sky localization complete\n' % (gracedbcommand, streamdata['uid'])))
-
-f.write('JOB DQ1 dq.sub\n')
-#f.write(('SCRIPT PRE DQ1 %s --gps-time %s --ifos %s\n' % (dqwaitscript,itime,ifos)))
-#f.write(('SCRIPT POST DQ1 %s -f %s -i %s -g %s --veto-definer-file %s --ifos %s\n' % (dqtolabelscript,'dq.xml',lvatable[0].uid,gracedbcommand,vetodefinerfile,ifos)))
-
-f.write('JOB EMLABEL emlabel.sub\n')
-f.write(('SCRIPT PRE EMLABEL %s log %s EM_READY labeling started  \n' % (gracedbcommand, streamdata['uid'])))
-f.write(('SCRIPT POST EMLABEL %s log %s EM_READY labeling complete\n' % (gracedbcommand, streamdata['uid'])))
-
-f.write('JOB COINCDET coincdet.sub\n')
-f.write(('SCRIPT PRE COINCDET %s log %s Coincidence search started \n' % (gracedbcommand, streamdata['uid'])))
-f.write(('SCRIPT POST COINCDET %s log %s Coincidence search complete \n' % (gracedbcommand, streamdata['uid'])))
-
-f.write('PARENT DQ1 CHILD EMLABEL\n')
-f.write('PARENT SKYPOINTS CHILD EMLABEL\n')
-f.write('PARENT SKYPOINTS CHILD COINCDET\n')
+f.write(contents % {'gracedbcommand': gracedbcommand, 'uid': streamdata['uid']})
 f.close()
 
 # submit dag
