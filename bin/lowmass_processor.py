@@ -6,16 +6,16 @@ import tempfile
 import urlparse
 import re
 import ConfigParser
+import shutil
 
 from sys            import exit, stdin
-
-from subprocess	    import call
 
 from glue.ligolw    import ligolw
 from glue.ligolw    import utils
 from glue.ligolw    import table
 from glue.ligolw    import lsctables
 from ligo.lvalert.utils import get_LVAdata_from_stdin
+import ligo.gracedb.rest
 
 ## create dict from gracedb table
 streamdata = get_LVAdata_from_stdin(stdin, as_dict=True)
@@ -66,8 +66,11 @@ os.chdir(processor_gracedir)
 if re.search('.xml',streamdata['file']):
      coincfile = urlparse.urlparse(streamdata['file'])[2]
 else: # download coinc file from gracedb web client; stick it in processor_gracedir
-     call('gracedb download' + ' %s'%streamdata['uid'] + ' coinc.xml', shell=True)
-     coincfile = 'coinc.xml'
+    gracedb_client = ligo.gracedb.rest.GraceDb()
+    remote_file = gracedb_client.files(streamdata['uid'], 'coinc.xml')
+    with open('coinc.xml', 'w') as local_file:
+        shutil.copyfileobj(remote_file, local_file)
+    coincfile = 'coinc.xml'
 doc        = utils.load_filename(coincfile)
 coinctable = table.get_table(doc,lsctables.CoincInspiralTable.tableName)
 
