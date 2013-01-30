@@ -96,9 +96,8 @@ error               = skypoints.error
 +LVAlertListen      = %(uid)s_skypoints
 Queue
 """
-subFile = open('skypoints.sub','w')
-subFile.write(contents%{'script':skypointscript,'coincfile':coincfile,'ranksfile':ranksfile,'gridsfile':gridsfile,'uid':streamdata['uid']})
-subFile.close()
+with open('skypoints.sub', 'w') as f:
+    f.write(contents%{'script':skypointscript,'coincfile':coincfile,'ranksfile':ranksfile,'gridsfile':gridsfile,'uid':streamdata['uid']})
 
 ## write data quality.sub
 contents   = """\
@@ -115,9 +114,8 @@ error               = dq.error
 +LVAlertListen      = %(uid)s_dq
 Queue
 """
-subFile = open('dq.sub','w')
-subFile.write(contents%{'uid':streamdata['uid']})
-subFile.close()
+with open('dq.sub', 'w') as f:
+    f.write(contents%{'uid':streamdata['uid']})
 
 ## write emlabel.sub
 contents   = """\
@@ -134,9 +132,8 @@ output              = emlabel.out
 +LVAlertListen      = %(uid)s_emlabel
 Queue
 """
-subFile = open('emlabel.sub','w')
-subFile.write(contents%{'script':dqtolabelscript,'gdbcommand':gracedbcommand,'vetodefinerfile':vetodefinerfile,'uid':streamdata['uid']})
-subFile.close()
+with open('emlabel.sub','w') as f:
+    f.write(contents%{'script':dqtolabelscript,'gdbcommand':gracedbcommand,'vetodefinerfile':vetodefinerfile,'uid':streamdata['uid']})
 
 ## write coincdet.sub
 contents   = """\
@@ -154,9 +151,8 @@ output              = coincdet.out
 
 Queue
 """
-subFile = open('coincdet.sub','w')
-subFile.write(contents%{'script':coincdetscript,'coincfile':coincfile,'configfile':coincdetconfig,'uid':streamdata['uid']})
-subFile.close()
+with open('coincdet.sub', 'w') as f:
+    f.write(contents%{'script':coincdetscript,'coincfile':coincfile,'configfile':coincdetconfig,'uid':streamdata['uid']})
 
 ## write lowmass_runner.dag
 contents = """\
@@ -178,9 +174,8 @@ PARENT DQ1 CHILD EMLABEL
 PARENT SKYPOINTS CHILD EMLABEL
 PARENT SKYPOINTS CHILD COINCDET
 """
-f = open('lowmass_runner.dag','w')
-f.write(contents % {'gracedbcommand': gracedbcommand, 'uid': streamdata['uid']})
-f.close()
+with open('lowmass_runner.dag', 'w') as f:
+    f.write(contents % {'gracedbcommand': gracedbcommand, 'uid': streamdata['uid']})
 
 # Create uniquely named log file.
 logfid, logpath = tempfile.mkstemp(suffix='.nodes.log', prefix=streamdata['uid'])
