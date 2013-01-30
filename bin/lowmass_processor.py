@@ -192,6 +192,5 @@ f.write(contents % {'gracedbcommand': gracedbcommand, 'uid': streamdata['uid']})
 f.close()
 
 # submit dag
-os.chdir(processor_gracedir)
 condorargs=['condor_submit_dag','lowmass_runner.dag']
 os.execlp('condor_submit_dag', *condorargs)
