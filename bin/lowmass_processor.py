@@ -186,8 +186,7 @@ PARENT DQ1 CHILD EMLABEL
 PARENT SKYPOINTS CHILD EMLABEL
 PARENT SKYPOINTS CHILD COINCDET
 """
-dagfile = "".join([processor_gracedir,'/lowmass_runner.dag'])
-f = open(dagfile,'w')
+f = open('lowmass_runner.dag','w')
 f.write(contents % {'gracedbcommand': gracedbcommand, 'uid': streamdata['uid']})
 f.close()
 
