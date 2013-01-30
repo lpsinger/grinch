@@ -157,8 +157,29 @@ Queue
 with open('coincdet.sub', 'w') as f:
     f.write(contents%{'script':coincdetscript,'coincfile':coincfile,'configfile':coincdetconfig,'uid':streamdata['uid']})
 
+## write localize.sub
+contents   = """\
+universe            = local
+
+executable          = /usr/bin/env
+arguments           = bayestar_localize_lvalert %(uid)s
+getenv              = True
+notification        = never
+
+error               = localize.err
+output              = localize.out
+
++LVAlertListen      = %(uid)s_localize
+
+Queue
+"""
+with open('localize.sub', 'w') as f:
+    f.write(contents%{'uid':streamdata['uid']})
+
 ## write lowmass_runner.dag
 contents = """\
+JOB LOCALIZE localize.sub
+
 JOB SKYPOINTS skypoints.sub
 SCRIPT PRE SKYPOINTS %(gracedbcommand)s log %(uid)s Sky localization started
 SCRIPT POST SKYPOINTS %(gracedbcommand)s log %(uid)s Sky localization complete
