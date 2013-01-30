@@ -7,7 +7,7 @@ import urlparse
 import re
 import ConfigParser
 
-from sys            import argv, exit, stdin
+from sys            import exit, stdin
 
 from subprocess	    import call
 
