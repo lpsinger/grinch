@@ -151,17 +151,15 @@ class ExtTrig:
         """ Search for coincident GW events happening within a window
             of [-tl, +th] seconds in gpstime """
         start, end = self.gpstime + tl, self.gpstime + th
-        arg = 'gracedb search %s..%d' % (start, end)
-        lines = os.popen(arg).readlines()
-        result = []
-
-        for line in lines: 
-            x = line.split()
-            result.append([x[j] for j in xrange(len(x))])
+        arg = '%s..%d' % (start, end)
+        result = gracedb.events(query=arg)
 
         # return list of graceids of coincident events
         if len(result) == 1: return []
-        else: return [result[i][0] for i in xrange(1,len(result))]
+        try: 
+            return [[event['graceid'],event['far']] for event in result]
+        except HTTPError:
+            return []
 
     # define special attributes for short- and long-duration GRB coincidence searches
     def short_search(self): 
@@ -174,9 +172,10 @@ class ExtTrig:
         else: 
             from GW import GraCE
             for i in xrange(len(result)):
-                gid = result[i]
-                message1 = "GW candidate found; <a href='http://gracedb.ligo.org/events/"
-                message1 += gid + "'>" + gid + "</a> within [-5,+1] seconds"
+                gid = result[i][0]
+                far = result[i][1]
+                message1 = "GW candidate found: <a href='http://gracedb.ligo.org/events/"
+                message1 += gid + "'>" + gid + "</a> with FAR = " + far + " within [-5,+1] seconds"
                 self.submit_gracedb_log(message1) # annotate GRB with news of discovery
                 message2 = "External trigger <a href='http://gracedb.ligo.org/events/" 
                 message2 += self.graceid + "'>" + self.name + "</a> within window [-5,+1] seconds"
@@ -195,9 +194,10 @@ class ExtTrig:
         else: 
             from GW import GraCE
             for i in xrange(len(result)):
-                gid = result[i]
+                gid = result[i][0]
+                far = result[i][1]
                 message1 = "GW candidate found; <a href='http://gracedb.ligo.org/events/"
-                message1 += gid + "'>" + gid + "</a> within [-120,+60] seconds"
+                message1 += gid + "'>" + gid + "</a> with FAR = " + far + " within [-120,+60] seconds"
                 self.submit_gracedb_log(message1) # annotate GRB with news of discovery
                 message2 = "External trigger <a href='http://gracedb.ligo.org/events/" 
                 message2 += self.graceid + "'>" + self.name + "</a> within window [-120,+60] seconds"
