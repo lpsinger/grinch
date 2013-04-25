@@ -1,0 +1,106 @@
+#!/usr/bin/env python
+
+"""
+Cross-correlate sky location probability maps for an external GRB trigger
+and a gravitational-wave candidate event
+"""
+__author__ = "Alex Urban <alexander.urban@ligo.org>"
+
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import numpy as np
+import healpy as hp
+import bayestar.plot as frakkin_cylons
+import matplotlib.mlab as ml
+import matplotlib.cm as cm
+from optparse import Option, OptionParser
+
+# read in options from command line
+opts, args = OptionParser(
+    description = __doc__,
+    usage = "%prog [options] [INPUT]",
+    option_list = [
+        Option("-o", "--output", metavar="FILE.{pdf,png}",
+            help="name of output file"),
+        Option("--skymap", metavar="FILE.fits",
+            help="name of HEALPix .fits file containing skymap of GW candidate"),
+        Option("--figure-width", type=float, default=12.,
+            help="width of figure in inches (default = 12 in.)"),
+        Option("--figure-height", type=float, default=12.,
+            help="height of figure in inches (default = 12 in.)"),
+        Option("-t","--trigger",metavar="FILE.fits",
+            help="name of HEALPix .fits file containing skymap of external trigger")
+    ]
+).parse_args()
+
+mpl.use('agg')
+
+grb_skymap = hp.read_map(opts.trigger)
+gw_skymap = hp.read_map(opts.skymap)
+
+nside = hp.npix2nside(len(gw_skymap))
+area = hp.nside2pixarea(nside, degrees=True) # area (in sq. degrees) of a pixel
+index = np.argmax(grb_skymap)
+th0, ph0 = hp.pix2ang(nside, index)
+
+def pdf_xcor(x,y):
+    """ PDF of a cross-correlation, assuming the spread in GRB sky location 
+        is very small compared to the GW distribution """
+    th, ph = abs(y*np.pi + th0), abs(x*2*np.pi + ph0)
+    n = hp.ang2pix(nside,th,ph)
+    return gw_skymap[n]/area
+
+vmax = max(gw_skymap)/area
+
+# produce a rectangular heatmap of the cross-correlation
+plt.figure(figsize=(opts.figure_width, opts.figure_height), frameon=False)
+ax = plt.subplot(111)
+
+# define a matrix and re-normalize
+x0 = np.arange(-ph0/(2*np.pi),1.005 - ph0/(2*np.pi),.005)
+y0 = np.arange(-th0/np.pi,1.005 - th0/np.pi,.005)
+H = np.array([[pdf_xcor(x0[i],y0[j]) for i in xrange(len(y0))] for j in xrange(len(x0))])
+H /= np.sum(H)
+
+# find contours
+lik = H.reshape(H.size)
+sortlik = np.sort(lik)
+
+sortlik = np.flipud(sortlik)
+ind = ml.find(np.cumsum(sortlik)>0.1) # 10% probability contour
+ind2 = ml.find(np.cumsum(sortlik)>0.5) # 50% probability contour
+ind3 = ml.find(np.cumsum(sortlik)>0.9) # 90% probability contour
+v = [sortlik[ind.min()],sortlik[ind2.min()],sortlik[ind3.min()]]
+
+# add contours
+cs = plt.contour(x0,y0,H,v,linewidths=2.0,linestyles=('-','--','-.'),colors=('k','k','k'))
+
+# generate heatmap plot
+X, Y = np.meshgrid(x0,y0)
+x = X.ravel()
+y = Y.ravel()
+z = H.ravel()
+plt.hexbin(x,y,z,cmap=cm.jet,bins=None)
+plt.axis([x0.min(),x0.max(),y0.min(),y0.max()])
+
+# insert color bar
+cb = frakkin_cylons.colorbar(vmax)
+cb.set_label(r'$\mathrm{prob.}$ $\mathrm{per}$ $\mathrm{deg}^2$')
+
+# mark the origin of lag space with an X
+plt.scatter([0],[0],s=80,c='g',marker='o')
+
+# make axes look pretty
+plt.xlabel(r'\Large$\mathrm{lag}$ $\Delta\varphi/2\pi$')
+plt.ylabel(r'\Large$\mathrm{lag}$ $\Delta\theta/\pi$')
+
+# add a legend for contours
+line1 = plt.Line2D([0,1],[0,0],color='k')
+line2 = plt.Line2D([0,1],[0,0],linestyle='--',color='k')
+line3 = plt.Line2D([0,1],[0,0],linestyle='-.',color='k')
+plt.legend((line1,line2,line3),('$\mathrm{10\%}$','$\mathrm{50\%}$','$\mathrm{90\%}$'),'best')
+
+# title & save figure
+plt.title(r'$\mathrm{Convolved}$ $\mathrm{probability}$ $\mathrm{distribution}$'
+ +' $P_{\mathrm{Astro}} = P_{\mathrm{GRB}}\star P_{\mathrm{GW}}$')
+plt.savefig(opts.output)
