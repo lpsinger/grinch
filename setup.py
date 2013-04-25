@@ -25,7 +25,7 @@ from distutils.core import setup
 
 
 setup(
-    name='lowmass-processor',
+    name='gdb-processor',
     version='1.0',
     author='Alex Urban',
     author_email='alexander.urban@ligo.org',
@@ -33,7 +33,17 @@ setup(
     license='GNU General Public License Version 3',
     scripts=[
         'gdb_processor/bin/lowmass_processor.py',
+        'gdb_processor/bin/exttrig_processor.py',
+        'gdb_processor/bin/dqtolabel.py',
+        'gdb_processor/bin/GRB.py',
+        'gdb_processor/bin/GW.py',
         'gdb_processor/bin/lvalertlisten',
-        'gdb_processor/etc/lowmass_config.ini'
+        'gdb_processor/bin/plot_allsky',
+        'gdb_processor/bin/plot_xcorrelate',
+        'gdb_processor/bin/lowmass_processor_test.py',
+        'gdb_processor/etc/lowmass_config.ini',
+        'gdb_processor/etc/coincdet.ini',
+        'gdb_processor/etc/lvalertconfig.ini',
+        'gdb_processor/etc/lvalertlisten.sub'
     ]
 )
