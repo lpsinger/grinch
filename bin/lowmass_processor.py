@@ -24,9 +24,8 @@ streamdata = get_LVAdata_from_stdin(stdin, as_dict=True)
 cp = ConfigParser.ConfigParser()
 cp.read('lowmass_config.ini')
 
-private_gracedir   = os.path.split(urlparse.urlparse(streamdata['file'])[2])[0]
-general_gracedir   = private_gracedir.replace('private','general')
-processor_gracedir = '/home/gdb_processor/working/ER3/%s'%streamdata['uid'] # "".join([general_gracedir,'/gdb_processor/'])
+home = os.getenv("HOME")
+processor_gracedir = home + '/working/GW/%s' % streamdata['uid']
 
 gracedbcommand     = cp.get('executable','gracedbcommand')
 dqwaitscript       = cp.get('executable','dqwaitscript')
