@@ -3,6 +3,7 @@
 __author__ = "Alex Urban <alexander.urban@ligo.org>"
 
 import os
+import ConfigParser
 
 from sys import stdin, exit
 from ligo.gracedb.rest import GraceDb
@@ -11,6 +12,12 @@ from ligo.lvalert.utils import get_LVAdata_from_stdin
 
 # initialize instance of gracedb rest API
 gracedb = GraceDb()
+
+# read in exttrig_config.ini
+cp = ConfigParser.ConfigParser()
+cp.read('exttrig_config.ini')
+
+coinc_search = cp.get('executable','coincscript')
 
 # create dictionary from gracedb table
 streamdata = get_LVAdata_from_stdin(stdin, as_dict=True)
