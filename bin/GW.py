@@ -8,6 +8,7 @@ __author__ = "Alex Urban <alexander.urban@ligo.org>"
 
 
 import os
+import ConfigParser
 import numpy as np
 import healpy as hp
 from ligo.gracedb.rest import GraceDb
@@ -16,6 +17,13 @@ from ligo.gracedb.rest import GraceDb
 # initiate instance of GraceDB server as a global variable
 gracedb = GraceDb()
 
+
+# read gw_config.ini
+cp = ConfigParser.ConfigParser()
+cp.read('gw_config.ini')
+
+plot_allsky = cp.get('executable','plotallskyscript')
+plot_xcorr  = cp.get('executable','plotxcorrscript')
 
 # define function for use later
 def get_fits(gw_event): 
@@ -42,16 +50,16 @@ class GraCE:
         """ Produces an all-sky map for this GW candidate
             indicating the external trigger, then uploads
             to GraceDB """
-        os.system('plot_allsky --output=' + self.allsky + ' --skymap=' 
-            + self.fits + ' --trigger=' + grb_fits)
+        os.system('%(plot_allsky) --output=%(self.allsky) --skymap=' 
+            + '%(self.fits) --trigger=%(grb_fits)')
         gracedb.writeFile(self.graceid,self.allsky,filecontents='All-sky map with external trigger')
 
     def plot_xcor(self, grb_fits):
         """ Produces a rectangular heatmap of the 'convolved' probability 
             distribution for X-Y, where X is the ext trigger sky location
             and Y that of the GW candidate event, then uploads to GraceDB """
-        os.system('plot_xcorrelate --output=' + self.posterior + ' --skymap=' 
-            + self.fits + ' --trigger=' + grb_fits)
+        os.system('%(plot_xcorrelate) --output=%(self.posterior) --skymap=' 
+            + '%(self.fits) --trigger=%(grb_fits)')
         gracedb.writeFile(self.graceid,self.posterior,filecontents='Cross-correlation heatmap')
 
     def submit_gracedb_log(self, message):
