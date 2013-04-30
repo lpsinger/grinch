@@ -10,9 +10,11 @@ __author__ = "Alex Urban <alexander.urban@ligo.org>"
 import numpy as np
 import healpy as hp
 import dateutil.parser as dip
-import os, json
+import os
 from xml.dom.minidom import parseString as ps
 from ligo.gracedb.rest import GraceDb
+import VOEventLib.VOEvent
+import VOEventLib.Vutil
 
 
 # initiate instance of GraceDB server as a global variable
@@ -34,84 +36,53 @@ def pdf(n, nside, theta0, phi0, err):
     s2 = abs(np.sin(s1))
     return normal(ph, phi0, s1)*normal(-np.cos(th),-np.cos(theta0),s2)*np.sin(th)
 
-def SkyLoc(voevent):
-    """ Returns sky location of trigger in RA and dec,
-        given the trigger's parsed VOEvent file """
-
-    # get elements with the relevant tag name
-    RA_tag = voevent.getElementsByTagName('C1')[0].toxml()
-    dec_tag = voevent.getElementsByTagName('C2')[0].toxml()
-
-    # exterminate tags from these strings
-    RA_st = RA_tag.replace('<C1>','').replace('</C1>','')
-    dec_st = dec_tag.replace('<C2>','').replace('</C2>','')
-
-    # convert these strings into numerical values
-    RA = float(RA_st)
-    dec = float(dec_st)
-    return RA, dec
-
-def err(voevent):
-    """ Returns error radius of trigger sky location in degrees, 
-        given the trigger's parsed VOEvent file """
-
-    # get element with the relevant tag name
-    err_tag = voevent.getElementsByTagName('Error2Radius')[0].toxml()
-
-    # exterminate tags from this string
-    err_st = err_tag.replace('<Error2Radius>','').replace('</Error2Radius>','')
-
-    # convert this string into numerical values
-    err = float(err_st)
-    return err
-
-def GPS_time(voevent):
+def GPS_time(wwd):
     """ Returns GPSTime of the external trigger in UTC format,
         given the trigger's parsed VOEvent file """
 
-    # get element with the relevant tag name
-    iso_tag = voevent.getElementsByTagName('ISOTime')[0].toxml()
-        
-    # exterminate tags from this string
-    iso_st = iso_tag.replace('<ISOTime>','').replace('</ISOTime>','')
+    # get UTC time of the trigger
+    iso_st = wwd['time']
 
     # convert ISO time to GPS time
     iso_st = dip.parse(iso_st).strftime("%B %d %Y %H:%M:%S")
     gps = int(os.popen('lalapps_tconvert '+iso_st).readline().replace('\n',''))
     return gps
 
-def instrument(voevent):
-    """ Returns name of instrument that detected the external trigger,
+def stream(voevent):
+    """ Returns name of event stream that detected the external trigger,
         given the trigger's parsed VOEvent file """
 
-    # get element with the relevant tag name
-    ins_tag = voevent.getElementsByTagName('Description')[0].toxml()
+    role = voevent.get_role() # observation, test, or utility
 
-    # exterminate tags from this string
-    ins_st = ins_tag.replace('<Description>','').replace('</Description>','')
+    ivorn = voevent.get_ivorn() # get the identifier of the event
+
+    # get the part of the ivorn that is the stream identifier
+    streamIvorn = ivorn.split('#')[0]
+
+    # get element with the relevant tag name
+    ins_tag = streamIvorn + ' ' + role
+
     return ins_st
 
 
 # define the external trigger object class
 class ExtTrig:
     """ Instance of an external trigger event (i.e. gamma-ray burst) """
-    def __init__(self, xml):
-        self.name = os.path.splitext(xml)[0] # standard GRB designation
-        self.xml = xml # name of VOEvent .xml file accompanying the GRB
+    def __init__(self, graceid, xml):
+        self.graceid = graceid
+        self.xml = xml # standard GRB designation
+        self.name = os.path.splitext(xml)[0] # name of VOEvent .xml file accompanying the GRB
 
-        self.__file = open(xml,'r') # open and read input xml file
-        self.data = self.__file.read()
-        self.__file.close() # close xml (it is no longer needed)
+        self.voevent = VOEventLib.Vutil.parse(xml) # parsed VOEvent informations
+        wwd = VOEventLib.Vutil.getWhereWhen(self.voevent)
+        self.RA, self.dec = wwd['longitude'], wwd['latitude'] # right ascention, declination
 
-        self.voevent = ps(self.data) # parsed VOEvent informations
-        self.RA, self.dec = SkyLoc(self.voevent) # right ascention, declination
-        self.err_rad = err(self.voevent) # error radius
+        self.err_rad = wwd['positionalError'] # error radius
 
-        self.gpstime = GPS_time(self.voevent) # time of event in GPS format
-        self.inst = instrument(self.voevent) # instrument that detected the event
+        self.gpstime = GPS_time(wwd) # time of event in GPS format
+        self.inst = stream(self.voevent) # instrument that detected the event
 
         self.fits = self.name+'.fits' # name of .fits file for this event
-        self.graceid = ''
 
     def write_fits(self):
         """ Given sky location and error radius of an external trigger 
@@ -133,13 +104,6 @@ class ExtTrig:
         trig_map /= np.sum(trig_map) # normalize
         hp.write_map(self.fits,trig_map) # write trigger skymap to .fits
 
-    def upload(self):
-        r = gracedb.createEvent("Test","GRB", self.xml).json() # create GraceDB event
-        self.graceid = r['graceid'] # get graceid of the new event
-
-        gracedb.writeLog(self.graceid,'This event detected with '+self.inst) # brief annotation
-
-        self.write_fits() # write to a .fits file, tar it, and upload it
         os.system('tar -czf ' + self.fits + '.gz ' + self.fits)
         gracedb.writeFile(self.graceid,self.fits+'.gz')
 
@@ -155,7 +119,7 @@ class ExtTrig:
         result = gracedb.events(query=arg)
 
         # return list of graceids of coincident events
-        if len(result) == 1: return []
+        if len(list(result)) == 0: return []
         try: 
             return [[event['graceid'],event['far']] for event in result]
         except HTTPError:
