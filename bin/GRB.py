@@ -11,7 +11,6 @@ import numpy as np
 import healpy as hp
 import dateutil.parser as dip
 import os
-from xml.dom.minidom import parseString as ps
 from ligo.gracedb.rest import GraceDb
 import VOEventLib.VOEvent
 import VOEventLib.Vutil
