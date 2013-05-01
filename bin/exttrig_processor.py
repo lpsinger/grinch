@@ -18,7 +18,7 @@ from glue.ligolw     import utils
 from glue.ligolw     import table
 from glue.ligolw     import lsctables
 from ligo.lvalert.utils import get_LVAdata_from_stdin
-from ligo.gracedb.rest import GraceDb()
+from ligo.gracedb.rest import GraceDb
 
 
 # initialize instance of gracedb rest API
