@@ -7,7 +7,7 @@ __author__ = "Alex Urban <alexander.urban@ligo.org>"
 
 import os
 
-from GRB import gracedb, ExtTrig
+from GRB import ExtTrig
 from optparse import Option, OptionParser
 
 
@@ -22,7 +22,6 @@ opts, args = OptionParser(
 ).parse_args()
 
 # get info
-gracedb.files(opts.graceid,filename=opts.xml)
 trig = ExtTrig(opts.graceid,opts.xml)
 trig.write_fits()
 
@@ -39,14 +38,13 @@ trig.submit_gracedb_log(note)
 coincs = trig.short_search()
 if coincs != []: # produce plots and skymaps if there is a non-null result
     from GW import GraCE
+    from workflow_helper import directory
     for i in xrange(len(coincs)):
         trigdir = os.getcwd() + '/'
         trigfits = trigdir + trig.fits # will need the path to this file
 
-        working2 = home + '/working/GW/' + coincs[i][0]
-        test2 = os.path.exists(working2)
-        if test2 == False: os.mkdir(working2)
-        os.chdir(working2) # move to GW event working directory
+        working = directory(coincs[i][0])
+        working.build_and_move() # move to GW event working directory
 
         event = GraCE(coincs[i][0]) # initialize object of class GW
         event.plot_trig(trigfits) # plot and upload skymap with trigger
