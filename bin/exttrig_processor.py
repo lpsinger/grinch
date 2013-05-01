@@ -3,13 +3,22 @@
 __author__ = "Alex Urban <alexander.urban@ligo.org>"
 
 import os
+import os.path
 import tempfile
+import urlparse
+import re
 import ConfigParser
+import shutil
 
-from sys import stdin, exit
+from sys             import exit, stdin
+
 from workflow_helper import directory
-from ligo.gracedb.rest import GraceDb
+from glue.ligolw     import ligolw
+from glue.ligolw     import utils
+from glue.ligolw     import table
+from glue.ligolw     import lsctables
 from ligo.lvalert.utils import get_LVAdata_from_stdin
+from ligo.gracedb.rest import GraceDb()
 
 
 # initialize instance of gracedb rest API
