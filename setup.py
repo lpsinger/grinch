@@ -44,6 +44,6 @@ setup(
         'bin/coinc_search',
         'bin/lowmass_processor_test.py'
     ],
-    data_files=[('etc',['etc/lowmass_config.ini','etc/exttrig_config.ini','etc/gw_config.ini',
+    data_files=[('etc',['etc/lowmass_config.ini','etc/exttrig_config.ini',
         'etc/coincdet.ini','etc/lvalertconfig.ini','etc/lvalertlisten.sub'])]
 )
