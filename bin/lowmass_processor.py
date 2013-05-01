@@ -8,24 +8,24 @@ import re
 import ConfigParser
 import shutil
 
-from sys            import exit, stdin
+from sys             import exit, stdin
 
-from glue.ligolw    import ligolw
-from glue.ligolw    import utils
-from glue.ligolw    import table
-from glue.ligolw    import lsctables
+from workflow_helper import directory
+from glue.ligolw     import ligolw
+from glue.ligolw     import utils
+from glue.ligolw     import table
+from glue.ligolw     import lsctables
 from ligo.lvalert.utils import get_LVAdata_from_stdin
 import ligo.gracedb.rest
+
 
 ## create dict from gracedb table
 streamdata = get_LVAdata_from_stdin(stdin, as_dict=True)
 
+
 ## read lowmass_config.ini
 cp = ConfigParser.ConfigParser()
 cp.read('lowmass_config.ini')
-
-home = os.getenv("HOME")
-processor_gracedir = home + '/working/GW/%s' % streamdata['uid']
 
 gracedbcommand     = cp.get('executable','gracedbcommand')
 dqwaitscript       = cp.get('executable','dqwaitscript')
@@ -38,14 +38,11 @@ ranksfile          = cp.get('skypoints','ranksfile')
 gridsfile          = cp.get('skypoints','gridsfile')
 coincdetconfig     = cp.get('coincdet','configfile')
 
-## gdb_processor directory on gracedb
-try:
-     os.makedirs(processor_gracedir)
-except OSError:
-     print 'Could not make directory %s'%processor_gracedir
-     pass
 
-os.chdir(processor_gracedir)
+# build and move to a unique working directory
+working = directory(streamdata['uid'])
+working.build_and_move()
+
 
 ## if labeled EM_READY
 if streamdata['alert_type'] == 'label' and streamdata['description'] == 'EM_READY':
@@ -64,7 +61,7 @@ else:
 ## extract information about the event
 if re.search('.xml',streamdata['file']):
      coincfile = urlparse.urlparse(streamdata['file'])[2]
-else: # download coinc file from gracedb web client; stick it in processor_gracedir
+else: # download coinc file from gracedb web client; stick it in the working directory
     gracedb_client = ligo.gracedb.rest.GraceDb()
     remote_file = gracedb_client.files(streamdata['uid'], 'coinc.xml')
     with open('coinc.xml', 'w') as local_file:
@@ -174,6 +171,7 @@ Queue
 """
 with open('localize.sub', 'w') as f:
     f.write(contents%{'uid':streamdata['uid']})
+
 
 ## write lowmass_runner.dag
 contents = """\
