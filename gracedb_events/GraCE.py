@@ -34,7 +34,7 @@ def get_fits(gw_event):
 
 
 # define the gravitational-wave candidate event object class
-class GraCE:
+class GW:
     """ Instance of a gravitational-wave candidate event """
     def __init__(self, graceid):
         self.graceid = graceid # graceid of GW candidate

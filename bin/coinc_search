@@ -7,7 +7,7 @@ __author__ = "Alex Urban <alexander.urban@ligo.org>"
 
 import os
 
-from GRB import ExtTrig
+from gracedb_events.ExtTrig import GRB
 from optparse import Option, OptionParser
 
 
@@ -22,7 +22,7 @@ opts, args = OptionParser(
 ).parse_args()
 
 # get info
-trig = ExtTrig(opts.graceid,opts.xml)
+trig = GRB(opts.graceid,opts.xml)
 trig.write_fits()
 
 # inform GraCEDb things are about to go down
@@ -37,7 +37,7 @@ trig.submit_gracedb_log(note)
 # first, the short-duration search
 coincs = trig.short_search()
 if coincs != []: # produce plots and skymaps if there is a non-null result
-    from GW import GraCE
+    from gracedb_events.GraCE import GW
     from workflow_helper import directory
     for i in xrange(len(coincs)):
         trigdir = os.getcwd() + '/'
@@ -46,7 +46,7 @@ if coincs != []: # produce plots and skymaps if there is a non-null result
         working = directory(coincs[i][0])
         working.build_and_move() # move to GW event working directory
 
-        event = GraCE(coincs[i][0]) # initialize object of class GW
+        event = GW(coincs[i][0]) # initialize object of class GW
         event.plot_trig(trigfits) # plot and upload skymap with trigger
         event.plot_xcor(trigfits) # plot and upload cross-correlation
 

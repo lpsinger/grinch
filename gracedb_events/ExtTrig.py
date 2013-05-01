@@ -65,7 +65,7 @@ def stream(voevent):
 
 
 # define the external trigger object class
-class ExtTrig:
+class GRB:
     """ Instance of an external trigger event (i.e. gamma-ray burst) """
     def __init__(self, graceid, xml):
         self.graceid = graceid
