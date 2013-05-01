@@ -1,5 +1,7 @@
 #!/usr/bin/env python
-
+"""
+Helper module to handle workflow directory structure
+"""
 __author__ = "Alex Urban <alexander.urban@ligo.org>"
 
 import os
