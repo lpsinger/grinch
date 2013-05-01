@@ -25,7 +25,9 @@ streamdata = get_LVAdata_from_stdin(stdin, as_dict=True)
 
 ## read lowmass_config.ini
 cp = ConfigParser.ConfigParser()
-cp.read('lowmass_config.ini')
+home = os.getenv("HOME")
+etc = home + '/opt/etc/'
+cp.read(etc+'lowmass_config.ini')
 
 gracedbcommand     = cp.get('executable','gracedbcommand')
 dqwaitscript       = cp.get('executable','dqwaitscript')

@@ -3,20 +3,12 @@
 __author__ = "Alex Urban <alexander.urban@ligo.org>"
 
 import os
-import os.path
 import tempfile
-import urlparse
-import re
 import ConfigParser
-import shutil
 
 from sys             import exit, stdin
 
 from workflow_helper import directory
-from glue.ligolw     import ligolw
-from glue.ligolw     import utils
-from glue.ligolw     import table
-from glue.ligolw     import lsctables
 from ligo.lvalert.utils import get_LVAdata_from_stdin
 from ligo.gracedb.rest import GraceDb
 
@@ -24,12 +16,16 @@ from ligo.gracedb.rest import GraceDb
 # initialize instance of gracedb rest API
 gracedb = GraceDb()
 
+
 # read in exttrig_config.ini
 cp = ConfigParser.ConfigParser()
-cp.read('exttrig_config.ini')
+home = os.getenv("HOME")
+etc = home + '/opt/etc/'
+cp.read(etc+'exttrig_config.ini')
 
 gracedbcommand = cp.get('executable','gracedbcommand')
 coinc_search   = cp.get('executable','coincscript')
+
 
 # create dictionary from gracedb table
 streamdata = get_LVAdata_from_stdin(stdin, as_dict=True)
@@ -39,6 +35,7 @@ if streamdata['alert_type'] == 'new':
     pass
 else: # if not, do nothing
      exit()
+
 
 # create working directory for the trigger and move to it
 working = directory(streamdata['uid'])

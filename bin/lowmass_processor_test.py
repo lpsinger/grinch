@@ -42,7 +42,9 @@ else:
 
 ## read lowmass_config.ini
 cp = ConfigParser.ConfigParser()
-cp.read('lowmass_config.ini')
+home = os.getenv("HOME")
+etc = home + '/opt/etc/'
+cp.read(etc+'lowmass_config.ini')
 
 homedir            = os.getcwd()
 private_gracedir   = os.path.split(urlparse.urlparse(streamdata['file'])[2])[0]
