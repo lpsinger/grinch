@@ -3,9 +3,11 @@
 __author__ = "Alex Urban <alexander.urban@ligo.org>"
 
 import os
+import tempfile
 import ConfigParser
 
 from sys import stdin, exit
+from workflow_helper import directory
 from ligo.gracedb.rest import GraceDb
 from ligo.lvalert.utils import get_LVAdata_from_stdin
 
@@ -17,7 +19,8 @@ gracedb = GraceDb()
 cp = ConfigParser.ConfigParser()
 cp.read('exttrig_config.ini')
 
-coinc_search = cp.get('executable','coincscript')
+gracedbcommand = cp.get('executable','gracedbcommand')
+coinc_search   = cp.get('executable','coincscript')
 
 # create dictionary from gracedb table
 streamdata = get_LVAdata_from_stdin(stdin, as_dict=True)
@@ -25,21 +28,58 @@ streamdata = get_LVAdata_from_stdin(stdin, as_dict=True)
 # test whether this event is new
 if streamdata['alert_type'] == 'new':
     pass
-else:
+else: # if not, do nothing
      exit()
 
-# create working directory for the trigger
-home = os.getenv("HOME")
-working = home + '/working/ExtTrig/%s' % streamdata['uid']
-try:
-    os.mkdir(working)
-except OSError:
-    print 'Could not make directory %s' % working
-    pass
+# create working directory for the trigger and move to it
+working = directory(streamdata['uid'])
+working.build_and_move()
 
-# change current working directory
-os.chdir(working)
+# grab the VOEvent .xml file from gracedb
+voevent = streamdata['file'] 
+gracedb.files(streamdata['uid'],filename=voevent)
 
-# get info
-xml = streamdata['file'] # CLEAN THIS UP; THIS IS WHERE YOU LEFT OFF
-gracedb.files(streamdata['uid'],filename=xml)
+
+##############################
+## PRODUCE CONDOR SUB FILES ##
+##############################
+
+# write coinc_search.sub
+contents   = """\
+universe            = local
+
+executable          = %(script)s
+arguments           = --graceid=%(uid)s --xml=%(voevent)s
+getenv              = True
+notification        = never
+
+output              = coinc_search.out
+error               = coinc_search.error
+
+Queue
+"""
+with open('coinc_search.sub', 'w') as f:
+    f.write(contents%{'script':coinc_search,'uid':streamdata['uid'],'voevent':voevent})
+
+
+#################################
+## WRITE CONDOR DAG AND SUBMIT ##
+#################################
+
+contents = """\
+JOB COINCSEARCH coinc_search.sub
+
+"""
+with open('exttrig_runner.dag', 'w') as f:
+    f.write(contents % {'gracedbcommand': gracedbcommand, 'uid': streamdata['uid']})
+
+# Create uniquely named log file.
+logfid, logpath = tempfile.mkstemp(suffix='.nodes.log', prefix=streamdata['uid'])
+
+# Set environment variable telling condor to use this log file
+# for communication with nodes.
+os.environ['_CONDOR_DAGMAN_DEFAULT_NODE_LOG'] = logpath
+
+# submit dag
+condorargs=['condor_submit_dag','exttrig_runner.dag']
+os.execlp('condor_submit_dag', *condorargs)
