@@ -26,29 +26,24 @@ from distutils.core import setup
 
 setup(
     name='gdb-processor',
-    version='0.1',
+    version='1.0',
     url='http://gracedb.ligo.org',
     author='Alex Urban',
     author_email='alexander.urban@ligo.org',
     description='Coordinate between LV alerts, gracedb, and condor job submission automatically; for specifics see README',
     license='GNU General Public License Version 3',
+    packages=['gracedb_events'],
+    py_modules=['workflow_helper'],
     scripts=[
-        'gdb_processor/bin/lowmass_processor.py',
-        'gdb_processor/bin/exttrig_processor.py',
-        'gdb_processor/bin/dqtolabel.py',
-        'gdb_processor/bin/GRB.py',
-        'gdb_processor/bin/GW.py',
-        'gdb_processor/bin/workflow_helper.py',
-        'gdb_processor/bin/lvalertlisten',
-        'gdb_processor/bin/plot_allsky',
-        'gdb_processor/bin/plot_xcorrelate',
-        'gdb_processor/bin/coinc_search',
-        'gdb_processor/bin/lowmass_processor_test.py',
-        'gdb_processor/etc/lowmass_config.ini',
-        'gdb_processor/etc/exttrig_config.ini',
-        'gdb_processor/etc/gw_config.ini',
-        'gdb_processor/etc/coincdet.ini',
-        'gdb_processor/etc/lvalertconfig.ini',
-        'gdb_processor/etc/lvalertlisten.sub'
-    ]
+        'bin/lowmass_processor.py',
+        'bin/exttrig_processor.py',
+        'bin/dqtolabel.py',
+        'bin/lvalertlisten',
+        'bin/plot_allsky',
+        'bin/plot_xcorrelate',
+        'bin/coinc_search',
+        'bin/lowmass_processor_test.py'
+    ],
+    data_files=[('etc',['etc/lowmass_config.ini','etc/exttrig_config.ini','etc/gw_config.ini',
+        'etc/coincdet.ini','etc/lvalertconfig.ini','etc/lvalertlisten.sub']]
 )
