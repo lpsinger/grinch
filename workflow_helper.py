@@ -13,21 +13,13 @@ class directory:
     """ Instance of a working directory integrated into the workflow """
     def __init__(self, graceid):
         self.graceid = graceid # unique ID of event in GraCEDb
-        self.char = graceid[:1] # first character of graceid
-
-        # unpack event type
-        if self.char == 'G':
-            self.event_type = 'GW_Candidate'
-        elif self.char == 'E':
-            self.event_type = 'ExtTrig'
-        else:
-            self.event_type = 'Test'
+        self.event_type = graceid[:1] # first character of graceid encodes event type
 
         # organize events so that no more than 1000 live in one directory
         self.millenium = self.graceid[1:-3] + '000'
 
     def build_and_move(self):
-        """ Method that actually builds the working directory """
+        """ Method that builds, and then moves to, the working directory """
         # try to build directory ${HOME}/working
         try:
             os.mkdir(home+'/working')
