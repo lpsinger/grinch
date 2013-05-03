@@ -1,0 +1,57 @@
+#!/usr/bin/env python
+
+"""
+Script to execute temporal coincidence search given an external trigger
+"""
+__author__ = "Alex Urban <alexander.urban@ligo.org>"
+
+import os
+
+from gracedb_events.ExtTrig import GRB
+from optparse import Option, OptionParser
+
+
+# read in options from command line
+opts, args = OptionParser(
+    description = __doc__,
+    usage = "%prog [options] [INPUT]",
+    option_list = [
+        Option("-g","--graceid",help="graceid of external trigger event"),
+        Option("-x","--xml",metavar="FILE.xml",help="VOEvent .xml file of external trigger")
+    ]
+).parse_args()
+
+# get info
+trig = GRB(opts.graceid,opts.xml)
+trig.write_fits()
+
+# inform GraCEDb things are about to go down
+note = 'Initiating coincidence search'
+trig.submit_gracedb_log(note)
+
+
+#####################################
+# initiate the coincidence searches #
+#####################################
+
+# first, the short-duration search
+coincs = trig.short_search()
+if coincs != []: # produce plots and skymaps if there is a non-null result
+    from gracedb_events.GraCE import GW
+    from workflow_helper import directory
+    for i in xrange(len(coincs)):
+        trigdir = os.getcwd() + '/'
+        trigfits = trigdir + trig.fits # will need the path to this file
+
+        working = directory(coincs[i][0])
+        working.build_and_move() # move to GW event working directory
+
+        event = GW(coincs[i][0]) # initialize object of class GW
+        event.plot_trig(trigfits) # plot and upload skymap with trigger
+        event.plot_xcor(trigfits) # plot and upload cross-correlation
+
+# finally, the long-duration search
+coincs2 = trig.long_search()
+
+note2 = 'Coincidence search complete'
+trig.submit_gracedb_log(note2)
