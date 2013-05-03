@@ -7,7 +7,7 @@ __author__ = "Alex Urban <alexander.urban@ligo.org>"
 
 import os
 
-from gracedb_events.ExtTrig import GRB
+from gracedb_events.exttrig import GRB
 from optparse import Option, OptionParser
 
 
@@ -37,7 +37,7 @@ trig.submit_gracedb_log(note)
 # first, the short-duration search
 coincs = trig.short_search()
 if coincs != []: # produce plots and skymaps if there is a non-null result
-    from gracedb_events.GraCE import GW
+    from gracedb_events.grace import GW
     from workflow_helper import directory
     for i in xrange(len(coincs)):
         trigdir = os.getcwd() + '/'
