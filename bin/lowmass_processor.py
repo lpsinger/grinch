@@ -10,7 +10,7 @@ import shutil
 
 from sys             import exit, stdin
 
-from workflow_helper import directory
+from workflow_helper import directory, home
 from glue.ligolw     import ligolw
 from glue.ligolw     import utils
 from glue.ligolw     import table
@@ -25,7 +25,6 @@ streamdata = get_LVAdata_from_stdin(stdin, as_dict=True)
 
 ## read lowmass_config.ini
 cp = ConfigParser.ConfigParser()
-home = os.getenv("HOME")
 etc = home + '/opt/etc/'
 cp.read(etc+'lowmass_config.ini')
 

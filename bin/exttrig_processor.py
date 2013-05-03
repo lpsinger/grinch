@@ -8,7 +8,7 @@ import ConfigParser
 
 from sys             import exit, stdin
 
-from workflow_helper import directory
+from workflow_helper import directory, home
 from ligo.lvalert.utils import get_LVAdata_from_stdin
 from ligo.gracedb.rest import GraceDb
 
@@ -19,7 +19,6 @@ gracedb = GraceDb()
 
 # read in exttrig_config.ini
 cp = ConfigParser.ConfigParser()
-home = os.getenv("HOME")
 etc = home + '/opt/etc/'
 cp.read(etc+'exttrig_config.ini')
 
