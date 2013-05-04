@@ -1,57 +1,79 @@
 #!/usr/bin/env python
 
 """
-Script to execute temporal coincidence search given an external trigger
+Script to manage starting, stopping, and monitoring of the 
+LV alert listening process an related tasks on gdb_processor
 """
 __author__ = "Alex Urban <alexander.urban@ligo.org>"
 
+import argparse
 import os
 
-from gracedb_events.ExtTrig import GRB
-from optparse import Option, OptionParser
+from sys import exit
 
+# define and parse command-line arguments
+parser = argparse.ArgumentParser(description='Manage the gdb_processor workflow.')
+parser.add_argument('command', choices=['start', 'status', 'stop'],
+        help='start, stop or status of gdb_processor tasks')
+args = parser.parse_args()
 
-# read in options from command line
-opts, args = OptionParser(
-    description = __doc__,
-    usage = "%prog [options] [INPUT]",
-    option_list = [
-        Option("-g","--graceid",help="graceid of external trigger event"),
-        Option("-x","--xml",metavar="FILE.xml",help="VOEvent .xml file of external trigger")
-    ]
-).parse_args()
+# store the name of the home directory as a global variable
+home = os.getenv("HOME")
 
-# get info
-trig = GRB(opts.graceid,opts.xml)
-trig.write_fits()
+# switch to the working directory
+try: 
+    os.chdir(home+'/working')
+except OSError:
+    os.mkdir(home+'/working')
+    os.mkdir(home+'/working/log')
+    os.chdir(home+'/working')
+    pass
 
-# inform GraCEDb things are about to go down
-note = 'Initiating coincidence search'
-trig.submit_gracedb_log(note)
+# if run with argument 'start,' write and submit condor .sub file 
+if args.command == 'start':
+    contents = """\
+#this is the submit file to condor for lvalert
 
+universe            = local
 
-#####################################
-# initiate the coincidence searches #
-#####################################
+executable          = lvalertlisten
+getenv              = True
+notification        = never
+environment         = DISPLAY=localhost:10.0
 
-# first, the short-duration search
-coincs = trig.short_search()
-if coincs != []: # produce plots and skymaps if there is a non-null result
-    from gracedb_events.GraCE import GW
-    from workflow_helper import directory
-    for i in xrange(len(coincs)):
-        trigdir = os.getcwd() + '/'
-        trigfits = trigdir + trig.fits # will need the path to this file
+## add attribute""" + r"""
+## condor_q -format "%s " Owner -format "%s " ClusterId -format "%s\n" lvalert_listen
++LVAlertListen      = "gdb_processor lvalert_listen"
 
-        working = directory(coincs[i][0])
-        working.build_and_move() # move to GW event working directory
+log                 = log/lvalertlisten.$(Process).log 
+output              = log/lvalertlisten.$(Process).out
+error               = log/lvalertlisten.$(Process).error
 
-        event = GW(coincs[i][0]) # initialize object of class GW
-        event.plot_trig(trigfits) # plot and upload skymap with trigger
-        event.plot_xcor(trigfits) # plot and upload cross-correlation
+Queue
+"""
+    with open('lvalertlisten.sub', 'w') as f:
+        f.write(contents)
+    condorargs = ['condor_submit','lvalertlisten.sub']
+    os.execlp('condor_submit', *condorargs)
+    print 'I am now listening for alerts.'
+    exit()
 
-# finally, the long-duration search
-coincs2 = trig.long_search()
+# if run with argument 'status', print a short summary of the job to screen
+elif args.command == 'status':
+    user = os.getenv("USER")
+    condorargs = ['condor_q','-sub '+user]
+    os.execlp('condor_q', *condorargs)
+    exit()
 
-note2 = 'Coincidence search complete'
-trig.submit_gracedb_log(note2)
+# if run with argument 'stop', kill the lvalertlisten job
+elif args.command == 'stop':
+    exterminate = raw_input('Are you sure?? This will kill all condor jobs for this user... [y/n] ')
+    if exterminate == 'y' or exterminate == 'yes': 
+        print 'Righty-ho then. Exterminate!'
+        user = os.getenv("USER")
+        condorargs = ['condor_rm',user]
+        os.execlp('condor_rm', *condorargs)
+        exit()
+    else:
+        print 'I thought as much!'
+        exit()
