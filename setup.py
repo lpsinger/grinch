@@ -30,11 +30,12 @@ setup(
     url='http://gracedb.ligo.org',
     author='Alex Urban',
     author_email='alexander.urban@ligo.org',
-    description='Coordinate between LV alerts, gracedb, and condor job submission automatically; for specifics see README',
+    description='Coordinate between LV alerts, gracedb, and condor job submission automatically',
     license='GNU General Public License Version 3',
     packages=['gracedb_events'],
     py_modules=['workflow_helper'],
     scripts=[
+        'bin/gdb_processor',
         'bin/lowmass_processor.py',
         'bin/exttrig_processor.py',
         'bin/dqtolabel.py',
@@ -45,5 +46,5 @@ setup(
         'bin/lowmass_processor_test.py'
     ],
     data_files=[('etc',['etc/lowmass_config.ini','etc/exttrig_config.ini',
-        'etc/lvalertconfig.ini','etc/lvalertlisten.sub'])]
+        'etc/lvalertconfig.ini'])]
 )
