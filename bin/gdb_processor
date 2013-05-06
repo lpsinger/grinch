@@ -36,7 +36,7 @@ if args.command == 'start':
 
 universe            = local
 
-executable          = lvalertlisten
+executable          = ${HOME}/opt/bin/lvalertlisten
 getenv              = True
 notification        = never
 environment         = DISPLAY=localhost:10.0
@@ -61,7 +61,7 @@ Queue
 # if run with argument 'status', print a short summary of the job to screen
 elif args.command == 'status':
     user = os.getenv("USER")
-    condorargs = ['condor_q','-sub '+user]
+    condorargs = ['condor_q','-sub',user]
     os.execlp('condor_q', *condorargs)
     exit()
 
