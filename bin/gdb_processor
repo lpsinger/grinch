@@ -36,7 +36,7 @@ if args.command == 'start':
 
 universe            = local
 
-executable          = ${HOME}/opt/bin/lvalertlisten
+executable          = %(home)s/opt/bin/lvalertlisten
 getenv              = True
 notification        = never
 environment         = DISPLAY=localhost:10.0
@@ -52,7 +52,7 @@ error               = log/lvalertlisten.$(Cluster).error
 Queue
 """
     with open('lvalertlisten.sub', 'w') as f:
-        f.write(contents)
+        f.write(contents%{'home':home})
     condorargs = ['condor_submit','lvalertlisten.sub']
     os.execlp('condor_submit', *condorargs)
     print 'I am now listening for alerts.'
