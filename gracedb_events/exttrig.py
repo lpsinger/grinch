@@ -61,7 +61,7 @@ def stream(voevent):
     # get element with the relevant tag name
     ins_tag = streamIvorn + ' ' + role
 
-    return ins_st
+    return ins_tag
 
 
 # define the external trigger object class
