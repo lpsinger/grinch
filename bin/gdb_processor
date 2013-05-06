@@ -45,9 +45,9 @@ environment         = DISPLAY=localhost:10.0
 ## condor_q -format "%s " Owner -format "%s " ClusterId -format "%s\n" lvalert_listen
 +LVAlertListen      = "gdb_processor lvalert_listen"
 
-log                 = log/lvalertlisten.$(Process).log 
-output              = log/lvalertlisten.$(Process).out
-error               = log/lvalertlisten.$(Process).error
+log                 = log/lvalertlisten.$(Cluster).log 
+output              = log/lvalertlisten.$(Cluster).out
+error               = log/lvalertlisten.$(Cluster).error
 
 Queue
 """
