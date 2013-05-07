@@ -42,8 +42,7 @@ setup(
         'bin/lvalertlisten',
         'bin/plot_allsky',
         'bin/plot_xcorrelate',
-        'bin/coinc_search',
-        'bin/lowmass_processor_test.py'
+        'bin/coinc_search'
     ],
     data_files=[('etc',['etc/lowmass_config.ini','etc/exttrig_config.ini',
         'etc/lvalertconfig.ini'])]
