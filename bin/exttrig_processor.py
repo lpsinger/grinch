@@ -1,12 +1,14 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 
 __author__ = "Alex Urban <alexander.urban@ligo.org>"
 
 import os
 import tempfile
+import urlparse
 import ConfigParser
 
 from sys             import exit, stdin
+from string          import split
 
 from workflow_helper import directory, home
 from ligo.lvalert.utils import get_LVAdata_from_stdin
@@ -41,8 +43,8 @@ working = directory(streamdata['uid'])
 working.build_and_move()
 
 # grab the VOEvent .xml file from gracedb
-voevent = streamdata['file'] 
-gracedb.files(streamdata['uid'],filename=voevent)
+voevent = split(urlparse.urlparse(streamdata['file']).path,'/')[-1]
+os.system('gracedb download ' + streamdata['uid'] + ' ' + voevent)
 
 
 ##############################
