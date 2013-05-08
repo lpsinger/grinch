@@ -133,7 +133,7 @@ class GRB:
             message = 'No GW candidates in window [-5,+1] seconds'
             self.submit_gracedb_log(message) # annotate GRB with news of lack of news
         else: 
-            from GW import GraCE
+            from grace import GW
             for i in xrange(len(result)):
                 gid = result[i][0]
                 far = result[i][1]
@@ -155,7 +155,7 @@ class GRB:
             message = 'No GW candidates in window [-120,+60] seconds'
             self.submit_gracedb_log(message) # annotate GRB with news of lack of news
         else: 
-            from GW import GraCE
+            from grace import GW
             for i in xrange(len(result)):
                 gid = result[i][0]
                 far = result[i][1]

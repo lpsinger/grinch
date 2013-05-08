@@ -1,0 +1,42 @@
+#!/usr/bin/env python
+
+"""
+Script to execute temporal coincidence search given a GW event candidate
+"""
+__author__ = "Alex Urban <alexander.urban@ligo.org>"
+
+import os
+
+from gracedb_events.grace import GW
+from optparse import Option, OptionParser
+
+
+# read in options from command line
+opts, args = OptionParser(
+    description = __doc__,
+    usage = "%prog [options] [INPUT]",
+    option_list = [
+        Option("-g","--graceid",help="graceid of external trigger event")
+    ]
+).parse_args()
+
+# get info
+event = GW(opts.graceid)
+
+# inform GraCEDb things are about to go down
+note = 'Initiating coincidence search'
+event.submit_gracedb_log(note)
+
+
+#####################################
+# initiate the coincidence searches #
+#####################################
+
+# first, the short-duration search
+coincs = event.short_search()
+
+# finally, the long-duration search
+coincs2 = event.long_search()
+
+note2 = 'Coincidence search complete'
+event.submit_gracedb_log(note2)
