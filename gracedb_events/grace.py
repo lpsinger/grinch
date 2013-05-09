@@ -99,7 +99,7 @@ class GW:
             relevant events with brief overview of results """
         result = self.search(-5, 1)
         if result == []:
-            message = 'No GW candidates in window [-5,+1] seconds'
+            message = 'No external triggers in window [-5,+1] seconds'
             self.submit_gracedb_log(message) # annotate GRB with news of lack of news
         else:
             from exttrig import GRB
@@ -122,7 +122,7 @@ class GW:
         result2 = self.search(1, 60)
         result = result1 + result2 # must ensure the two searches do not overlap
         if result == []:
-            message = 'No GW candidates in window [-120,+60] seconds'
+            message = 'No external triggers in window [-120,+60] seconds'
             self.submit_gracedb_log(message) # annotate GRB with news of lack of news
         else:
             from exttrig import GRB
