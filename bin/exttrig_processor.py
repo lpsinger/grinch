@@ -56,7 +56,7 @@ contents   = """\
 universe            = local
 
 executable          = %(script)s
-arguments           = --graceid=%(uid)s --xml=%(voevent)s
+arguments           = --graceid=%(uid)s --xml=%(voevent)s --direction=forward
 getenv              = True
 notification        = never
 

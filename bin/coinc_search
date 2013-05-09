@@ -2,10 +2,12 @@
 
 """
 Script to execute temporal coincidence search given an external trigger
+or gravitational wave candidate event
 """
 __author__ = "Alex Urban <alexander.urban@ligo.org>"
 
 import os
+import sys
 
 from gracedb_events.exttrig import GRB
 from optparse import Option, OptionParser
@@ -16,63 +18,130 @@ opts, args = OptionParser(
     description = __doc__,
     usage = "%prog [options] [INPUT]",
     option_list = [
+        Option("-d","--direction",help="flow of coincidence search: external trigger <-> gravitational wave"),
         Option("-g","--graceid",help="graceid of external trigger event"),
         Option("-x","--xml",metavar="FILE.xml",help="VOEvent .xml file of external trigger")
     ]
 ).parse_args()
 
-# get info
-trig = GRB(opts.graceid,opts.xml)
-trig.write_fits()
 
-# inform GraCEDb things are about to go down
-note = 'Initiating coincidence search'
-trig.submit_gracedb_log(note)
+###############################
+# INITIATE COINCIDENCE SEARCH #
+###############################
 
-
-#####################################
-# initiate the coincidence searches #
-#####################################
-
-# first, the short-duration search
-coincs = trig.short_search()
-if coincs != []: # produce plots and skymaps if there is a non-null result
-    from gracedb_events.grace import GW
-    from workflow_helper import directory
-    for i in xrange(len(coincs)):
-        trigdir = os.getcwd() + '/'
-        trigfits = trigdir + trig.fits # will need the path to this file
-
-        working = directory(coincs[i][0])
-        working.build_and_move() # move to GW event working directory
-
+if opts.direction == 'forward':
+    # get info
     try:
-            event = GW(coincs[i][0]) # initialize object of class GW
-            event.plot_trig(trigfits) # plot and upload skymap with trigger
-            event.plot_xcor(trigfits) # plot and upload cross-correlation
-    except HTTPError:
-        print 'Could not plot trigger or perform cross-correlation'
-        pass
+        trig = GRB(opts.graceid,opts.xml)
+    except:
+        print "ERROR: valid VOEvent .xml not specified"
+        sys.exit(1)
+    trig.write_fits()
 
-# finally, the long-duration search
-coincs2 = trig.long_search()
-if coincs2 != []: # produce plots and skymaps if there is a non-null result
-    from gracedb_events.grace import GW
-    from workflow_helper import directory
-    for i in xrange(len(coincs2)):
-        trigdir = os.getcwd() + '/'
-        trigfits = trigdir + trig.fits # will need the path to this file
+    # inform GraCEDb things are about to go down
+    note = 'Initiating coincidence search'
+    trig.submit_gracedb_log(note)
 
-        working = directory(coincs2[i][0])
-        working.build_and_move() # move to GW event working directory
 
-    try:
-            event = GW(coincs2[i][0]) # initialize object of class GW
-            event.plot_trig(trigfits) # plot and upload skymap with trigger
-            event.plot_xcor(trigfits) # plot and upload cross-correlation
-    except HTTPError:
-        print 'Could not plot trigger or perform cross-correlation'
-        pass
+    # first, the short-duration search
+    coincs = trig.short_search()
+    if coincs != []: # produce plots and skymaps if there is a non-null result
+        from gracedb_events.grace import GW
+        from workflow_helper import directory
+        for i in xrange(len(coincs)):
+            trigdir = os.getcwd() + '/'
+            trigfits = trigdir + trig.fits # will need the path to this file
 
-note2 = 'Coincidence search complete'
-trig.submit_gracedb_log(note2)
+            working = directory(coincs[i][0])
+            working.build_and_move() # move to GW event working directory
+
+        try:
+                event = GW(coincs[i][0]) # initialize object of class GW
+                event.plot_trig(trigfits) # plot and upload skymap with trigger
+                event.plot_xcor(trigfits) # plot and upload cross-correlation
+        except HTTPError:
+            print 'Could not plot trigger or perform cross-correlation'
+            pass
+
+    # finally, the long-duration search
+    coincs2 = trig.long_search()
+    if coincs2 != []: # produce plots and skymaps if there is a non-null result
+        from gracedb_events.grace import GW
+        from workflow_helper import directory
+        for i in xrange(len(coincs2)):
+            trigdir = os.getcwd() + '/'
+            trigfits = trigdir + trig.fits # will need the path to this file
+
+            working = directory(coincs2[i][0])
+            working.build_and_move() # move to GW event working directory
+
+        try:
+                event = GW(coincs2[i][0]) # initialize object of class GW
+                event.plot_trig(trigfits) # plot and upload skymap with trigger
+                event.plot_xcor(trigfits) # plot and upload cross-correlation
+        except HTTPError:
+            print 'Could not plot trigger or perform cross-correlation'
+            pass
+
+    note2 = 'Coincidence search complete'
+    trig.submit_gracedb_log(note2)
+
+elif opts.direction == 'backward':
+    # get info
+    event = GW(opts.graceid)
+
+    # inform GraCEDb things are about to go down
+    note = 'Initiating coincidence search'
+    event.submit_gracedb_log(note)
+
+
+    # first, the short-duration search
+    coincs = event.short_search()
+    if coincs != []: # produce plots and skymaps if there is a non-null result
+        try:
+            from gracedb_events.exttrig import GRB
+            from workflow_helper import directory
+            for i in xrange(len(coincs)):
+                working = directory(coincs[i][0])
+                working.build_and_move() # move to GRB event working directory
+
+                trig = GRB(coincs[i][0],coincs[i][1]) # initialize object of class GRB
+                trig.write_fits()
+                trigdir = os.getcwd() + '/'
+                trigfits = trigdir + trig.fits # will need the path to this file
+
+                directory(opts.graceid).build_and_move()
+                event.plot_trig(trigfits) # plot and upload skymap with trigger
+                event.plot_xcor(trigfits) # plot and upload cross-correlation
+        except HTTPError:
+            print 'Could not plot trigger or perform cross-correlation'
+            pass
+
+    # finally, the long-duration search
+    coincs2 = event.long_search()
+    if coincs2 != []: # produce plots and skymaps if there is a non-null result
+        try:
+            from gracedb_events.exttrig import GRB
+            from workflow_helper import directory
+            for i in xrange(len(coincs2)):
+                working = directory(coincs2[i][0])
+                working.build_and_move() # move to GRB event working directory
+
+                trig = GRB(coincs2[i][0],coincs[i][1]) # initialize object of class GRB
+                trig.write_fits()
+                trigdir = os.getcwd() + '/'
+                trigfits = trigdir + trig.fits # will need the path to this file
+
+                directory(opts.graceid).build_and_move()
+                event.plot_trig(trigfits) # plot and upload skymap with trigger
+                event.plot_xcor(trigfits) # plot and upload cross-correlation
+        except HTTPError:
+            print 'Could not plot trigger or perform cross-correlation'
+            pass
+
+    note2 = 'Coincidence search complete'
+    event.submit_gracedb_log(note2)
+
+else:
+    print "ERROR: Valid direction argument not specified"
+    sys.exit(1)

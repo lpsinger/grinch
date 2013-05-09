@@ -86,21 +86,21 @@ itime        = str(int(float(gpstime)+0.5))
 ## PRODUCE CONDOR SUB FILES ##
 ##############################
 
-# write coinc_search_reverse.sub
+# write coinc_search.sub
 contents   = """\
 universe            = local
 
 executable          = %(script)s
-arguments           = --graceid=%(uid)s
+arguments           = --graceid=%(uid)s --direction=backward
 getenv              = True
 notification        = never
 
-output              = coinc_search_reverse.out
-error               = coinc_search_reverse.error
+output              = coinc_search.out
+error               = coinc_search.error
 
 Queue
 """
-with open('coinc_search_reverse.sub', 'w') as f:
+with open('coinc_search.sub', 'w') as f:
     f.write(contents%{'script':coinc_search,'uid':streamdata['uid']})
 
 ## write skypoints.sub
