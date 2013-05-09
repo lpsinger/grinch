@@ -103,7 +103,7 @@ class GRB:
         trig_map /= np.sum(trig_map) # normalize
         hp.write_map(self.fits,trig_map) # write trigger skymap to .fits
 
-        os.system('tar -czf ' + self.fits + '.gz ' + self.fits)
+        os.system('tar --force-local -czf ' + self.fits + '.gz ' + self.fits)
         gracedb.writeFile(self.graceid,self.fits+'.gz')
 
     def submit_gracedb_log(self, message):
