@@ -9,7 +9,6 @@ __author__ = "Alex Urban <alexander.urban@ligo.org>"
 import os
 import sys
 
-from gracedb_events.exttrig import GRB
 from optparse import Option, OptionParser
 
 
@@ -30,6 +29,8 @@ opts, args = OptionParser(
 ###############################
 
 if opts.direction == 'forward':
+    from gracedb_events.exttrig import GRB
+
     # get info
     try:
         trig = GRB(opts.graceid,opts.xml)
@@ -87,6 +88,8 @@ if opts.direction == 'forward':
     trig.submit_gracedb_log(note2)
 
 elif opts.direction == 'backward':
+    from gracedb_events.grace import GW
+
     # get info
     event = GW(opts.graceid)
 
