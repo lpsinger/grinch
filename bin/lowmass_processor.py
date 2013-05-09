@@ -33,6 +33,7 @@ dqwaitscript       = cp.get('executable','dqwaitscript')
 dqtolabelscript    = cp.get('executable','dqtolabelscript')
 skypointscript     = cp.get('executable','skypointscript')
 coincdetscript     = cp.get('executable','coincdetscript')
+coinc_search       = cp.get('executable','coincscript')
 
 vetodefinerfile    = cp.get('veto','vetodefinerfile')
 ranksfile          = cp.get('skypoints','ranksfile')
@@ -80,6 +81,27 @@ else:
 disable_ifos = [ifo for ifo in ifonames if ifo not in ifos]
 itime        = str(int(float(gpstime)+0.5))
 
+
+##############################
+## PRODUCE CONDOR SUB FILES ##
+##############################
+
+# write coinc_search_reverse.sub
+contents   = """\
+universe            = local
+
+executable          = %(script)s
+arguments           = --graceid=%(uid)s
+getenv              = True
+notification        = never
+
+output              = coinc_search_reverse.out
+error               = coinc_search_reverse.error
+
+Queue
+"""
+with open('coinc_search_reverse.sub', 'w') as f:
+    f.write(contents%{'script':coinc_search,'uid':streamdata['uid']})
 
 ## write skypoints.sub
 contents   = """\
@@ -174,8 +196,14 @@ with open('localize.sub', 'w') as f:
     f.write(contents%{'uid':streamdata['uid']})
 
 
+#################################
+## WRITE CONDOR DAG AND SUBMIT ##
+#################################
+
 ## write lowmass_runner.dag
 contents = """\
+JOB COINC_SEARCH_REVERSE coinc_search_reverse.sub
+
 JOB LOCALIZE localize.sub
 
 JOB SKYPOINTS skypoints.sub

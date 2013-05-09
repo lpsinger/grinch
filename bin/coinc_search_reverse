@@ -16,7 +16,7 @@ opts, args = OptionParser(
     description = __doc__,
     usage = "%prog [options] [INPUT]",
     option_list = [
-        Option("-g","--graceid",help="graceid of external trigger event")
+        Option("-g","--graceid",help="graceid of gravitational wave candidate event")
     ]
 ).parse_args()
 
@@ -34,9 +34,47 @@ event.submit_gracedb_log(note)
 
 # first, the short-duration search
 coincs = event.short_search()
+if coincs != []: # produce plots and skymaps if there is a non-null result
+    try:
+        from gracedb_events.exttrig import GRB
+        from workflow_helper import directory
+        for i in xrange(len(coincs)):
+            working = directory(coincs[i][0])
+            working.build_and_move() # move to GRB event working directory
+
+            trig = GRB(coincs[i][0],coincs[i][1]) # initialize object of class GRB
+            trig.write_fits()
+            trigdir = os.getcwd() + '/'
+            trigfits = trigdir + trig.fits # will need the path to this file
+
+            directory(opts.graceid).build_and_move()
+            event.plot_trig(trigfits) # plot and upload skymap with trigger
+            event.plot_xcor(trigfits) # plot and upload cross-correlation
+    except HTTPError:
+        print 'Could not find file skymap.fits.gz for gracedb event ' + opts.graceid
+        pass
 
 # finally, the long-duration search
 coincs2 = event.long_search()
+if coincs2 != []: # produce plots and skymaps if there is a non-null result
+    try:
+        from gracedb_events.exttrig import GRB
+        from workflow_helper import directory
+        for i in xrange(len(coincs2)):
+            working = directory(coincs2[i][0])
+            working.build_and_move() # move to GRB event working directory
+
+            trig = GRB(coincs2[i][0],coincs[i][1]) # initialize object of class GRB
+            trig.write_fits()
+            trigdir = os.getcwd() + '/'
+            trigfits = trigdir + trig.fits # will need the path to this file
+
+            directory(opts.graceid).build_and_move()
+            event.plot_trig(trigfits) # plot and upload skymap with trigger
+            event.plot_xcor(trigfits) # plot and upload cross-correlation
+    except HTTPError:
+        print 'Could not find file skymap.fits.gz for gracedb event ' + opts.graceid
+        pass
 
 note2 = 'Coincidence search complete'
 event.submit_gracedb_log(note2)

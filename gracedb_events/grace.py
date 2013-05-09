@@ -34,10 +34,15 @@ class GW:
         self.fits = 'skymap.fits' # default name of fits file
         self.allsky = 'allsky_with_trigger.png' # all-sky map produced with bayestar
         self.posterior = 'post_map_rect.png' # rectangular heatmap of cross-correlation
-        get_fits(self) # download .fits file from gracedb
-        self.skymap = hp.read_map(self.fits) # array containing probability map for GW candidate
-        self.nside = hp.npix2nside(len(self.skymap)) # number of pixels per side at the equator
-        self.area = hp.nside2pixarea(self.nside, degrees=True) # area in sq. degs of a pixel
+
+        try: 
+            get_fits(self) # download .fits file from gracedb
+            #self.skymap = hp.read_map(self.fits) # array containing probability map for GW candidate
+            #self.nside = hp.npix2nside(len(self.skymap)) # number of pixels per side at the equator
+            #self.area = hp.nside2pixarea(self.nside, degrees=True) # area in sq. degs of a pixel
+        except:
+            print 'Could not find file skymap.fits.gz for event ' + self.graceid
+            pass
 
         self._result = gracedb.events(query=self.graceid)
         for event in self._result:

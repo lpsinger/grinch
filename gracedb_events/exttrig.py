@@ -142,7 +142,7 @@ class GRB:
                 self.submit_gracedb_log(message1) # annotate GRB with news of discovery
                 message2 = "External trigger <a href='http://gracedb.ligo.org/events/" 
                 message2 += self.graceid + "'>" + self.name + "</a> within window [-5,+1] seconds"
-                GraCE(gid).submit_gracedb_log(message2) # annotate GW with news of discovery
+                GW(gid).submit_gracedb_log(message2) # annotate GW with news of discovery
         return result
 
     def long_search(self):
@@ -164,5 +164,5 @@ class GRB:
                 self.submit_gracedb_log(message1) # annotate GRB with news of discovery
                 message2 = "External trigger <a href='http://gracedb.ligo.org/events/" 
                 message2 += self.graceid + "'>" + self.name + "</a> within window [-120,+60] seconds"
-                GraCE(gid).submit_gracedb_log(message2) # annotate GW with news of discovery
+                GW(gid).submit_gracedb_log(message2) # annotate GW with news of discovery
         return result
