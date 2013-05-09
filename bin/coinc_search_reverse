@@ -51,7 +51,7 @@ if coincs != []: # produce plots and skymaps if there is a non-null result
             event.plot_trig(trigfits) # plot and upload skymap with trigger
             event.plot_xcor(trigfits) # plot and upload cross-correlation
     except HTTPError:
-        print 'Could not find file skymap.fits.gz for gracedb event ' + opts.graceid
+        print 'Could not plot trigger or perform cross-correlation'
         pass
 
 # finally, the long-duration search
@@ -73,7 +73,7 @@ if coincs2 != []: # produce plots and skymaps if there is a non-null result
             event.plot_trig(trigfits) # plot and upload skymap with trigger
             event.plot_xcor(trigfits) # plot and upload cross-correlation
     except HTTPError:
-        print 'Could not find file skymap.fits.gz for gracedb event ' + opts.graceid
+        print 'Could not plot trigger or perform cross-correlation'
         pass
 
 note2 = 'Coincidence search complete'
