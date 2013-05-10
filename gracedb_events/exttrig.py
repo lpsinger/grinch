@@ -35,18 +35,6 @@ def pdf(n, nside, theta0, phi0, err):
     s2 = abs(np.sin(s1))
     return normal(ph, phi0, s1)*normal(-np.cos(th),-np.cos(theta0),s2)*np.sin(th)
 
-def GPS_time(wwd):
-    """ Returns GPSTime of the external trigger in UTC format,
-        given the trigger's parsed VOEvent file """
-
-    # get UTC time of the trigger
-    iso_st = wwd['time']
-
-    # convert ISO time to GPS time
-    iso_st = dip.parse(iso_st).strftime("%B %d %Y %H:%M:%S")
-    gps = int(os.popen('lalapps_tconvert '+iso_st).readline().replace('\n',''))
-    return gps
-
 def stream(voevent):
     """ Returns name of event stream that detected the external trigger,
         given the trigger's parsed VOEvent file """
@@ -78,10 +66,14 @@ class GRB:
 
         self.err_rad = wwd['positionalError'] # error radius
 
-        self.gpstime = GPS_time(wwd) # time of event in GPS format
         self.inst = stream(self.voevent) # instrument that detected the event
 
         self.fits = self.name+'.fits' # name of .fits file for this event
+
+        self._result = gracedb.events(query=self.graceid)
+        for event in self._result:
+            self.far = event['far']
+            self.gpstime = event['gpstime']
 
     def write_fits(self):
         """ Given sky location and error radius of an external trigger 

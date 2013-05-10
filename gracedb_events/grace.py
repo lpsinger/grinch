@@ -97,9 +97,9 @@ class GW:
     def short_search(self):
         """ Speecialized short-duration coincidence search; also annotates
             relevant events with brief overview of results """
-        result = self.search(-5, 1)
+        result = self.search(-1, 5)
         if result == []:
-            message = 'No external triggers in window [-5,+1] seconds'
+            message = 'No external triggers in window [-1,+5] seconds'
             self.submit_gracedb_log(message) # annotate GRB with news of lack of news
         else:
             from exttrig import GRB
@@ -118,11 +118,11 @@ class GW:
     def long_search(self):
         """ Speecialized long-duration coincidence search; also annotates
             relevant events with brief overview of results """
-        result1 = self.search(-120, -5)
-        result2 = self.search(1, 60)
+        result1 = self.search(-60, -1)
+        result2 = self.search(5, 120)
         result = result1 + result2 # must ensure the two searches do not overlap
         if result == []:
-            message = 'No external triggers in window [-120,+60] seconds'
+            message = 'No external triggers in window [-60,+120] seconds'
             self.submit_gracedb_log(message) # annotate GRB with news of lack of news
         else:
             from exttrig import GRB
