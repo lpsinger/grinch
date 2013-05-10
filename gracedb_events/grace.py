@@ -102,7 +102,7 @@ class GW:
                         break
                 grb = GRB(gid,voevent)
                 message1 = "GW candidate found: <a href='http://gracedb.ligo.org/events/"
-                message1 += self.graceid + "'>" + self.graceid + "</a> with FAR = " + self.far + " within [-5,+1] seconds"
+                message1 += self.graceid + "'>" + self.graceid + "</a> with FAR = %s within [-5,+1] seconds" % self.far
                 grb.submit_gracedb_log(message1) # annotate GRB with news of discovery
                 message2 = "External trigger <a href='http://gracedb.ligo.org/events/"
                 message2 += gid + "'>" + grb.name + "</a> within window [-5,+1] seconds"
@@ -129,7 +129,7 @@ class GW:
                         break
                 grb = GRB(gid,voevent)
                 message1 = "GW candidate found; <a href='http://gracedb.ligo.org/events/"
-                message1 += self.graceid + "'>" + self.graceid + "</a> with FAR = " + self.far + " within [-120,+60] seconds"
+                message1 += self.graceid + "'>" + self.graceid + "</a> with FAR = %s within [-120,+60] seconds" % self.far
                 grb.submit_gracedb_log(message1) # annotate GRB with news of discovery
                 message2 = "External trigger <a href='http://gracedb.ligo.org/events/"
                 message2 += gid + "'>" + grb.name + "</a> within window [-120,+60] seconds"

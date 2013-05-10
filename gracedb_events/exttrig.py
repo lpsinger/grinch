@@ -130,7 +130,7 @@ class GRB:
                 gid = result[i]['graceid']
                 far = result[i]['far']
                 message1 = "GW candidate found: <a href='http://gracedb.ligo.org/events/"
-                message1 += gid + "'>" + gid + "</a> with FAR = " + far + " within [-5,+1] seconds"
+                message1 += gid + "'>" + gid + "</a> with FAR = %s within [-5,+1] seconds" % self.far
                 self.submit_gracedb_log(message1) # annotate GRB with news of discovery
                 message2 = "External trigger <a href='http://gracedb.ligo.org/events/" 
                 message2 += self.graceid + "'>" + self.name + "</a> within window [-5,+1] seconds"
@@ -152,7 +152,7 @@ class GRB:
                 gid = result[i]['graceid']
                 far = result[i]['far']
                 message1 = "GW candidate found; <a href='http://gracedb.ligo.org/events/"
-                message1 += gid + "'>" + gid + "</a> with FAR = " + far + " within [-120,+60] seconds"
+                message1 += gid + "'>" + gid + "</a> with FAR = %s within [-120,+60] seconds" % self.far
                 self.submit_gracedb_log(message1) # annotate GRB with news of discovery
                 message2 = "External trigger <a href='http://gracedb.ligo.org/events/" 
                 message2 += self.graceid + "'>" + self.name + "</a> within window [-120,+60] seconds"
