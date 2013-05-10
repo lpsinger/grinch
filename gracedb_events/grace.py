@@ -99,6 +99,7 @@ class GW:
                 for key in filedict: # search for this trigger's VOEvent file
                     if key.endswith('.xml'):
                         voevent = key
+                        result['file'] = voevent
                         break
                 grb = GRB(gid,voevent)
                 message1 = "GW candidate found: <a href='http://gracedb.ligo.org/events/"
@@ -126,6 +127,7 @@ class GW:
                 for key in filedict: # search for this trigger's VOEvent file
                     if key.endswith('.xml'):
                         voevent = key
+                        result['file'] = voevent
                         break
                 grb = GRB(gid,voevent)
                 message1 = "GW candidate found; <a href='http://gracedb.ligo.org/events/"

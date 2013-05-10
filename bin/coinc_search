@@ -53,11 +53,11 @@ if opts.direction == 'forward':
             trigdir = os.getcwd() + '/'
             trigfits = trigdir + trig.fits # will need the path to this file
 
-            working = directory(coincs[i][0])
+            working = directory(coincs[i]['graceid'])
             working.build_and_move() # move to GW event working directory
 
         try:
-                event = GW(coincs[i][0]) # initialize object of class GW
+                event = GW(coincs[i]['graceid']) # initialize object of class GW
                 event.plot_trig(trigfits) # plot and upload skymap with trigger
                 event.plot_xcor(trigfits) # plot and upload cross-correlation
         except HTTPError:
@@ -73,11 +73,11 @@ if opts.direction == 'forward':
             trigdir = os.getcwd() + '/'
             trigfits = trigdir + trig.fits # will need the path to this file
 
-            working = directory(coincs2[i][0])
+            working = directory(coincs2[i]['graceid'])
             working.build_and_move() # move to GW event working directory
 
         try:
-                event = GW(coincs2[i][0]) # initialize object of class GW
+                event = GW(coincs2[i]['graceid']) # initialize object of class GW
                 event.plot_trig(trigfits) # plot and upload skymap with trigger
                 event.plot_xcor(trigfits) # plot and upload cross-correlation
         except HTTPError:
@@ -105,10 +105,10 @@ elif opts.direction == 'backward':
             from gracedb_events.exttrig import GRB
             from workflow_helper import directory
             for i in xrange(len(coincs)):
-                working = directory(coincs[i][0])
+                working = directory(coincs[i]['graceid'])
                 working.build_and_move() # move to GRB event working directory
 
-                trig = GRB(coincs[i][0],coincs[i][1]) # initialize object of class GRB
+                trig = GRB(coincs[i]['graceid'],coincs[i]['file']) # initialize object of class GRB
                 trig.write_fits()
                 trigdir = os.getcwd() + '/'
                 trigfits = trigdir + trig.fits # will need the path to this file
@@ -127,10 +127,10 @@ elif opts.direction == 'backward':
             from gracedb_events.exttrig import GRB
             from workflow_helper import directory
             for i in xrange(len(coincs2)):
-                working = directory(coincs2[i][0])
+                working = directory(coincs2[i]['graceid'])
                 working.build_and_move() # move to GRB event working directory
 
-                trig = GRB(coincs2[i][0],coincs[i][1]) # initialize object of class GRB
+                trig = GRB(coincs2[i]['graceid'],coincs[i]['file']) # initialize object of class GRB
                 trig.write_fits()
                 trigdir = os.getcwd() + '/'
                 trigfits = trigdir + trig.fits # will need the path to this file
