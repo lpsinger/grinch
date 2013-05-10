@@ -107,14 +107,14 @@ class GRB:
             of [-tl, +th] seconds in gpstime """
         start, end = self.gpstime + tl, self.gpstime + th
         arg = '%s..%d' % (start, end)
-        result = gracedb.events(query=arg)
 
         # return list of graceids of coincident events
-        if len(list(result)) == 0: return []
         try: 
-            return [[event['graceid'],event['far']] for event in result]
+            return list(gracedb.events(arg))
         except HTTPError:
-            return []
+            import sys
+            print 'HTTPError: problem accessing GraCEDb while calling gracedb_events.exttrig.GRB.search()'
+            sys.exit(1)
 
     # define special attributes for short- and long-duration GRB coincidence searches
     def short_search(self): 
@@ -127,8 +127,8 @@ class GRB:
         else: 
             from grace import GW
             for i in xrange(len(result)):
-                gid = result[i][0]
-                far = result[i][1]
+                gid = result[i]['graceid']
+                far = result[i]['far']
                 message1 = "GW candidate found: <a href='http://gracedb.ligo.org/events/"
                 message1 += gid + "'>" + gid + "</a> with FAR = " + far + " within [-5,+1] seconds"
                 self.submit_gracedb_log(message1) # annotate GRB with news of discovery
@@ -149,8 +149,8 @@ class GRB:
         else: 
             from grace import GW
             for i in xrange(len(result)):
-                gid = result[i][0]
-                far = result[i][1]
+                gid = result[i]['graceid']
+                far = result[i]['far']
                 message1 = "GW candidate found; <a href='http://gracedb.ligo.org/events/"
                 message1 += gid + "'>" + gid + "</a> with FAR = " + far + " within [-120,+60] seconds"
                 self.submit_gracedb_log(message1) # annotate GRB with news of discovery

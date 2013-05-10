@@ -74,24 +74,14 @@ class GW:
             of [-tl, +th] seconds in gpstime """
         start, end = self.gpstime + tl, self.gpstime + th
         arg = '%s..%d' % (start, end)
-        result = gracedb.events(query=arg)
 
         # return list of graceids of coincident events
-        if len(list(result)) == 0: return []
-        else:
-            coincs = []
-            for event in result:
-                gid = event['graceid']
-                filedict = gracedb.files(gid).json()
-                for key in filedict:
-                    if key.endswith('.xml'):
-                        voevent = key
-                        break
-                coincs.append([gid, voevent])
-            try:
-                return coincs
-            except HTTPError:
-                return []
+        try:
+            return list(gracedb.events(arg))
+        except HTTPError:
+            import sys
+            print 'HTTPError: problem accessing GraCEDb while calling gracedb_events.grace.GW.search()'
+            sys.exit(1)
 
     # define special attributes for short- and long-duration GRB coincidence searches
     def short_search(self):
@@ -104,8 +94,12 @@ class GW:
         else:
             from exttrig import GRB
             for i in xrange(len(result)):
-                gid = result[i][0]
-                voevent = result[i][1]
+                gid = result[i]['graceid']
+                filedict = gracedb.files(gid).json()
+                for key in filedict: # search for this trigger's VOEvent file
+                    if key.endswith('.xml'):
+                        voevent = key
+                        break
                 grb = GRB(gid,voevent)
                 message1 = "GW candidate found: <a href='http://gracedb.ligo.org/events/"
                 message1 += self.graceid + "'>" + self.graceid + "</a> with FAR = " + self.far + " within [-5,+1] seconds"
@@ -128,7 +122,11 @@ class GW:
             from exttrig import GRB
             for i in xrange(len(result)):
                 gid = result[i][0]
-                voevent = result[i][1]
+                filedict = gracedb.files(gid).json()
+                for key in filedict: # search for this trigger's VOEvent file
+                    if key.endswith('.xml'):
+                        voevent = key
+                        break
                 grb = GRB(gid,voevent)
                 message1 = "GW candidate found; <a href='http://gracedb.ligo.org/events/"
                 message1 += self.graceid + "'>" + self.graceid + "</a> with FAR = " + self.far + " within [-120,+60] seconds"
