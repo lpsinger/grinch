@@ -73,7 +73,7 @@ import matplotlib.pyplot as plt
 import healpy
 import cPickle
 from bayestar import io
-from bayestar.site import data as sites
+from bayestar import sites
 from bayestar import plot
 
 fig = plt.figure(figsize=(opts.figure_width, opts.figure_height), frameon=False)
