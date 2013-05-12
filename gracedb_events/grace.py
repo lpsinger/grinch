@@ -52,8 +52,9 @@ class GW:
     def plot_trig(self, grb_fits):
         """ Produces an all-sky map for this GW candidate
             indicating the external trigger, then uploads
-            to GraceDB """
-        os.system('plot_allsky  --output=' + self.allsky + ' --skymap=' 
+            to GraceDB """ 
+        current = os.getcwd() + '/'
+        os.system('plot_allsky  --output=' + self.allsky + ' --skymap=' + current
             + self.fits + ' --trigger=' + grb_fits)
         gracedb.writeFile(self.graceid,self.allsky,filecontents='All-sky map with external trigger')
 
@@ -61,7 +62,8 @@ class GW:
         """ Produces a rectangular heatmap of the 'convolved' probability 
             distribution for X-Y, where X is the ext trigger sky location
             and Y that of the GW candidate event, then uploads to GraceDB """
-        os.system('plot_xcorrelate  --output=' + self.posterior + ' --skymap=' 
+        current = os.getcwd() + '/'
+        os.system('plot_xcorrelate  --output=' + self.posterior + ' --skymap=' + current
             + self.fits + ' --trigger=' + grb_fits)
         gracedb.writeFile(self.graceid,self.posterior,filecontents='Convolved probability heatmap')
 
