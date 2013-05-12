@@ -83,9 +83,31 @@ z = H.ravel()
 plt.hexbin(x,y,z,cmap=cm.jet,bins=None)
 plt.axis([x0.min(),x0.max(),y0.min(),y0.max()])
 
-# insert color bar
-cb = frakkin_cylons.colorbar(vmax)
+# Work out a good tick spacing for colorbar.  Why is this so complicated?
+base = int(np.floor(np.log10(vmax)))
+dtick = 10. ** base
+if vmax / dtick < 2:
+    dtick *= 0.25
+elif vmax / dtick < 5:
+    dtick *= 0.5
+if vmax % dtick == 0:
+    ticks = np.arange(0, vmax + 0.5 * dtick, dtick)
+else:
+    ticks = np.arange(0, vmax, dtick)
+ticklabels = ['$%g$' % (tick / 10.**base) for tick in ticks]
+if '.' in ticklabels[-1]: ticklabels[-1] = r'$\;\;\;\;$' + ticklabels[-1]
+else: ticklabels[-1] = r'$\;\;\;\,\,$' + ticklabels[-1]
+ticklabels[-1] += r'$\times 10^{%d}$' % base
+formatter = mpl.ticker.FixedFormatter(ticklabels)
+
+# Plot colorbar
+cb = plt.colorbar(orientation='horizontal', ticks=ticks, format=formatter, shrink=0.4)
 cb.set_label(r'$\mathrm{prob.}$ $\mathrm{per}$ $\mathrm{deg}^2$')
+
+# Adjust appearance of colorbar tick labels
+for tick, ticklabel in zip(cb.ax.get_xticks(), cb.ax.get_xticklabels()):
+    ticklabel.set_verticalalignment('baseline')
+    ticklabel.set_y(-1.5)
 
 # mark the origin of lag space with an X
 #plt.scatter([0],[0],s=80,c='g',marker='o')
