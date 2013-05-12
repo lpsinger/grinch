@@ -63,7 +63,7 @@ class GW:
             and Y that of the GW candidate event, then uploads to GraceDB """
         os.system('plot_xcorrelate  --output=' + self.posterior + ' --skymap=' 
             + self.fits + ' --trigger=' + grb_fits)
-        gracedb.writeFile(self.graceid,self.posterior,filecontents='Cross-correlation heatmap')
+        gracedb.writeFile(self.graceid,self.posterior,filecontents='Convolved probability heatmap')
 
     def submit_gracedb_log(self, message):
         """ wrapper for gracedb.writeLog() for this event """

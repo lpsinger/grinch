@@ -88,11 +88,11 @@ cb = frakkin_cylons.colorbar(vmax)
 cb.set_label(r'$\mathrm{prob.}$ $\mathrm{per}$ $\mathrm{deg}^2$')
 
 # mark the origin of lag space with an X
-plt.scatter([0],[0],s=80,c='g',marker='o')
+#plt.scatter([0],[0],s=80,c='g',marker='o')
 
 # make axes look pretty
-plt.xlabel(r'\Large$\mathrm{lag}$ $\Delta\varphi/2\pi$')
-plt.ylabel(r'\Large$\mathrm{lag}$ $\Delta\theta/\pi$')
+plt.xlabel(r'\Large$\Delta\varphi/2\pi$')
+plt.ylabel(r'\Large$\Delta\theta/\pi$')
 
 # add a legend for contours
 line1 = plt.Line2D([0,1],[0,0],color='k')
