@@ -24,7 +24,7 @@
 """
 Plot a pointing of several telescopes.
 """
-__author__ = "Leo Singer <leo.singer@ligo.org> and Alex Urban <alexander.urban@ligo.org>"
+__author__ = "Leo Singer <leo.singer@ligo.org>"
 
 
 # Command line interface
@@ -66,7 +66,7 @@ import matplotlib.pyplot as plt
 import healpy
 import cPickle
 from bayestar import io
-from bayestar.site import data as site_data
+from bayestar import sites as site_data   # from bayestar.site import data as site_data
 from bayestar import plot
 
 fig = plt.figure(figsize=(opts.figure_width, opts.figure_height), frameon=False)
