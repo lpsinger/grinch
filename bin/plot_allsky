@@ -151,7 +151,7 @@ if opts.skymap is not None:
         trig_map = data['skymap']
         index, nside2 = np.argmax(trig_map), healpy.npix2nside(len(trig_map))
         theta, phi = healpy.pix2ang(nside2,index)
-        ax.scatter([phi],[np.pi/2 - theta],s=100,c='w',marker='*')
+        ax.scatter([phi],[np.pi/2 - theta],s=100,c='w')#,marker='*')
 
 
 # If we are using a new enough version of matplotlib, then
@@ -165,8 +165,8 @@ fig.patch.set_alpha(0.)
 ax.patch.set_alpha(0.)
 ax.set_alpha(0.)
 
-tickmarks = np.arange(2,24,2)
-ax.set_xticklabels(['$\mathbf{%s^{\mathrm{h}}}$'%n for n in tickmarks])
+#tickmarks = np.arange(2,24,2) # UNCOMMENT AFTER MATPLOTLIB VERSION IS >= 1.0.1
+#ax.set_xticklabels(['$\mathbf{%s^{\mathrm{h}}}$'%n for n in tickmarks])
 
 if opts.output is None:
     import sys
