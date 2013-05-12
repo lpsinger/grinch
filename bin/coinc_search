@@ -56,13 +56,13 @@ if opts.direction == 'forward':
             working = directory(coincs[i]['graceid'])
             working.build_and_move() # move to GW event working directory
 
-        try:
+            try:
                 event = GW(coincs[i]['graceid']) # initialize object of class GW
                 event.plot_trig(trigfits) # plot and upload skymap with trigger
                 event.plot_xcor(trigfits) # plot and upload cross-correlation
-        except HTTPError:
-            print 'Could not plot trigger or perform cross-correlation'
-            pass
+            except IOError:
+                print 'Could not plot trigger or perform cross-correlation'
+                pass
 
     # finally, the long-duration search
     coincs2 = trig.long_search()
@@ -76,13 +76,13 @@ if opts.direction == 'forward':
             working = directory(coincs2[i]['graceid'])
             working.build_and_move() # move to GW event working directory
 
-        try:
+            try:
                 event = GW(coincs2[i]['graceid']) # initialize object of class GW
                 event.plot_trig(trigfits) # plot and upload skymap with trigger
                 event.plot_xcor(trigfits) # plot and upload cross-correlation
-        except HTTPError:
-            print 'Could not plot trigger or perform cross-correlation'
-            pass
+            except IOError:
+                print 'Could not plot trigger or perform cross-correlation'
+                pass
 
     note2 = 'Coincidence search complete'
     trig.submit_gracedb_log(note2)
@@ -116,7 +116,7 @@ elif opts.direction == 'backward':
                 directory(opts.graceid).build_and_move()
                 event.plot_trig(trigfits) # plot and upload skymap with trigger
                 event.plot_xcor(trigfits) # plot and upload cross-correlation
-        except HTTPError:
+        except IOError:
             print 'Could not plot trigger or perform cross-correlation'
             pass
 
@@ -138,7 +138,7 @@ elif opts.direction == 'backward':
                 directory(opts.graceid).build_and_move()
                 event.plot_trig(trigfits) # plot and upload skymap with trigger
                 event.plot_xcor(trigfits) # plot and upload cross-correlation
-        except HTTPError:
+        except IOError:
             print 'Could not plot trigger or perform cross-correlation'
             pass
 
