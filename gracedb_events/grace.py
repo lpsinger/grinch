@@ -74,8 +74,7 @@ class GW:
 universe            = local
 
 executable          = /usr/bin/env
-arguments           = plot_allsky -o skymap_with_trigger.png --contour=50 --contour=90 -radec %(RA)s %(dec)s %(skymap)s \
-&& /usr/bin/gracedb upload %(uid)s skymap_with_trigger.png
+arguments           = plot_allsky -o skymap_with_triggers.png --contour=50 --contour=90 -radec %(RA)s %(dec)s %(fits)s 
 getenv              = True
 notification        = never
 
@@ -88,14 +87,13 @@ Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
 Queue
 """
         with open('plot_allsky_w_trigger.sub', 'w') as f:
-            f.write(trig_sub%{'uid':self.graceid,'RA':RA,'dec':dec,'skymap':current+self.fits})
+            f.write(trig_sub%{'uid':self.graceid,'RA':RA,'dec':dec,'fits':current+self.fits})
 
         xcor_sub = """\
 universe            = local
 
 executable          = /usr/bin/env
-arguments           = plot_xcorrelate --output=convolved_prob_heatmap.png  --skymap=%(skymap)s --trigger=%(trigger)s \
-&& /usr/bin/gracedb upload %(uid)s convolved_prob_heatmap.png
+arguments           = plot_xcorrelate --output=convolved_prob_heatmap.png  --skymap=%(skymap)s --trigger=%(trigger)s 
 getenv              = True
 notification        = never
 
@@ -112,7 +110,10 @@ Queue
 
         dag = """\
 JOB PLOTALLSKY plot_allsky_w_trigger.sub
+SCRIPT POST PLOTALLSKY /usr/bin/gracedb upload skymap_with_triggers.png
+
 JOB HEATMAP plot_heatmap.sub
+SCRIPT POST HEATMAP /usr/bin/gracedb upload convolved_prob_heatmap.png
 """
         with open('plot_runner.dag', 'w') as f:
             f.write(dag)
