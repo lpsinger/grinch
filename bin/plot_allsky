@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 #
 # Copyright (C) 2011  Leo Singer
 #
@@ -15,14 +15,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-
-# Slight modifications made to the following code by Alex Urban of UWM;
-# Originally a part of the bayestar-localization package, and written
-# by Leo Singer
-
-
 """
-Plot a pointing of several telescopes.
+Plot an all-sky map on a Mollweide projection.
 """
 __author__ = "Leo Singer <leo.singer@ligo.org>"
 
@@ -30,28 +24,29 @@ __author__ = "Leo Singer <leo.singer@ligo.org>"
 # Command line interface
 
 from optparse import Option, OptionParser
-opts, args = OptionParser(
+from lalinference.bayestar import command
+parser = OptionParser(
     description = __doc__,
     usage = "%prog [options] [INPUT]",
     option_list = [
         Option("-o", "--output", metavar="FILE.{pdf,png}",
-            help="name of output file"),
-        Option("--skymap", metavar="FILE.fits",
-            help="name of HEALPix .fits file containing GW skymap"),
+            help="name of output file [default: plot to screen]"),
         Option("--colormap", default="jet",
-            help="name of matplotlib colormap (default is jet)"),
-        Option("--figure-width", type=float, default=12.,
-            help="width of figure in inches (default = 12 in.)"),
-        Option("--figure-height", type=float, default=8.,
-            help="height of figure in inches (default = 8 in.)"),
+            help="name of matplotlib colormap [default: %default]"),
+        Option("--figure-width", metavar="INCHES", type=float, default=8.,
+            help="width of figure in inches [default: %default]"),
+        Option("--figure-height", metavar="INCHES", type=float, default=6.,
+            help="height of figure in inches [default: %default]"),
         Option("--contour", metavar="PERCENT", type=float, action="append",
-            default=[10,50,90], help="plot contour enclosing this percentage of"
-            + " probability mass (may be specified multiple times; default is "
-            + "10%, 50% and 90%)"),
-        Option("-t","--trigger",metavar="FILE.fits",
-            help="name of HEALPix .fits file containing skymap of external trigger")
+            default=[], help="plot contour enclosing this percentage of"
+            + " probability mass [may be specified multiple times [default: none]"),
+        Option("--radec", nargs=2, metavar="RA DEC", type=float, action="append",
+            default=[], help="right ascension and declination of an external trigger;"
+            + "  may be specified more than once for multiple triggers [default: none]")
     ]
-).parse_args()
+)
+opts, args = parser.parse_args()
+infilename = command.get_input_filename(parser, args)
 
 # Late imports
 
@@ -61,117 +56,61 @@ import matplotlib
 if opts.output is not None:
     matplotlib.use('agg')
 
-# Try to import matplotlib.patheffects (requires matplotlib 1.0+).
-try:
-    from matplotlib import patheffects
-except ImportError:
-    patheffects = None
-
-from matplotlib import patches, text, ticker
 import numpy as np
 import matplotlib.pyplot as plt
-import healpy
-import cPickle
-from bayestar import io
-from bayestar import sites
-from bayestar import plot
+import healpy as hp
+from lalinference.bayestar import fits
+from lalinference.bayestar import plot
 
 fig = plt.figure(figsize=(opts.figure_width, opts.figure_height), frameon=False)
 ax = plt.subplot(111, projection='astro mollweide')
 ax.cla()
 ax.grid()
 
-if len(args) > 0:
-	sitekeys, pointings, prob = cPickle.load(open(args[0], 'rb'))
+skymap, metadata = fits.read_sky_map(infilename)
+nside = hp.npix2nside(len(skymap))
 
-	for key, (theta, phi) in zip(sitekeys, pointings):
-		site = sites[key]
-		vert_lists = plot.cut_dateline(plot.make_rect_poly(0.5 * site['w'], 0.5 * site['h'], theta, phi))
-		for vert_list in vert_lists:
-			ax.add_patch(patches.Polygon(vert_list, edgecolor='k', facecolor='0.5', alpha=0.5))
-	plt.title('Detection probability: %.2g' % prob, fontsize=10.)
+# Convert sky map from probability to probability per square degree.
+probperdeg2 = skymap / hp.nside2pixarea(nside, degrees=True)
 
-if opts.skymap is not None:
-    data = io.read_skymap(opts.skymap)
-    skymap = data['skymap']
-    #skymap = healpy.read_map(opts.skymap)
-    npix = len(skymap)
-    nside = healpy.npix2nside(npix)
-    pixperdeg2 = (np.pi * npix) / (4 * 180**2)
-    vmax = skymap.max() * pixperdeg2
-    plot.heatmap(lambda lon, lat: skymap[healpy.ang2pix(nside, 0.5 * np.pi - lat, lon)] * pixperdeg2,
-        vmin=0., vmax=vmax, cmap=plt.get_cmap(opts.colormap))
+# Plot sky map.
+vmax = probperdeg2.max()
+plot.healpix_heatmap(probperdeg2, vmin=0., vmax=vmax, cmap=plt.get_cmap(opts.colormap))
 
-    # Work out a good tick spacing for colorbar.  Why is this so complicated?
-    base = int(np.floor(np.log10(vmax)))
-    dtick = 10. ** base
-    if vmax / dtick < 2:
-        dtick *= 0.25
-    elif vmax / dtick < 5:
-        dtick *= 0.5
-    if vmax % dtick == 0:
-        ticks = np.arange(0, vmax + 0.5 * dtick, dtick)
-    else:
-        ticks = np.arange(0, vmax, dtick)
-    ticklabels = ['$%g$' % (tick / 10.**base) for tick in ticks]
-    if '.' in ticklabels[-1]: ticklabels[-1] = r'$\;\;\;\;$' + ticklabels[-1]
-    else: ticklabels[-1] = r'$\;\;\;\,\,$' + ticklabels[-1]
-    ticklabels[-1] += r'$\times 10^{%d}$' % base
-    formatter = ticker.FixedFormatter(ticklabels)
+# Plot colorbar.
+cb = plot.colorbar(vmax)
 
-    # Plot colorbar
-    cb = plt.colorbar(orientation='horizontal', ticks=ticks, format=formatter,
-        shrink=0.4)
+# Set colorbar label.
+cb.set_label(r'prob. per deg$^2$')
 
-    # Set colorbar label
-    cb.set_label('$\mathrm{prob.}$ $\mathrm{per}$ $\mathrm{deg}^2$')
+# Add contours.
+if opts.contour:
+    indices = np.argsort(-skymap)
+    region = np.empty(skymap.shape)
+    region[indices] = 100 * np.cumsum(skymap[indices])
+    cs = plot.healpix_contour(region, colors='k', linewidths=0.5, levels=opts.contour)
+    plt.clabel(cs, fmt='%g%%', fontsize=6, inline=True)
 
-    # Adjust appearance of colorbar tick labels
-    for tick, ticklabel in zip(cb.ax.get_xticks(), cb.ax.get_xticklabels()):
-        ticklabel.set_verticalalignment('baseline')
-        ticklabel.set_y(-1.5)
-
-    # Add contours
-    for percent in opts.contour:
-        indices = np.argsort(-skymap)
-        region = np.zeros(skymap.shape)
-        accum = 0.
-        for idx in indices:
-            if accum >= 0.01 * percent:
-                break
-            region[idx] = 1.
-            accum += skymap[idx]
-        cs = plot.contour(lambda lon, lat: region[healpy.ang2pix(nside, 0.5 * np.pi - lat, lon)], colors='k', linewidths=0.5, levels=[0.5])
-        plt.clabel(cs, [0.5], fmt={0.5: '$\mathbf{%d\%%}$' % percent},
-            fontsize=8, inline=True)
-
-    # Add marker at sky location of external trigger, if there is one.
-    if opts.trigger is not None:
-        data = io.read_skymap(opts.trigger)
-        trig_map = data['skymap']
-        index, nside2 = np.argmax(trig_map), healpy.npix2nside(len(trig_map))
-        theta, phi = healpy.pix2ang(nside2,index)
-        ax.scatter([phi],[np.pi/2 - theta],s=100,c='w')#,marker='*')
+# Add marker external trigger.
+for RA, dec in opts.radec:
+    # theta, phi are in range (-pi/2,pi/2), ()
+    theta, phi = (np.pi/180) * dec, (np.pi/180) * (RA - 180)
+    try: 
+        ax.scatter([phi],[theta],s=100,c='w',marker='*')
+    except:
+        print "The '*' marker is not supported in this version of matplotlib. Using default marker instead."
+        ax.scatter([phi],[theta],s=100,c='w')
 
 
 # If we are using a new enough version of matplotlib, then
 # add a white outline to all text to make it stand out from the background.
-if patheffects is not None:
-    effects = [patheffects.withStroke(linewidth=2, foreground='w')]
-    for artist in ax.findobj(text.Text):
-        artist.set_path_effects(effects)
+plot.outline_text(ax)
 
 fig.patch.set_alpha(0.)
 ax.patch.set_alpha(0.)
 ax.set_alpha(0.)
 
-#tickmarks = np.arange(2,24,2) # UNCOMMENT AFTER MATPLOTLIB VERSION IS >= 1.0.1
-#ax.set_xticklabels(['$\mathbf{%s^{\mathrm{h}}}$'%n for n in tickmarks])
-
 if opts.output is None:
-    import sys
-    print "ERROR: output file not specified"
-    sys.exit(1)
+    plt.show()
 else:
-    plt.grid()
     plt.savefig(opts.output)

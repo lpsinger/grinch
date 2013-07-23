@@ -70,8 +70,8 @@ class GRB:
 
         self.fits = self.name+'.fits' # name of .fits file for this event
 
-        self._result = gracedb.events(query=self.graceid)
-        for event in self._result:
+        self.__result__ = gracedb.events(query=self.graceid)
+        for event in self.__result__:
             self.far = event['far']
             self.gpstime = event['gpstime']
 
@@ -111,9 +111,10 @@ class GRB:
         # return list of graceids of coincident events
         try: 
             return list(gracedb.events(arg))
-        except HTTPError:
+        except:
             import sys
-            print 'HTTPError: problem accessing GraCEDb while calling gracedb_events.exttrig.GRB.search()'
+            print "Problem accessing GraCEDb while calling gracedb_events.exttrig.GRB.search()"
+            raise HTTPError
             sys.exit(1)
 
     # define special attributes for short- and long-duration GRB coincidence searches

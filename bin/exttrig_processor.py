@@ -56,12 +56,17 @@ contents   = """\
 universe            = local
 
 executable          = %(script)s
-arguments           = --graceid=%(uid)s --xml=%(voevent)s --direction=forward
+arguments           = " --graceid=%(uid)s --xml=%(voevent)s --direction=forward "
 getenv              = True
 notification        = never
 
-output              = coinc_search.out
-error               = coinc_search.error
++Online_CBC_EM_FOLLOWUP = True
+Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
+
+output              = coinc_search_%(uid)s.out
+error               = coinc_search_%(uid)s.error
+
++LVAlertListen      = %(uid)s_coinc_search
 
 Queue
 """
@@ -78,7 +83,7 @@ JOB COINCSEARCH coinc_search.sub
 
 """
 with open('exttrig_runner.dag', 'w') as f:
-    f.write(contents % {'gracedbcommand': gracedbcommand, 'uid': streamdata['uid']})
+    f.write(contents)
 
 # Create uniquely named log file.
 logfid, logpath = tempfile.mkstemp(suffix='.nodes.log', prefix=streamdata['uid'])

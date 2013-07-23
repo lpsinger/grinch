@@ -28,17 +28,13 @@ cp = ConfigParser.ConfigParser()
 etc = home + '/opt/etc/'
 cp.read(etc+'lowmass_config.ini')
 
-gracedbcommand     = cp.get('executable','gracedbcommand')
-dqwaitscript       = cp.get('executable','dqwaitscript')
-dqtolabelscript    = cp.get('executable','dqtolabelscript')
-skypointscript     = cp.get('executable','skypointscript')
-coincdetscript     = cp.get('executable','coincdetscript')
+#dqwaitscript       = cp.get('executable','dqwaitscript')
+#dqtolabelscript    = cp.get('executable','dqtolabelscript')
+#coincdetscript     = cp.get('executable','coincdetscript')
+#gracedbcommand     = cp.get('executable','gracedbcommand')
 coinc_search       = cp.get('executable','coincscript')
 
-vetodefinerfile    = cp.get('veto','vetodefinerfile')
-ranksfile          = cp.get('skypoints','ranksfile')
-gridsfile          = cp.get('skypoints','gridsfile')
-coincdetconfig     = cp.get('coincdet','configfile')
+#vetodefinerfile    = cp.get('veto','vetodefinerfile')
 
 
 # build and move to a unique working directory
@@ -56,7 +52,7 @@ if streamdata['alert_type'] == 'label' and streamdata['description'] == 'EM_READ
 elif  streamdata['alert_type'] == 'new':
     pass
 
-## else
+## elsewise, end the processor
 else:
      exit()
 
@@ -91,90 +87,66 @@ contents   = """\
 universe            = local
 
 executable          = %(script)s
-arguments           = --graceid=%(uid)s --direction=backward
+arguments           = " --graceid=%(uid)s --direction=backward "
 getenv              = True
 notification        = never
 
-output              = coinc_search.out
-error               = coinc_search.error
+output              = coinc_search_%(uid)s.out
+error               = coinc_search_%(uid)s.error
+
++Online_CBC_EM_FOLLOWUP = True
+Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
+
++LVAlertListen      = %(uid)s_coinc_search
 
 Queue
 """
 with open('coinc_search.sub', 'w') as f:
     f.write(contents%{'script':coinc_search,'uid':streamdata['uid']})
 
-## write skypoints.sub
-contents   = """\
-universe            = local
-
-executable          = %(script)s
-arguments           = --glob=%(coincfile)s --ranks=%(ranksfile)s --grids=%(gridsfile)s
-getenv              = True
-notification        = never
-
-output              = skypoints.out
-error               = skypoints.error
-
-+LVAlertListen      = %(uid)s_skypoints
-Queue
-"""
-with open('skypoints.sub', 'w') as f:
-    f.write(contents%{'script':skypointscript,'coincfile':coincfile,'ranksfile':ranksfile,'gridsfile':gridsfile,'uid':streamdata['uid']})
-
 ## write data quality.sub
-contents   = """\
-universe            = local
-
-executable          = /bin/cp
-arguments           = /home/gdb_processor/dq-fake.xml dq.xml
-getenv              = True
-notification        = never
-
-output              = dq.out
-error               = dq.error
-
-+LVAlertListen      = %(uid)s_dq
-Queue
-"""
-with open('dq.sub', 'w') as f:
-    f.write(contents%{'uid':streamdata['uid']})
+#contents   = """\
+#universe            = local
+#
+#executable          = /bin/cp
+#arguments           = /home/gdb_processor/dq-fake.xml dq.xml
+#getenv              = True
+#notification        = never
+#
+#output              = dq_%(uid)s.out
+#error               = dq_%(uid)s.error
+#
+#+Online_CBC_EM_FOLLOWUP = True
+#Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
+#
+#+LVAlertListen      = %(uid)s_dq
+#Queue
+#"""
+#with open('dq.sub', 'w') as f:
+#    f.write(contents%{'uid':streamdata['uid']})
+#
+#    f.write(contents%{'script':dqtolabelscript,'gdbcommand':gracedbcommand,'vetodefinerfile':vetodefinerfile,'uid':streamdata['uid']})
 
 ## write emlabel.sub
-contents   = """\
-universe            = local
-
-executable          = %(script)s
-arguments           = --set-em-ready -f dq.xml -i %(uid)s -g %(gdbcommand)s --veto-definer-file %(vetodefinerfile)s
-getenv              = True
-notification        = never
-
-error               = emlabel.err
-output              = emlabel.out
-
-+LVAlertListen      = %(uid)s_emlabel
-Queue
-"""
-with open('emlabel.sub','w') as f:
-    f.write(contents%{'script':dqtolabelscript,'gdbcommand':gracedbcommand,'vetodefinerfile':vetodefinerfile,'uid':streamdata['uid']})
-
-## write coincdet.sub
-contents   = """\
-universe            = local
-
-executable          = %(script)s
-arguments           = test_lowmass %(uid)s %(coincfile)s %(configfile)s
-getenv              = True
-notification        = never
-
-error               = coincdet.err
-output              = coincdet.out
-
-+LVAlertListen      = %(uid)s_coincdet
-
-Queue
-"""
-with open('coincdet.sub', 'w') as f:
-    f.write(contents%{'script':coincdetscript,'coincfile':coincfile,'configfile':coincdetconfig,'uid':streamdata['uid']})
+#contents   = """\
+#universe            = local
+#
+#executable          = %(script)s
+#arguments           = " --set-em-ready -f dq.xml -i %(uid)s -g %(gdbcommand)s --veto-definer-file %(vetodefinerfile)s "
+#getenv              = True
+#notification        = never
+#
+#+Online_CBC_EM_FOLLOWUP = True
+#Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
+#
+#error               = emlabel_%(uid)s.err
+#output              = emlabel_%(uid)s.out
+#
+#+LVAlertListen      = %(uid)s_emlabel
+#Queue
+#"""
+#with open('emlabel.sub','w') as f:
+#    f.write(contents%{'script':dqtolabelscript,'gdbcommand':gracedbcommand,'vetodefinerfile':vetodefinerfile,'uid':streamdata['uid']})
 
 ## write localize.sub
 contents   = """\
@@ -185,14 +157,40 @@ arguments           = bayestar_localize_lvalert %(uid)s
 getenv              = True
 notification        = never
 
-error               = localize.err
-output              = localize.out
+error               = localize_%(uid)s.err
+output              = localize_%(uid)s.out
+
++Online_CBC_EM_FOLLOWUP = True
+Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
 
 +LVAlertListen      = %(uid)s_localize
 
 Queue
 """
 with open('localize.sub', 'w') as f:
+    f.write(contents%{'uid':streamdata['uid']})
+
+## write plot_allsky.sub
+contents   = """\
+universe            = local
+
+executable          = /usr/bin/env
+arguments           = bayestar_plot_allsky -o skymap.png --contour=50 --contour=90 skymap.fits \
+&& /usr/bin/gracedb upload %(uid)s skymap.png
+getenv              = True
+notification        = never
+
+error               = allsky_%(uid)s.err
+output              = allsky_%(uid)s.out
+
++Online_CBC_EM_FOLLOWUP = True
+Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
+
++LVAlertListen      = %(uid)s_plot_allsky
+
+Queue
+"""
+with open('plot_allsky.sub', 'w') as f:
     f.write(contents%{'uid':streamdata['uid']})
 
 
@@ -202,27 +200,14 @@ with open('localize.sub', 'w') as f:
 
 ## write lowmass_runner.dag
 contents = """\
-JOB COINC_SEARCH_REVERSE coinc_search_reverse.sub
-
 JOB LOCALIZE localize.sub
 
-JOB SKYPOINTS skypoints.sub
-SCRIPT PRE SKYPOINTS %(gracedbcommand)s log %(uid)s Sky localization started
-SCRIPT POST SKYPOINTS %(gracedbcommand)s log %(uid)s Sky localization complete
+JOB PLOTALLSKY plot_allsky.sub
 
-JOB DQ1 dq.sub
+JOB COINCSEARCH coinc_search.sub
 
-JOB EMLABEL emlabel.sub
-SCRIPT PRE EMLABEL %(gracedbcommand)s log %(uid)s EM_READY labeling started
-SCRIPT POST EMLABEL %(gracedbcommand)s log %(uid)s EM_READY labeling complete
-
-JOB COINCDET coincdet.sub
-SCRIPT PRE COINCDET %(gracedbcommand)s log %(uid)s Coincidence search started
-SCRIPT POST COINCDET %(gracedbcommand)s log %(uid)s Coincidence search complete
-
-PARENT DQ1 CHILD EMLABEL
-PARENT SKYPOINTS CHILD EMLABEL
-PARENT SKYPOINTS CHILD COINCDET
+PARENT LOCALIZE CHILD PLOTALLSKY
+PARENT LOCALIZE CHILD COINCSEARCH
 """
 with open('lowmass_runner.dag', 'w') as f:
     f.write(contents % {'gracedbcommand': gracedbcommand, 'uid': streamdata['uid']})
