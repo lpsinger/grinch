@@ -43,9 +43,9 @@ working.build_and_move()
 
 
 ## if labeled EM_READY
-if streamdata['alert_type'] == 'label' and streamdata['description'] == 'EM_READY':
-    import bayestar.lvalert
-    bayestar.lvalert.respond(streamdata['uid'],submit=True)
+#if streamdata['alert_type'] == 'label' and streamdata['description'] == 'EM_READY':
+#    import bayestar.lvalert
+#    bayestar.lvalert.respond(streamdata['uid'],submit=True)
     ## function ends processor
 
 ## check if new
