@@ -29,9 +29,9 @@ etc = home + '/opt/etc/'
 cp.read(etc+'lowmass_config.ini')
 
 #dqwaitscript       = cp.get('executable','dqwaitscript')
-#dqtolabelscript    = cp.get('executable','dqtolabelscript')
+dqtolabelscript    = cp.get('executable','dqtolabelscript')
 #coincdetscript     = cp.get('executable','coincdetscript')
-#gracedbcommand     = cp.get('executable','gracedbcommand')
+gracedbcommand     = cp.get('executable','gracedbcommand')
 coinc_search       = cp.get('executable','coincscript')
 
 #vetodefinerfile    = cp.get('veto','vetodefinerfile')
@@ -49,7 +49,7 @@ working.build_and_move()
     ## function ends processor
 
 ## check if new
-elif  streamdata['alert_type'] == 'new':
+if streamdata['alert_type'] == 'new':
     pass
 
 ## elsewise, end the processor
@@ -57,14 +57,16 @@ else:
      exit()
 
 ## extract information about the event
-if re.search('.xml',streamdata['file']):
-     coincfile = urlparse.urlparse(streamdata['file'])[2]
-else: # download coinc file from gracedb web client; stick it in the working directory
-    gracedb_client = ligo.gracedb.rest.GraceDb()
-    remote_file = gracedb_client.files(streamdata['uid'], 'coinc.xml')
-    with open('coinc.xml', 'w') as local_file:
-        shutil.copyfileobj(remote_file, local_file)
-    coincfile = 'coinc.xml'
+## FIXME: streamdata['file'] is not used at all to determine what the coincfile is.
+##        This is because an implicit assumption is that this file will always be
+##        called 'coinc.xml,' as a prerequisite for a graceid even being generated
+##        in the first place. This is a potential issue that needs to be addressed
+##        in the future.
+coincfile = 'coinc.xml'
+gracedb_client = ligo.gracedb.rest.GraceDb()
+remote_file = gracedb_client.files(streamdata['uid'], coincfile)
+with open(coincfile, 'w') as local_file:
+    shutil.copyfileobj(remote_file, local_file)
 doc        = utils.load_filename(coincfile)
 coinctable = table.get_table(doc,lsctables.CoincInspiralTable.tableName)
 
@@ -128,25 +130,25 @@ with open('coinc_search.sub', 'w') as f:
 #    f.write(contents%{'script':dqtolabelscript,'gdbcommand':gracedbcommand,'vetodefinerfile':vetodefinerfile,'uid':streamdata['uid']})
 
 ## write emlabel.sub
-#contents   = """\
-#universe            = local
-#
-#executable          = %(script)s
-#arguments           = " --set-em-ready -f dq.xml -i %(uid)s -g %(gdbcommand)s --veto-definer-file %(vetodefinerfile)s "
-#getenv              = True
-#notification        = never
-#
-#+Online_CBC_EM_FOLLOWUP = True
-#Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
-#
-#error               = emlabel_%(uid)s.err
-#output              = emlabel_%(uid)s.out
-#
-#+LVAlertListen      = %(uid)s_emlabel
-#Queue
-#"""
-#with open('emlabel.sub','w') as f:
-#    f.write(contents%{'script':dqtolabelscript,'gdbcommand':gracedbcommand,'vetodefinerfile':vetodefinerfile,'uid':streamdata['uid']})
+contents   = """\
+universe            = local
+
+executable          = %(script)s
+arguments           = " --set-em-ready -f dq.xml -i %(uid)s -g %(gdbcommand)s --veto-definer-file %(vetodefinerfile)s "
+getenv              = True
+notification        = never
+
++Online_CBC_EM_FOLLOWUP = True
+Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
+
+error               = emlabel_%(uid)s.err
+output              = emlabel_%(uid)s.out
+
++LVAlertListen      = %(uid)s_emlabel
+Queue
+"""
+with open('emlabel.sub','w') as f:
+    f.write(contents%{'script':dqtolabelscript,'gdbcommand':gracedbcommand,'vetodefinerfile':vetodefinerfile,'uid':streamdata['uid']})
 
 ## write localize.sub
 contents   = """\
@@ -175,8 +177,7 @@ contents   = """\
 universe            = local
 
 executable          = /usr/bin/env
-arguments           = bayestar_plot_allsky -o skymap.png --contour=50 --contour=90 skymap.fits \
-&& /usr/bin/gracedb upload %(uid)s skymap.png
+arguments           = bayestar_plot_allsky -o %(output)s --contour=50 --contour=90 %(fits)s
 getenv              = True
 notification        = never
 
@@ -191,7 +192,7 @@ Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
 Queue
 """
 with open('plot_allsky.sub', 'w') as f:
-    f.write(contents%{'uid':streamdata['uid']})
+    f.write(contents%{'output':os.getcwd()+'/skymap.png','fits':os.getcwd()+'/skymap.fits.gz','uid':streamdata['uid']})
 
 
 #################################
@@ -202,15 +203,18 @@ with open('plot_allsky.sub', 'w') as f:
 contents = """\
 JOB LOCALIZE localize.sub
 
+JOB EMLABEL emlabel.sub
+
 JOB PLOTALLSKY plot_allsky.sub
+SCRIPT POST PLOTALLSKY %(gracedbcommand)s upload %(uid)s %(skymap)s
 
 JOB COINCSEARCH coinc_search.sub
 
-PARENT LOCALIZE CHILD PLOTALLSKY
-PARENT LOCALIZE CHILD COINCSEARCH
+PARENT LOCALIZE CHILD EMLABEL 
+PARENT EMLABEL CHILD PLOTALLSKY COINCSEARCH
 """
 with open('lowmass_runner.dag', 'w') as f:
-    f.write(contents % {'gracedbcommand': gracedbcommand, 'uid': streamdata['uid']})
+    f.write(contents % {'gracedbcommand': gracedbcommand,'skymap':os.getcwd()+'/skymap.png','uid': streamdata['uid']})
 
 # Create uniquely named log file.
 logfid, logpath = tempfile.mkstemp(suffix='.nodes.log', prefix=streamdata['uid'])
