@@ -34,7 +34,7 @@ dqtolabelscript    = cp.get('executable','dqtolabelscript')
 gracedbcommand     = cp.get('executable','gracedbcommand')
 coinc_search       = cp.get('executable','coincscript')
 
-#vetodefinerfile    = cp.get('veto','vetodefinerfile')
+vetodefinerfile    = cp.get('veto','vetodefinerfile')
 
 
 # build and move to a unique working directory
