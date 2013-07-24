@@ -86,7 +86,7 @@ itime        = str(int(float(gpstime)+0.5))
 
 # write coinc_search.sub
 contents   = """\
-universe            = local
+universe            = vanilla
 
 executable          = %(script)s
 arguments           = " --graceid=%(uid)s --direction=backward "
@@ -106,7 +106,7 @@ with open('coinc_search.sub', 'w') as f:
 
 ## write data quality.sub
 #contents   = """\
-#universe            = local
+#universe            = vanilla
 #
 #executable          = /bin/cp
 #arguments           = /home/gdb_processor/dq-fake.xml dq.xml
@@ -127,7 +127,7 @@ with open('coinc_search.sub', 'w') as f:
 
 ## write emlabel.sub
 contents   = """\
-universe            = local
+universe            = vanilla
 
 executable          = %(script)s
 arguments           = " --set-em-ready -f /home/gdb_processor/dq-fake.xml -i %(uid)s -g %(gdbcommand)s --veto-definer-file %(vetodefinerfile)s "
@@ -146,7 +146,7 @@ with open('emlabel.sub','w') as f:
 
 ## write localize.sub
 contents   = """\
-universe            = local
+universe            = vanilla
 
 executable          = /usr/bin/env
 arguments           = bayestar_localize_lvalert %(uid)s
@@ -166,7 +166,7 @@ with open('localize.sub', 'w') as f:
 
 ## write plot_allsky.sub
 contents   = """\
-universe            = local
+universe            = vanilla
 
 executable          = /usr/bin/env
 arguments           = bayestar_plot_allsky -o %(output)s --contour=50 --contour=90 %(fits)s

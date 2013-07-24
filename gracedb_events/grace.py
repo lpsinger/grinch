@@ -71,7 +71,7 @@ class GW:
         """ Create and submit a dag that produces and uploads plots to gracedb """
 
         trig_sub = """\
-universe            = local
+universe            = vanilla
 
 executable          = /usr/bin/env
 arguments           = plot_allsky -o skymap_with_triggers.png --contour=50 --contour=90 -radec %(RA)s %(dec)s %(fits)s 
@@ -87,7 +87,7 @@ Queue
             f.write(trig_sub%{'uid':self.graceid,'RA':RA,'dec':dec,'fits':current+self.fits})
 
         xcor_sub = """\
-universe            = local
+universe            = vanilla
 
 executable          = /usr/bin/env
 arguments           = plot_xcorrelate --output=convolved_prob_heatmap.png  --skymap=%(skymap)s --trigger=%(trigger)s 
