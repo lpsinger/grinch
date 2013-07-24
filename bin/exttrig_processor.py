@@ -64,6 +64,8 @@ output              = coinc_search_%(uid)s.out
 error               = coinc_search_%(uid)s.error
 log                 = coinc_search_%(uid)s.log
 
++Online_CBC_EM_FOLLOWUP = True
+Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
 +LVAlertListen      = %(uid)s_coinc_search
 
 Queue

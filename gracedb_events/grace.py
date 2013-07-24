@@ -81,6 +81,9 @@ notification        = never
 error               = allsky_$(cluster)-$(process).err
 output              = allsky_$(cluster)-$(process).out
 
++Online_CBC_EM_FOLLOWUP = True
+Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
+
 Queue
 """
         with open('plot_allsky_w_trigger.sub', 'w') as f:
@@ -96,6 +99,9 @@ notification        = never
 
 error               = heatmap_$(cluster)-$(process).err
 output              = heatmap_$(cluster)-$(process).out
+
++Online_CBC_EM_FOLLOWUP = True
+Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
 
 Queue
 """

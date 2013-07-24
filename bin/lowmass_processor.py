@@ -97,6 +97,8 @@ output              = coinc_search_%(uid)s.out
 error               = coinc_search_%(uid)s.error
 log                 = coinc_search_%(uid)s.log
 
++Online_CBC_EM_FOLLOWUP = True
+Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
 +LVAlertListen      = %(uid)s_coinc_search
 
 Queue
@@ -138,6 +140,8 @@ error               = emlabel_%(uid)s.err
 output              = emlabel_%(uid)s.out
 log                 = emlabel_%(uid)s.log
 
++Online_CBC_EM_FOLLOWUP = True
+Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
 +LVAlertListen      = %(uid)s_emlabel
 Queue
 """
@@ -157,6 +161,8 @@ error               = localize_%(uid)s.err
 output              = localize_%(uid)s.out
 log                 = localize_%(uid)s.log
 
++Online_CBC_EM_FOLLOWUP = True
+Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
 +LVAlertListen      = %(uid)s_localize
 
 Queue
@@ -177,6 +183,8 @@ error               = allsky_%(uid)s.err
 output              = allsky_%(uid)s.out
 log                 = allsky_%(uid)s.log
 
++Online_CBC_EM_FOLLOWUP = True
+Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
 +LVAlertListen      = %(uid)s_plot_allsky
 
 Queue
