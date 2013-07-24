@@ -60,11 +60,9 @@ arguments           = " --graceid=%(uid)s --xml=%(voevent)s --direction=forward 
 getenv              = True
 notification        = never
 
-+Online_CBC_EM_FOLLOWUP = True
-Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
-
 output              = coinc_search_%(uid)s.out
 error               = coinc_search_%(uid)s.error
+log                 = coinc_search_%(uid)s.log
 
 +LVAlertListen      = %(uid)s_coinc_search
 

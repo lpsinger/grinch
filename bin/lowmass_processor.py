@@ -95,9 +95,7 @@ notification        = never
 
 output              = coinc_search_%(uid)s.out
 error               = coinc_search_%(uid)s.error
-
-+Online_CBC_EM_FOLLOWUP = True
-Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
+log                 = coinc_search_%(uid)s.log
 
 +LVAlertListen      = %(uid)s_coinc_search
 
@@ -117,9 +115,7 @@ with open('coinc_search.sub', 'w') as f:
 #
 #output              = dq_%(uid)s.out
 #error               = dq_%(uid)s.error
-#
-#+Online_CBC_EM_FOLLOWUP = True
-#Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
+#log                 = dq_%(uid)s.log
 #
 #+LVAlertListen      = %(uid)s_dq
 #Queue
@@ -134,15 +130,13 @@ contents   = """\
 universe            = local
 
 executable          = %(script)s
-arguments           = " --set-em-ready -f dq.xml -i %(uid)s -g %(gdbcommand)s --veto-definer-file %(vetodefinerfile)s "
+arguments           = " --set-em-ready -f /home/gdb_processor/dq-fake.xml -i %(uid)s -g %(gdbcommand)s --veto-definer-file %(vetodefinerfile)s "
 getenv              = True
 notification        = never
 
-+Online_CBC_EM_FOLLOWUP = True
-Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
-
 error               = emlabel_%(uid)s.err
 output              = emlabel_%(uid)s.out
+log                 = emlabel_%(uid)s.log
 
 +LVAlertListen      = %(uid)s_emlabel
 Queue
@@ -161,9 +155,7 @@ notification        = never
 
 error               = localize_%(uid)s.err
 output              = localize_%(uid)s.out
-
-+Online_CBC_EM_FOLLOWUP = True
-Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
+log                 = localize_%(uid)s.log
 
 +LVAlertListen      = %(uid)s_localize
 
@@ -183,16 +175,14 @@ notification        = never
 
 error               = allsky_%(uid)s.err
 output              = allsky_%(uid)s.out
-
-+Online_CBC_EM_FOLLOWUP = True
-Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
+log                 = allsky_%(uid)s.log
 
 +LVAlertListen      = %(uid)s_plot_allsky
 
 Queue
 """
 with open('plot_allsky.sub', 'w') as f:
-    f.write(contents%{'output':os.getcwd()+'/skymap.png','fits':os.getcwd()+'/skymap.fits.gz','uid':streamdata['uid']})
+    f.write(contents%{'output':'skymap.png','fits':'skymap.fits.gz','uid':streamdata['uid']})
 
 
 #################################
@@ -214,7 +204,7 @@ PARENT LOCALIZE CHILD EMLABEL
 PARENT EMLABEL CHILD PLOTALLSKY COINCSEARCH
 """
 with open('lowmass_runner.dag', 'w') as f:
-    f.write(contents % {'gracedbcommand': gracedbcommand,'skymap':os.getcwd()+'/skymap.png','uid': streamdata['uid']})
+    f.write(contents % {'gracedbcommand': gracedbcommand,'skymap':'skymap.png','uid': streamdata['uid']})
 
 # Create uniquely named log file.
 logfid, logpath = tempfile.mkstemp(suffix='.nodes.log', prefix=streamdata['uid'])
