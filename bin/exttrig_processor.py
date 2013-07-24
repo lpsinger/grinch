@@ -53,7 +53,7 @@ os.system('gracedb download ' + streamdata['uid'] + ' ' + voevent)
 
 # write coinc_search.sub
 contents   = """\
-universe            = local
+universe            = vanilla
 
 executable          = %(script)s
 arguments           = " --graceid=%(uid)s --xml=%(voevent)s --direction=forward "
