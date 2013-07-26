@@ -29,12 +29,12 @@ etc = home + '/opt/etc/'
 cp.read(etc+'lowmass_config.ini')
 
 #dqwaitscript       = cp.get('executable','dqwaitscript')
-dqtolabelscript    = cp.get('executable','dqtolabelscript')
+#dqtolabelscript    = cp.get('executable','dqtolabelscript')
 #coincdetscript     = cp.get('executable','coincdetscript')
 gracedbcommand     = cp.get('executable','gracedbcommand')
 coinc_search       = cp.get('executable','coincscript')
 
-vetodefinerfile    = cp.get('veto','vetodefinerfile')
+#vetodefinerfile    = cp.get('veto','vetodefinerfile')
 
 
 # build and move to a unique working directory
@@ -95,7 +95,6 @@ notification        = never
 
 output              = coinc_search_%(uid)s.out
 error               = coinc_search_%(uid)s.error
-log                 = coinc_search_%(uid)s.log
 
 +Online_CBC_EM_FOLLOWUP = True
 Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
@@ -117,7 +116,6 @@ with open('coinc_search.sub', 'w') as f:
 #
 #output              = dq_%(uid)s.out
 #error               = dq_%(uid)s.error
-#log                 = dq_%(uid)s.log
 #
 #+LVAlertListen      = %(uid)s_dq
 #Queue
@@ -126,40 +124,39 @@ with open('coinc_search.sub', 'w') as f:
 #    f.write(contents%{'uid':streamdata['uid']})
 #
 #    f.write(contents%{'script':dqtolabelscript,'gdbcommand':gracedbcommand,'vetodefinerfile':vetodefinerfile,'uid':streamdata['uid']})
-
+#
 ## write emlabel.sub
-contents   = """\
-universe            = vanilla
-
-executable          = %(script)s
-arguments           = " --set-em-ready -f /home/gdb_processor/dq-fake.xml -i %(uid)s -g %(gdbcommand)s --veto-definer-file %(vetodefinerfile)s "
-getenv              = True
-notification        = never
-
-error               = emlabel_%(uid)s.err
-output              = emlabel_%(uid)s.out
-log                 = emlabel_%(uid)s.log
-
-+Online_CBC_EM_FOLLOWUP = True
-Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
-+LVAlertListen      = %(uid)s_emlabel
-Queue
-"""
-with open('emlabel.sub','w') as f:
-    f.write(contents%{'script':dqtolabelscript,'gdbcommand':gracedbcommand,'vetodefinerfile':vetodefinerfile,'uid':streamdata['uid']})
+#contents   = """\
+#universe            = vanilla
+#
+#executable          = %(script)s
+#arguments           = " --set-em-ready -f /home/gdb_processor/dq-fake.xml -i %(uid)s -g %(gdbcommand)s --veto-definer-file %(vetodefinerfile)s "
+#getenv              = True
+#notification        = never
+#
+#error               = emlabel_%(uid)s.err
+#output              = emlabel_%(uid)s.out
+#
+#+Online_CBC_EM_FOLLOWUP = True
+#Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
+#+LVAlertListen      = %(uid)s_emlabel
+#Queue
+#"""
+#with open('emlabel.sub','w') as f:
+#    f.write(contents%{'script':dqtolabelscript,'gdbcommand':gracedbcommand,'vetodefinerfile':vetodefinerfile,'uid':streamdata['uid']})
 
 ## write localize.sub
+## FIXME: why does this require multiple cores?
 contents   = """\
 universe            = vanilla
 
 executable          = /usr/bin/env
-arguments           = bayestar_localize_lvalert %(uid)s
+arguments           = " bayestar_localize_lvalert %(uid)s "
 getenv              = True
 notification        = never
 
 error               = localize_%(uid)s.err
 output              = localize_%(uid)s.out
-log                 = localize_%(uid)s.log
 
 +Online_CBC_EM_FOLLOWUP = True
 Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
@@ -175,13 +172,12 @@ contents   = """\
 universe            = vanilla
 
 executable          = /usr/bin/env
-arguments           = bayestar_plot_allsky -o %(output)s --contour=50 --contour=90 %(fits)s
+arguments           = " bayestar_plot_allsky -o %(output)s --contour=50 --contour=90 --figure-width=12 --figure-height=9 %(fits)s "
 getenv              = True
 notification        = never
 
 error               = allsky_%(uid)s.err
 output              = allsky_%(uid)s.out
-log                 = allsky_%(uid)s.log
 
 +Online_CBC_EM_FOLLOWUP = True
 Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
@@ -192,6 +188,27 @@ Queue
 with open('plot_allsky.sub', 'w') as f:
     f.write(contents%{'output':'skymap.png','fits':'skymap.fits.gz','uid':streamdata['uid']})
 
+## write uplad.sub
+## FIXME: After ER4 release of Debian, just make this a POST script for plot_allsky.sub
+contents   = """\
+universe            = vanilla
+
+executable          = /usr/bin/gracedb
+arguments           = " --tag-name=sky_loc upload %(uid)s skymap.png "
+getenv              = True
+notification        = never
+
+error               = upload_%(uid)s.err
+output              = upload_%(uid)s.out
+
++Online_CBC_EM_FOLLOWUP = True
+Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
+
+Queue
+"""
+with open('upload.sub', 'w') as f:
+    f.write(contents%{'uid':streamdata['uid']})
+
 
 #################################
 ## WRITE CONDOR DAG AND SUBMIT ##
@@ -200,19 +217,20 @@ with open('plot_allsky.sub', 'w') as f:
 ## write lowmass_runner.dag
 contents = """\
 JOB LOCALIZE localize.sub
-
-JOB EMLABEL emlabel.sub
+SCRIPT POST LOCALIZE %(gracedbcommand)s label %(uid)s EM_READY
 
 JOB PLOTALLSKY plot_allsky.sub
-SCRIPT POST PLOTALLSKY %(gracedbcommand)s upload %(uid)s %(skymap)s
+SCRIPT PRE PLOTALLSKY %(gracedbcommand)s download %(uid)s skymap.fits.gz
 
 JOB COINCSEARCH coinc_search.sub
 
-PARENT LOCALIZE CHILD EMLABEL 
-PARENT EMLABEL CHILD PLOTALLSKY COINCSEARCH
+JOB UPLOAD upload.sub
+
+PARENT LOCALIZE CHILD PLOTALLSKY COINCSEARCH
+PARENT PLOTALLSKY CHILD UPLOAD
 """
 with open('lowmass_runner.dag', 'w') as f:
-    f.write(contents % {'gracedbcommand': gracedbcommand,'skymap':'skymap.png','uid': streamdata['uid']})
+    f.write(contents % {'gracedbcommand': gracedbcommand,'uid': streamdata['uid']})
 
 # Create uniquely named log file.
 logfid, logpath = tempfile.mkstemp(suffix='.nodes.log', prefix=streamdata['uid'])
