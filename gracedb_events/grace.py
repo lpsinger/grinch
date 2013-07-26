@@ -23,7 +23,6 @@ def get_fits(gw_event):
     """ Downloads and unzips .fits file from gracedb into the 
         current working directory """
     os.system('gracedb download ' + gw_event.graceid + ' skymap.fits.gz')
-    os.system('gunzip skymap.fits.gz')
 
 
 # define the gravitational-wave candidate event object class
@@ -31,7 +30,7 @@ class GW:
     """ Instance of a gravitational-wave candidate event """
     def __init__(self, graceid):
         self.graceid = graceid # graceid of GW candidate
-        self.fits = 'skymap.fits' # default name of fits file
+        self.fits = 'skymap.fits.gz' # default name of fits file
 #        self.allsky = 'allsky_with_trigger.png' # all-sky map produced with bayestar
 #        self.posterior = 'post_map_rect.png' # rectangular heatmap of cross-correlation
 
@@ -153,6 +152,8 @@ SCRIPT POST HEATMAP /usr/bin/gracedb upload convolved_prob_heatmap.png
         """ Speecialized short-duration coincidence search; also annotates
             relevant events with brief overview of results """
         result = self.search(-1, 5)
+        for event in result:
+            if event['graceid'][0] != 'E': result.remove(event)
         if result == []:
             message = 'No external triggers in window [-1,+5] seconds'
             self.submit_gracedb_log(message) # annotate GRB with news of lack of news
@@ -164,7 +165,7 @@ SCRIPT POST HEATMAP /usr/bin/gracedb upload convolved_prob_heatmap.png
                 for key in filedict: # search for this trigger's VOEvent file
                     if key.endswith('.xml'):
                         voevent = key
-                        result['file'] = voevent
+                        result[i]['file'] = voevent
                         break
                 grb = GRB(gid,voevent)
                 message1 = "GW candidate found: <a href='http://gracedb.ligo.org/events/"
@@ -181,18 +182,20 @@ SCRIPT POST HEATMAP /usr/bin/gracedb upload convolved_prob_heatmap.png
         result1 = self.search(-60, -1)
         result2 = self.search(5, 120)
         result = result1 + result2 # must ensure the two searches do not overlap
+        for event in result:
+            if event['graceid'][0] != 'E': result.remove(event)
         if result == []:
             message = 'No external triggers in window [-60,+120] seconds'
             self.submit_gracedb_log(message) # annotate GRB with news of lack of news
         else:
             from exttrig import GRB
             for i in xrange(len(result)):
-                gid = result[i][0]
+                gid = result[i]['graceid']
                 filedict = gracedb.files(gid).json()
                 for key in filedict: # search for this trigger's VOEvent file
                     if key.endswith('.xml'):
                         voevent = key
-                        result['file'] = voevent
+                        result[i]['file'] = voevent
                         break
                 grb = GRB(gid,voevent)
                 message1 = "GW candidate found; <a href='http://gracedb.ligo.org/events/"
