@@ -8,6 +8,7 @@ __author__ = "Alex Urban <alexander.urban@ligo.org>"
 
 
 import os
+import tempfile
 import numpy as np
 import healpy as hp
 
@@ -86,7 +87,7 @@ Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
 Queue
 """
         with open('plot_allsky_w_trigger.sub', 'w') as f:
-            f.write(trig_sub%{'uid':self.graceid,'RA':RA,'dec':dec,'fits':current+self.fits})
+            f.write(trig_sub%{'uid':self.graceid,'RA':RA,'dec':dec,'fits':self.fits})
 
         xcor_sub = """\
 universe            = vanilla
@@ -105,7 +106,7 @@ Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
 Queue
 """
         with open('plot_heatmap.sub', 'w') as f:
-            f.write(xcor_sub%{'uid':self.graceid,'skymap':current+self.fits,'trigger':grb_fits})
+            f.write(xcor_sub%{'uid':self.graceid,'skymap':self.fits,'trigger':grb_fits})
 
         dag = """\
 JOB PLOTALLSKY plot_allsky_w_trigger.sub
@@ -118,7 +119,7 @@ SCRIPT POST HEATMAP /usr/bin/gracedb upload convolved_prob_heatmap.png
             f.write(dag)
 
         # Create uniquely named log file.
-        logfid, logpath = tempfile.mkstemp(suffix='.nodes.log', prefix=streamdata['uid'])
+        logfid, logpath = tempfile.mkstemp(suffix='.nodes.log', prefix=self.graceid)
 
         # Set environment variable telling condor to use this log file
         # for communication with nodes.
@@ -151,9 +152,7 @@ SCRIPT POST HEATMAP /usr/bin/gracedb upload convolved_prob_heatmap.png
     def short_search(self):
         """ Speecialized short-duration coincidence search; also annotates
             relevant events with brief overview of results """
-        result = self.search(-1, 5)
-        for event in result:
-            if event['graceid'][0] != 'E': result.remove(event)
+        result = [event for event in self.search(-1, 5) if event['graceid'] == 'E']
         if result == []:
             message = 'No external triggers in window [-1,+5] seconds'
             self.submit_gracedb_log(message) # annotate GRB with news of lack of news
@@ -179,11 +178,9 @@ SCRIPT POST HEATMAP /usr/bin/gracedb upload convolved_prob_heatmap.png
     def long_search(self):
         """ Speecialized long-duration coincidence search; also annotates
             relevant events with brief overview of results """
-        result1 = self.search(-60, -1)
-        result2 = self.search(5, 120)
+        result1 = [event for event in self.search(-60, -1) if event['graceid'] == 'E']
+        result2 = [event for event in self.search(5, 120) if event['graceid'] == 'E']
         result = result1 + result2 # must ensure the two searches do not overlap
-        for event in result:
-            if event['graceid'][0] != 'E': result.remove(event)
         if result == []:
             message = 'No external triggers in window [-60,+120] seconds'
             self.submit_gracedb_log(message) # annotate GRB with news of lack of news

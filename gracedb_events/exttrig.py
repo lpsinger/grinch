@@ -121,9 +121,7 @@ class GRB:
     def short_search(self): 
         """ Speecialized short-duration coincidence search; also annotates
             relevant events with brief overview of results """
-        result = self.search(-5, 1)
-        for event in result:
-            if event['graceid'][0] != 'G': result.remove(event)
+        result = [event for event in self.search(-5, 1) if event['graceid'] == 'G']
         if result == []:
             message = 'No GW candidates in window [-5,+1] seconds'
             self.submit_gracedb_log(message) # annotate GRB with news of lack of news
@@ -143,11 +141,9 @@ class GRB:
     def long_search(self):
         """ Speecialized long-duration coincidence search; also annotates
             relevant events with brief overview of results """
-        result1 = self.search(-120, -5)
-        result2 = self.search(1, 60)
+        result1 = [event for event in self.search(-120, -5) if event['graceid'] == 'G']
+        result2 = [event for event in self.search(1, 60) if event['graceid'] == 'G']
         result = result1 + result2 # must ensure the two searches do not overlap
-        for event in result:
-            if event['graceid'][0] != 'G': result.remove(event)
         if result == []:
             message = 'No GW candidates in window [-120,+60] seconds'
             self.submit_gracedb_log(message) # annotate GRB with news of lack of news
