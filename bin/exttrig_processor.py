@@ -42,9 +42,11 @@ else: # if not, do nothing
 working = directory(streamdata['uid'])
 working.build_and_move()
 
+## FIXME: This method of downloading VOEvents is inelegant. When the 
+##        REST API interface is updated, fix this.
 # grab the VOEvent .xml file from gracedb
-voevent = split(urlparse.urlparse(streamdata['file']).path,'/')[-1]
-os.system('gracedb download ' + streamdata['uid'] + ' ' + voevent)
+voevent = split(streamdata['file'],'/')[-1].replace('#','%23')
+#os.system('/usr/bin/gracedb download ' + streamdata['uid'] + ' `sed -e s/#/%23/g <<< ' + voevent + '`')
 
 
 ##############################
@@ -80,10 +82,10 @@ with open('coinc_search.sub', 'w') as f:
 
 contents = """\
 JOB COINCSEARCH coinc_search.sub
-
+SCRIPT PRE COINCSEARCH /usr/bin/gracedb download %(uid)s %(voevent)s
 """
 with open('exttrig_runner.dag', 'w') as f:
-    f.write(contents)
+    f.write(contents%{'uid':streamdata['uid'],'voevent':voevent})
 
 # Create uniquely named log file.
 logfid, logpath = tempfile.mkstemp(suffix='.nodes.log', prefix=streamdata['uid'])
