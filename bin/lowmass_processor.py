@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!/usr/bin/python
 
 import os
 import os.path
@@ -40,6 +40,7 @@ coinc_search       = cp.get('executable','coincscript')
 # build and move to a unique working directory
 working = directory(streamdata['uid'])
 working.build_and_move()
+wdir = working.name
 
 
 ## if labeled EM_READY
@@ -93,8 +94,8 @@ arguments           = " --graceid=%(uid)s --direction=backward "
 getenv              = True
 notification        = never
 
-output              = coinc_search_%(uid)s.out
-error               = coinc_search_%(uid)s.error
+output              = %(directory)s/coinc_search_%(uid)s.out
+error               = %(directory)s/coinc_search_%(uid)s.error
 
 +Online_CBC_EM_FOLLOWUP = True
 Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
@@ -103,27 +104,27 @@ Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
 Queue
 """
 with open('coinc_search.sub', 'w') as f:
-    f.write(contents%{'script':coinc_search,'uid':streamdata['uid']})
+    f.write(contents%{'script':coinc_search,'directory':wdir,'uid':streamdata['uid']})
 
 ## write data quality.sub
 #contents   = """\
 #universe            = vanilla
 #
 #executable          = /bin/cp
-#arguments           = /home/gdb_processor/dq-fake.xml dq.xml
+#arguments           = /home/gdb_processor/dq-fake.xml %(directory)s/dq.xml
 #getenv              = True
 #notification        = never
 #
-#output              = dq_%(uid)s.out
-#error               = dq_%(uid)s.error
+#output              = %(directory)s/dq_%(uid)s.out
+#error               = %(directory)s/dq_%(uid)s.error
 #
 #+LVAlertListen      = %(uid)s_dq
 #Queue
 #"""
 #with open('dq.sub', 'w') as f:
-#    f.write(contents%{'uid':streamdata['uid']})
+#    f.write(contents%{'directory':wdir,'uid':streamdata['uid']})
 #
-#    f.write(contents%{'script':dqtolabelscript,'gdbcommand':gracedbcommand,'vetodefinerfile':vetodefinerfile,'uid':streamdata['uid']})
+#    f.write(contents%{'script':dqtolabelscript,'gdbcommand':gracedbcommand,'vetodefinerfile':vetodefinerfile,'directory':wdir,'uid':streamdata['uid']})
 #
 ## write emlabel.sub
 #contents   = """\
@@ -134,8 +135,8 @@ with open('coinc_search.sub', 'w') as f:
 #getenv              = True
 #notification        = never
 #
-#error               = emlabel_%(uid)s.err
-#output              = emlabel_%(uid)s.out
+#error               = %(directory)s/emlabel_%(uid)s.err
+#output              = %(directory)s/emlabel_%(uid)s.out
 #
 #+Online_CBC_EM_FOLLOWUP = True
 #Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
@@ -143,7 +144,7 @@ with open('coinc_search.sub', 'w') as f:
 #Queue
 #"""
 #with open('emlabel.sub','w') as f:
-#    f.write(contents%{'script':dqtolabelscript,'gdbcommand':gracedbcommand,'vetodefinerfile':vetodefinerfile,'uid':streamdata['uid']})
+#    f.write(contents%{'script':dqtolabelscript,'gdbcommand':gracedbcommand,'vetodefinerfile':vetodefinerfile,'directory':wdir,'uid':streamdata['uid']})
 
 ## write localize.sub
 ## FIXME: why does this require multiple cores?
@@ -155,8 +156,8 @@ arguments           = " bayestar_localize_lvalert %(uid)s "
 getenv              = True
 notification        = never
 
-error               = localize_%(uid)s.err
-output              = localize_%(uid)s.out
+error               = %(directory)s/localize_%(uid)s.err
+output              = %(directory)s/localize_%(uid)s.out
 
 +Online_CBC_EM_FOLLOWUP = True
 Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
@@ -165,19 +166,19 @@ Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
 Queue
 """
 with open('localize.sub', 'w') as f:
-    f.write(contents%{'uid':streamdata['uid']})
+    f.write(contents%{'directory':wdir,'uid':streamdata['uid']})
 
 ## write plot_allsky.sub
 contents   = """\
 universe            = vanilla
 
 executable          = /usr/bin/env
-arguments           = " bayestar_plot_allsky -o %(output)s --contour=50 --contour=90 --figure-width=12 --figure-height=9 %(fits)s "
+arguments           = " bayestar_plot_allsky -o %(directory)/%(output)s --contour=50 --contour=90 --figure-width=12 --figure-height=9 %(directory)s/%(fits)s "
 getenv              = True
 notification        = never
 
-error               = allsky_%(uid)s.err
-output              = allsky_%(uid)s.out
+error               = %(directory)s/allsky_%(uid)s.err
+output              = %(directory)s/allsky_%(uid)s.out
 
 +Online_CBC_EM_FOLLOWUP = True
 Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
@@ -186,7 +187,7 @@ Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
 Queue
 """
 with open('plot_allsky.sub', 'w') as f:
-    f.write(contents%{'output':'skymap.png','fits':'skymap.fits.gz','uid':streamdata['uid']})
+    f.write(contents%{'output':'skymap.png','fits':'skymap.fits.gz','directory':wdir,'uid':streamdata['uid']})
 
 ## write uplad.sub
 ## FIXME: After ER4 release of Debian, just make this a POST script for plot_allsky.sub
@@ -194,12 +195,12 @@ contents   = """\
 universe            = vanilla
 
 executable          = /usr/bin/gracedb
-arguments           = " --tag-name=sky_loc upload %(uid)s skymap.png "
+arguments           = " --tag-name=sky_loc upload %(uid)s %(directory)s/skymap.png "
 getenv              = True
 notification        = never
 
-error               = upload_%(uid)s.err
-output              = upload_%(uid)s.out
+error               = %(directory)s/upload_%(uid)s.err
+output              = %(directory)s/upload_%(uid)s.out
 
 +Online_CBC_EM_FOLLOWUP = True
 Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
@@ -207,7 +208,7 @@ Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
 Queue
 """
 with open('upload.sub', 'w') as f:
-    f.write(contents%{'uid':streamdata['uid']})
+    f.write(contents%{'directory':wdir,'uid':streamdata['uid']})
 
 
 #################################

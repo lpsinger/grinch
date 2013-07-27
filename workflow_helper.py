@@ -9,7 +9,7 @@ import os
 
 home = os.getenv("HOME")
 
-class directory:
+class directory(object):
     """ Instance of a working directory integrated into the workflow """
     def __init__(self, graceid):
         self.graceid = graceid # unique ID of event in GraCEDb
@@ -17,6 +17,9 @@ class directory:
 
         # organize events so that no more than 1000 live in one directory
         self.millenium = self.graceid[1:-3] + '000'
+
+        # name the working directory for a given event
+        self.name = home + '/working/' + self.event_type + '/' + self.millenium + '/' + self.graceid
 
     def build_and_move(self):
         """ Method that builds, and then moves to, the working directory """
@@ -39,11 +42,10 @@ class directory:
             pass
 
         # try to build directory ${HOME}/working/${event_type}/${millenium}/${graceid}
-        work = home+'/working/'+self.event_type+'/'+self.millenium+'/'+self.graceid
         try:
-            os.mkdir(work)
+            os.mkdir(self.name)
         except OSError:
-            print 'Working directory %s already exists' % work
+            print 'Working directory %s already exists' % self.name
             pass
 
-        os.chdir(work) # move to the working directory
+        os.chdir(self.name) # move to the working directory

@@ -41,6 +41,8 @@ else: # if not, do nothing
 # create working directory for the trigger and move to it
 working = directory(streamdata['uid'])
 working.build_and_move()
+wdir = working.name
+
 
 ## FIXME: This method of downloading VOEvents is inelegant. When the 
 ##        REST API interface is updated, fix this.
@@ -58,12 +60,12 @@ contents   = """\
 universe            = vanilla
 
 executable          = %(script)s
-arguments           = " --graceid=%(uid)s --xml=%(voevent)s --direction=forward "
+arguments           = " --graceid=%(uid)s --xml=%(directory)s/%(voevent)s --direction=forward "
 getenv              = True
 notification        = never
 
-output              = coinc_search_%(uid)s.out
-error               = coinc_search_%(uid)s.error
+output              = %(directory)s/coinc_search_%(uid)s.out
+error               = %(directory)s/coinc_search_%(uid)s.error
 
 +Online_CBC_EM_FOLLOWUP = True
 Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
@@ -72,7 +74,7 @@ Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
 Queue
 """
 with open('coinc_search.sub', 'w') as f:
-    f.write(contents%{'script':coinc_search,'uid':streamdata['uid'],'voevent':voevent})
+    f.write(contents%{'script':coinc_search,'directory':wdir,'uid':streamdata['uid'],'voevent':voevent})
 
 
 #################################
