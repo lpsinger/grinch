@@ -173,7 +173,7 @@ contents   = """\
 universe            = vanilla
 
 executable          = /usr/bin/env
-arguments           = " bayestar_plot_allsky -o %(directory)/%(output)s --contour=50 --contour=90 --figure-width=12 --figure-height=9 %(directory)s/%(fits)s "
+arguments           = " bayestar_plot_allsky -o %(directory)s/%(output)s --contour=50 --contour=90 --figure-width=12 --figure-height=9 %(directory)s/%(fits)s "
 getenv              = True
 notification        = never
 

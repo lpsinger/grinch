@@ -152,7 +152,7 @@ SCRIPT POST HEATMAP /usr/bin/gracedb upload convolved_prob_heatmap.png
     def short_search(self):
         """ Speecialized short-duration coincidence search; also annotates
             relevant events with brief overview of results """
-        result = [event for event in self.search(-1, 5) if event['graceid'] == 'E']
+        result = [event for event in self.search(-1, 5) if event['graceid'][0] == 'E']
         if result == []:
             message = 'No external triggers in window [-1,+5] seconds'
             self.submit_gracedb_log(message) # annotate GRB with news of lack of news
@@ -166,6 +166,7 @@ SCRIPT POST HEATMAP /usr/bin/gracedb upload convolved_prob_heatmap.png
                         voevent = key
                         result[i]['file'] = voevent
                         break
+                os.system('/usr/bin/gracedb download %s %s' % (gid, voevent))
                 grb = GRB(gid,voevent)
                 message1 = "GW candidate found: <a href='http://gracedb.ligo.org/events/"
                 message1 += self.graceid + "'>" + self.graceid + "</a> with FAR = %s within [-5,+1] seconds" % self.far
@@ -178,8 +179,8 @@ SCRIPT POST HEATMAP /usr/bin/gracedb upload convolved_prob_heatmap.png
     def long_search(self):
         """ Speecialized long-duration coincidence search; also annotates
             relevant events with brief overview of results """
-        result1 = [event for event in self.search(-60, -1) if event['graceid'] == 'E']
-        result2 = [event for event in self.search(5, 120) if event['graceid'] == 'E']
+        result1 = [event for event in self.search(-60, -1) if event['graceid'][0] == 'E']
+        result2 = [event for event in self.search(5, 120) if event['graceid'][0] == 'E']
         result = result1 + result2 # must ensure the two searches do not overlap
         if result == []:
             message = 'No external triggers in window [-60,+120] seconds'
@@ -194,6 +195,7 @@ SCRIPT POST HEATMAP /usr/bin/gracedb upload convolved_prob_heatmap.png
                         voevent = key
                         result[i]['file'] = voevent
                         break
+                os.system('/usr/bin/gracedb download %s %s' % (gid, voevent))
                 grb = GRB(gid,voevent)
                 message1 = "GW candidate found; <a href='http://gracedb.ligo.org/events/"
                 message1 += self.graceid + "'>" + self.graceid + "</a> with FAR = %s within [-120,+60] seconds" % self.far
@@ -201,4 +203,23 @@ SCRIPT POST HEATMAP /usr/bin/gracedb upload convolved_prob_heatmap.png
                 message2 = "External trigger <a href='http://gracedb.ligo.org/events/"
                 message2 += gid + "'>" + grb.name + "</a> within window [-120,+60] seconds"
                 self.submit_gracedb_log(message2) # annotate GW with news of discovery
+        return result
+
+    def hardware_search(self):
+        result = [event for event in self.search(-5, 5) if event['graceid'][0] == 'H']
+        if result == []:
+            message = 'No unblind injections in window [-5,+5] seconds'
+            self.submit_gracedb_log(message) # annotate GRB with news of lack of news
+        else:
+            for i in xrange(len(result)):
+                gid = result[i]['graceid']
+                filedict = gracedb.files(gid).json()
+                for key in filedict: # search for this injection's sim_inspiral table
+                    if key.endswith('.xml.gz'):
+                        sim_inspiral_table = key
+                        result[i]['file'] = sim_inspiral_table
+                        break
+                message = "Unblind injection <a href='http://gracedb.ligo.org/events/"
+                message += "%s'>%s</a> within window [-5,+5] seconds; " % (gid, gid)
+                self.submit_gracedb_log(message) # annotate GW with news of discovery
         return result
