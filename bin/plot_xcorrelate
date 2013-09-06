@@ -102,7 +102,12 @@ def pdf_xcorr(dth, dph):
 da, th0 = 0.01, th.min()
 dth = np.arange(th0-np.pi, th0+da, da)
 dph = np.arange(-np.pi, np.pi+da, da)
-xcor = np.array([pdf_xcorr(t, p) for p in dph for t in dth])
+xcor = np.array([pdf_xcorr(t, p) for t in dth for p in dph])
+
+# Shift dtheta values to lie in (-pi/2, pi/2]
+for i in xrange(len(dth)): 
+    if dth[i] >= np.pi/2: dth[i] -= np.pi
+    if dth[i] < -np.pi/2: dth[i] += np.pi
 
 # Normalize the cross-correlation distribution
 diff = len(gw_skymap)/float(len(xcor))
@@ -119,7 +124,7 @@ probdens = xcor / (hp.nside2pixarea(nside1) * diff)
 vmax = probdens.max()
 
 # Generate heatmap plot
-X, Y = np.meshgrid(dth,dph)
+X, Y = np.meshgrid(dph,dth)
 x = X.ravel()
 y = Y.ravel()
 plt.hexbin(x, y, probdens, gridsize=(500,1000), vmax=vmax)
@@ -135,7 +140,7 @@ if opts.contour:
     indices = np.argsort(-xcor)
     region = np.empty(xcor.shape)
     region[indices] = 100 * np.cumsum(xcor[indices])
-    cs = plt.contour(dth, dph, np.reshape(region, (len(dph), len(dth))), 
+    cs = plt.contour(dph, dth, np.reshape(region, (len(dth), len(dph))), 
         levels=opts.contour, colors='k')
     plt.clabel(cs, fmt='%g%%', fontsize=6, inline=True)
 
@@ -145,9 +150,9 @@ if opts.contour:
     l = next(z[0] for z in enumerate(y1) if abs(z[1]) < 0.01 or z[1] >= 0.)
     cont = region[k + l]
 
-plt.axis([min(dth), max(dth), min(dph), max(dph)])
-plt.xlabel(r'$\Delta\theta$')
-plt.ylabel(r'$\Delta\varphi$')
+plt.axis([-np.pi, np.pi, -np.pi/2, np.pi/2])
+plt.xlabel(r'$\Delta\varphi$')
+plt.ylabel(r'$\Delta\theta$')
 
 # If we are using a new enough version of matplotlib, then
 # add a white outline to all text to make it stand out from the background.
@@ -167,11 +172,8 @@ else:
     gracedb = GraceDb()
 
     # Submit plot to GraCEDb
-    uid = {'trig':grb_metadata['objid'], 'GW':gw_metadata['objid']}
-    message = "Smallest probability contour containing the origin is %.3f%%, " % cont
-    message += "corresponding to %.3f%% confidence" % (100 - cont)
-    print message
+    uid = gw_metadata['objid']
+    print "Smallest probability contour containing the origin is %.3f%%, " % cont
 
     # Publish to both GW and external trigger profiles
-    gracedb.writeLog(uid['trig'], message, filename=opts.output, tagname="sky_loc")
-    gracedb.writeLog(uid['GW'], message, filename=opts.output, tagname="sky_loc")
+    gracedb.writeLog(uid, message, filename=opts.output, tagname="sky_loc")
