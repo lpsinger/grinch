@@ -174,7 +174,7 @@ else:
     # Submit plot to GraCEDb
     uid = gw_metadata['objid']
     message = "Smallest probability contour containing the origin is %.3f%%, " % cont
-    message += "corresponding to %.3f%% confidence" % 100 - cont
+    message += "corresponding to %.3f%% confidence" % (100 - cont)
     print message
 
     # Publish to both GW and external trigger profiles
