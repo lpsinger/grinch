@@ -34,6 +34,8 @@ streamdata = get_LVAdata_from_stdin(stdin, as_dict=True)
 # test whether this event is new
 if streamdata['alert_type'] == 'new':
     pass
+elif streamdata['alert_type'] == 'update' and streamdata['file'].endswith('.xml'):
+    pass
 else: # if not, do nothing
      exit()
 

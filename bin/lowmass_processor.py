@@ -189,27 +189,6 @@ Queue
 with open('plot_allsky.sub', 'w') as f:
     f.write(contents%{'output':'skymap.png','fits':'skymap.fits.gz','directory':wdir,'uid':streamdata['uid']})
 
-## write uplad.sub
-## FIXME: After ER4 release of Debian, just make this a POST script for plot_allsky.sub
-contents   = """\
-universe            = vanilla
-
-executable          = /usr/bin/gracedb
-arguments           = " --tag-name=sky_loc upload %(uid)s %(directory)s/skymap.png "
-getenv              = True
-notification        = never
-
-error               = %(directory)s/upload_%(uid)s.err
-output              = %(directory)s/upload_%(uid)s.out
-
-+Online_CBC_EM_FOLLOWUP = True
-Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
-
-Queue
-"""
-with open('upload.sub', 'w') as f:
-    f.write(contents%{'directory':wdir,'uid':streamdata['uid']})
-
 
 #################################
 ## WRITE CONDOR DAG AND SUBMIT ##
@@ -222,13 +201,11 @@ SCRIPT POST LOCALIZE %(gracedbcommand)s label %(uid)s EM_READY
 
 JOB PLOTALLSKY plot_allsky.sub
 SCRIPT PRE PLOTALLSKY %(gracedbcommand)s download %(uid)s skymap.fits.gz
+SCRIPT POST PLOTALLSKY %(gracedbcommand)s --tag-name=sky_loc upload %(uid)s skymap.png
 
 JOB COINCSEARCH coinc_search.sub
 
-JOB UPLOAD upload.sub
-
 PARENT LOCALIZE CHILD PLOTALLSKY COINCSEARCH
-PARENT PLOTALLSKY CHILD UPLOAD
 """
 with open('lowmass_runner.dag', 'w') as f:
     f.write(contents % {'gracedbcommand': gracedbcommand,'uid': streamdata['uid']})

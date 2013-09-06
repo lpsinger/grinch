@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 
 """
 Cross-correlate sky location probability maps for an external GRB trigger
@@ -6,123 +6,172 @@ and a gravitational-wave candidate event
 """
 __author__ = "Alex Urban <alexander.urban@ligo.org>"
 
-import matplotlib as mpl
-import matplotlib.pyplot as plt
 import numpy as np
 import healpy as hp
-import bayestar.plot as frakkin_cylons
-import matplotlib.mlab as ml
-import matplotlib.cm as cm
 from optparse import Option, OptionParser
 
 # read in options from command line
 opts, args = OptionParser(
     description = __doc__,
-    usage = "%prog [options] [INPUT]",
+    usage = "%prog [options]",
     option_list = [
         Option("-o", "--output", metavar="FILE.{pdf,png}",
             help="name of output file"),
-        Option("--skymap", metavar="FILE.fits",
-            help="name of HEALPix .fits file containing skymap of GW candidate"),
-        Option("--figure-width", type=float, default=12.,
-            help="width of figure in inches (default = 12 in.)"),
-        Option("--figure-height", type=float, default=12.,
-            help="height of figure in inches (default = 12 in.)"),
+        Option("--colormap", default="jet",
+            help="name of matplotlib colormap [default: %default]"),
+        Option("-s", "--skymap", metavar="FILE.fits", default="skymap.fits.gz",
+            help="name of HEALPix .fits file containing skymap of GW candidate "
+                + "(default: 'skymap.fits.gz')"),
+        Option("--contour", metavar="PERCENT", type=float, action="append",
+            default=[], help="plot contour enclosing this percentage of"
+            + " probability mass [may be specified multiple times [default: none]"),
+        Option("--figure-width", type=float, default=8.,
+            help="width of figure in inches (default = 8 in.)"),
+        Option("--figure-height", type=float, default=8.,
+            help="height of figure in inches (default = 8 in.)"),
         Option("-t","--trigger",metavar="FILE.fits",
             help="name of HEALPix .fits file containing skymap of external trigger")
     ]
 ).parse_args()
 
-mpl.use('agg')
+if opts.trigger is None:
+    import sys
+    print 'ERROR: Valid GRB .fits file not specified'
+    sys.exit(1)
 
-grb_skymap = hp.read_map(opts.trigger)
-gw_skymap = hp.read_map(opts.skymap)
 
-nside = hp.npix2nside(len(gw_skymap))
-area = hp.nside2pixarea(nside, degrees=True) # area (in sq. degrees) of a pixel
-index = np.argmax(grb_skymap)
-th0, ph0 = hp.pix2ang(nside, index)
+# Late imports
 
-def pdf_xcor(x,y):
-    """ PDF of a cross-correlation, assuming the spread in GRB sky location 
-        is very small compared to the GW distribution """
-    th, ph = abs(y*np.pi + th0), abs(x*2*np.pi + ph0)
-    n = hp.ang2pix(nside,th,ph)
-    return gw_skymap[n]/area
+# Choose a matplotlib backend that is suitable for headless
+# rendering if output to file is requested
+import matplotlib as mpl
+if opts.output is not None:
+    mpl.use('agg')
 
-vmax = max(gw_skymap)/area
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+from lalinference.bayestar import fits
+from lalinference.bayestar import plot
 
-# produce a rectangular heatmap of the cross-correlation
-plt.figure(figsize=(opts.figure_width, opts.figure_height), frameon=False)
+
+# Read in GRB and GW skymaps
+grb_skymap, grb_metadata = fits.read_sky_map(opts.trigger)
+gw_skymap, gw_metadata = fits.read_sky_map(opts.skymap)
+
+# Calculate number of pixels per side for each map
+nside1 = hp.npix2nside(len(gw_skymap))
+nside2 = hp.npix2nside(len(grb_skymap))
+
+# If skymaps are of different length, up- or downgrade 
+# the size of the GRB skymap
+if nside1 != nside2: grb_skymap = hp.ud_grade(grb_skymap, nside1, power=2)
+
+# Get a list of all indices in the GRB skymap that 
+# correspond to nonzero probability mass
+ind = [i for i, p in enumerate(grb_skymap) if p != 0.]
+th, ph = hp.pix2ang(nside1, ind)
+
+# Now define the sliding dot product, knowing only a small number
+# of nonzero GRB values will contribute to the sum
+def correct_ang(theta, phi):
+    """ Map angles that go out of range back to where they 
+        ought to be on the unit sphere """
+    for i in xrange(len(theta)):
+        if theta[i] < 0.:
+            theta[i] = -theta[i]
+            phi[i] += np.pi
+        elif theta[i] > np.pi:
+            theta[i] = 2*np.pi - theta[i]
+            phi[i] -= np.pi
+
+    return theta, np.mod(phi, 2*np.pi)
+
+def pdf_xcorr(dth, dph):
+    """ Probability distribution function P(th2-th1, ph2-ph1) """
+    theta, phi = correct_ang([x-dth for x in th], [x-dph for x in ph])
+    ind2 = hp.ang2pix(nside1, theta, phi)
+
+    pdf = 0.
+    for i in xrange(len(ind)): 
+        pdf += gw_skymap[ind2[i]] * grb_skymap[ind[i]]
+
+    return pdf
+
+# Cross-correlation map is the distribution of the difference
+# between GRB and GW sky locations
+da, th0 = 0.01, th.min()
+dth = np.arange(th0-np.pi, th0+da, da)
+dph = np.arange(-np.pi, np.pi+da, da)
+xcor = np.array([pdf_xcorr(t, p) for p in dph for t in dth])
+
+# Normalize the cross-correlation distribution
+diff = len(gw_skymap)/float(len(xcor))
+xcor /= np.sum(xcor)
+
+
+## Produce a rectangular heatmap of the cross-correlation
+fig = plt.figure(figsize=(opts.figure_width, opts.figure_height), frameon=False)
 ax = plt.subplot(111)
+ax.grid()
 
-# define a matrix and re-normalize
-x0 = np.arange(-ph0/(2*np.pi),1.005 - ph0/(2*np.pi),.005)
-y0 = np.arange(-th0/np.pi,1.005 - th0/np.pi,.005)
-H = np.array([[pdf_xcor(x0[i],y0[j]) for i in xrange(len(y0))] for j in xrange(len(x0))])
-H /= np.sum(H)
+# Convert sky map from probability to probability density
+probdens = xcor / (hp.nside2pixarea(nside1) * diff)
+vmax = probdens.max()
 
-# find contours
-lik = H.reshape(H.size)
-sortlik = np.sort(lik)
-
-sortlik = np.flipud(sortlik)
-ind = ml.find(np.cumsum(sortlik)>0.1) # 10% probability contour
-ind2 = ml.find(np.cumsum(sortlik)>0.5) # 50% probability contour
-ind3 = ml.find(np.cumsum(sortlik)>0.9) # 90% probability contour
-v = [sortlik[ind.min()],sortlik[ind2.min()],sortlik[ind3.min()]]
-
-# add contours
-cs = plt.contour(x0,y0,H,v,linewidths=2.0,linestyles=('-','--','-.'),colors=('k','k','k'))
-
-# generate heatmap plot
-X, Y = np.meshgrid(x0,y0)
+# Generate heatmap plot
+X, Y = np.meshgrid(dth,dph)
 x = X.ravel()
 y = Y.ravel()
-z = H.ravel()
-plt.hexbin(x,y,z,cmap=cm.jet,bins=None)
-plt.axis([x0.min(),x0.max(),y0.min(),y0.max()])
-
-# Work out a good tick spacing for colorbar.  Why is this so complicated?
-base = int(np.floor(np.log10(vmax)))
-dtick = 10. ** base
-if vmax / dtick < 2:
-    dtick *= 0.25
-elif vmax / dtick < 5:
-    dtick *= 0.5
-if vmax % dtick == 0:
-    ticks = np.arange(0, vmax + 0.5 * dtick, dtick)
-else:
-    ticks = np.arange(0, vmax, dtick)
-ticklabels = ['$%g$' % (tick / 10.**base) for tick in ticks]
-if '.' in ticklabels[-1]: ticklabels[-1] = r'$\;\;\;\;$' + ticklabels[-1]
-else: ticklabels[-1] = r'$\;\;\;\,\,$' + ticklabels[-1]
-ticklabels[-1] += r'$\times 10^{%d}$' % base
-formatter = mpl.ticker.FixedFormatter(ticklabels)
+plt.hexbin(x, y, probdens, gridsize=(500,1000), vmax=vmax)
 
 # Plot colorbar
-cb = plt.colorbar(orientation='horizontal', ticks=ticks, format=formatter, shrink=0.4)
-cb.set_label(r'$\mathrm{prob.}$ $\mathrm{per}$ $\mathrm{deg}^2$')
+cb = plot.colorbar(vmax)
 
-# Adjust appearance of colorbar tick labels
-for tick, ticklabel in zip(cb.ax.get_xticks(), cb.ax.get_xticklabels()):
-    ticklabel.set_verticalalignment('baseline')
-    ticklabel.set_y(-1.5)
+# Set colorbar label
+cb.set_label(r'prob. per steradian')
 
-# mark the origin of lag space with an X
-#plt.scatter([0],[0],s=80,c='g',marker='o')
+# Add contours
+if opts.contour:
+    indices = np.argsort(-xcor)
+    region = np.empty(xcor.shape)
+    region[indices] = 100 * np.cumsum(xcor[indices])
+    cs = plt.contour(dth, dph, np.reshape(region, (len(dph), len(dth))), 
+        levels=opts.contour, colors='k')
+    plt.clabel(cs, fmt='%g%%', fontsize=6, inline=True)
 
-# make axes look pretty
-plt.xlabel(r'\Large$\Delta\varphi/2\pi$')
-plt.ylabel(r'\Large$\Delta\theta/\pi$')
+    # Find the smallest contour with the origin in its closure under S^2
+    x1, y1 = x.tolist(), y.tolist()
+    k = next(z[0] for z in enumerate(x1) if abs(z[1]) < 0.01 or z[1] >= 0.)
+    l = next(z[0] for z in enumerate(y1) if abs(z[1]) < 0.01 or z[1] >= 0.)
+    cont = region[k + l]
 
-# add a legend for contours
-line1 = plt.Line2D([0,1],[0,0],color='k')
-line2 = plt.Line2D([0,1],[0,0],linestyle='--',color='k')
-line3 = plt.Line2D([0,1],[0,0],linestyle='-.',color='k')
-plt.legend((line1,line2,line3),('$\mathrm{10\%}$','$\mathrm{50\%}$','$\mathrm{90\%}$'),'best')
+plt.axis([min(dth), max(dth), min(dph), max(dph)])
+plt.xlabel(r'$\Delta\theta$')
+plt.ylabel(r'$\Delta\varphi$')
 
-# title & save figure
-plt.title(r'$\mathrm{Convolved}$ $\mathrm{probability}$ $\mathrm{distribution}$'
- +' $P_{\mathrm{Astro}} = P_{\mathrm{GRB}}\star P_{\mathrm{GW}}$')
-plt.savefig(opts.output)
+# If we are using a new enough version of matplotlib, then
+# add a white outline to all text to make it stand out from the background.
+plot.outline_text(ax)
+
+fig.patch.set_alpha(0.)
+ax.patch.set_alpha(0.)
+ax.set_alpha(0.)
+
+
+if opts.output is None:
+    plt.show()
+else:
+    plt.savefig(opts.output)
+
+    from ligo.gracedb.rest import GraceDb
+    gracedb = GraceDb()
+
+    # Submit plot to GraCEDb
+    uid = {'trig':grb_metadata['objid'], 'GW':gw_metadata['objid']}
+    message = "Smallest probability contour containing the origin is %.3f%%, " % cont
+    message += "corresponding to %.3f%% confidence" % (100 - cont)
+    print message
+
+    # Publish to both GW and external trigger profiles
+    gracedb.writeLog(uid['trig'], message, filename=opts.output, tagname="sky_loc")
+    gracedb.writeLog(uid['GW'], message, filename=opts.output, tagname="sky_loc")

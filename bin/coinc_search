@@ -58,8 +58,8 @@ if opts.direction == 'forward':
             working.build_and_move() # move to GW event working directory
 
             event = GW(coincs[i]['graceid']) # initialize object of class GW
-#            event.plot_dag(trigfits, trig.RA, trig.dec) # plot and upload skymap with trigger and convolved heatmap
             arglist = arglist + " --radec %s %s" % (trig.RA, trig.dec)
+            os.system("/usr/bin/env plot_xcorrelate -o xcorr_%s_%s.png -t %s --contour 50 --contour 90" % (coincs[i]['graceid'], trig.graceid, trigfits))
 
         os.system("/usr/bin/env plot_allsky %s skymap.fits.gz" % arglist)
         os.system("/usr/bin/gracedb --tag-name=sky_loc upload %s skymap_with_short_triggers.png" % coincs[i]['graceid'])
@@ -82,6 +82,7 @@ if opts.direction == 'forward':
             event = GW(coincs2[i]['graceid']) # initialize object of class GW
 #            event.plot_dag(trigfits, trig.RA, trig.dec) # plot and upload skymap with trigger and convolved heatmap
             arglist = arglist + " --radec %s %s" % (trig.RA, trig.dec)
+            os.system("/usr/bin/env plot_xcorrelate -o xcorr_%s_%s.png -t %s --contour 50 --contour 90" % (coincs[i]['graceid'], trig.graceid, trigfits))
 
         os.system("/usr/bin/env plot_allsky %s skymap.fits.gz" % arglist)
         os.system("/usr/bin/gracedb --tag-name=sky_loc upload %s skymap_with_long_triggers.png" % coincs[i]['graceid'])
@@ -108,17 +109,10 @@ elif opts.direction == 'backward':
         from workflow_helper import directory
         arglist = " -o skymap_with_short_triggers.png --contour 50 --contour 90"
         for i in xrange(len(coincs)):
-#            working = directory(coincs[i]['graceid'])
-#            working.build_and_move() # move to GRB event working directory
-
             trig = GRB(coincs[i]['graceid'],coincs[i]['file']) # initialize object of class GRB
-#            trig.write_fits()
-#            trigdir = os.getcwd() + '/'
-#            trigfits = trigdir + trig.fits # will need the path to this file
-
-#            directory(opts.graceid).build_and_move()
-#            event.plot_dag(trigfits, trig.RA, trig.dec) # plot and upload skymap with trigger and convolved heatmap
             arglist = arglist + " --radec %s %s" % (trig.RA, trig.dec)
+            os.system("/usr/bin/gracedb download %s %s" % (trig.graceid, trig.fits))
+            os.system("/usr/bin/env plot_xcorrelate -o xcorr_%s_%s.png -t %s --contour 50 --contour 90" % (opts.graceid, trig.graceid, trig.fits))
 
         os.system("/usr/bin/env plot_allsky %s skymap.fits.gz" % arglist)
         os.system("/usr/bin/gracedb --tag-name=sky_loc upload %s skymap_with_short_triggers.png" % opts.graceid)
@@ -130,17 +124,10 @@ elif opts.direction == 'backward':
         from workflow_helper import directory
         arglist = " -o skymap_with_long_triggers.png --contour 50 --contour 90"
         for i in xrange(len(coincs2)):
-#            working = directory(coincs2[i]['graceid'])
-#            working.build_and_move() # move to GRB event working directory
-
             trig = GRB(coincs2[i]['graceid'],coincs[i]['file']) # initialize object of class GRB
-#            trig.write_fits()
-#            trigdir = os.getcwd() + '/'
-#            trigfits = trigdir + trig.fits # will need the path to this file
-
-#            directory(opts.graceid).build_and_move()
-#            event.plot_dag(trigfits, trig.RA, trig.dec) # plot and upload skymap with trigger and convolved heatmap
             arglist = arglist + " --radec %s %s" % (trig.RA, trig.dec)
+            os.system("/usr/bin/gracedb download %s %s" % (trig.graceid, trig.fits))
+            os.system("/usr/bin/env plot_xcorrelate -o xcorr_%s_%s.png -t %s --contour 50 --contour 90" % (opts.graceid, trig.graceid, trig.fits))
 
         os.system("/usr/bin/env plot_allsky %s skymap.fits.gz" % arglist)
         os.system("/usr/bin/gracedb --tag-name=sky_loc upload %s skymap_with_long_triggers.png" % opts.graceid)
