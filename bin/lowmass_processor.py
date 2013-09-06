@@ -189,6 +189,27 @@ Queue
 with open('plot_allsky.sub', 'w') as f:
     f.write(contents%{'output':'skymap.png','fits':'skymap.fits.gz','directory':wdir,'uid':streamdata['uid']})
 
+## write find_data.sub
+contents   = """\
+universe            = vanilla
+
+executable          = /usr/bin/env
+arguments           = " find_data --padding 20 -g %(uid)s -f H1=H1_ER_C00_L1 -f L1=L1_ER_C00_L1 -f V1=V1Online -s ldr.ligo.caltech.edu:443 --verbose "
+getenv              = True
+notification        = never
+
+error               = %(directory)s/find_data_%(uid)s.err
+output              = %(directory)s/find_data_%(uid)s.out
+
++Online_CBC_EM_FOLLOWUP = True
+Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
++LVAlertListen      = %(uid)s_find_data
+
+Queue
+"""
+with open('find_data.sub', 'w') as f:
+    f.write(contents%{'directory':wdir,'uid':streamdata['uid']})
+
 
 #################################
 ## WRITE CONDOR DAG AND SUBMIT ##
@@ -204,6 +225,8 @@ SCRIPT PRE PLOTALLSKY %(gracedbcommand)s download %(uid)s skymap.fits.gz
 SCRIPT POST PLOTALLSKY %(gracedbcommand)s --tag-name=sky_loc upload %(uid)s skymap.png
 
 JOB COINCSEARCH coinc_search.sub
+
+JOB FINDDATA find_data.sub
 
 PARENT LOCALIZE CHILD PLOTALLSKY COINCSEARCH
 """
