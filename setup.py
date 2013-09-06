@@ -33,7 +33,7 @@ setup(
     description='Coordinate between LV alerts, gracedb, and condor job submission automatically',
     license='GNU General Public License Version 3',
     packages=['gracedb_events'],
-    py_modules=['workflow_helper','argparse'],
+    py_modules=['workflow_helper', 'argparse', 'GWDataFindClient'],
     scripts=[
         'bin/gdb_processor',
         'bin/lowmass_processor.py',
@@ -42,7 +42,8 @@ setup(
         'bin/lvalertlisten',
         'bin/plot_allsky',
         'bin/plot_xcorrelate',
-        'bin/coinc_search'
+        'bin/coinc_search',
+        'bin/find_data'
     ],
     data_files=[('etc',['etc/lowmass_config.ini','etc/exttrig_config.ini',
         'etc/lvalertconfig.ini'])]
