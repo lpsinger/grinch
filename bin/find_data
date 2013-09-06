@@ -102,7 +102,7 @@ for inst in instruments.split(","):
 #
 tmpfname = tempfile.gettempdir() + "/%s_data.cache" % opts.graceid
 if opts.verbose:
-	"Placing results in %s" % tmpfname
+	print "Placing results in %s" % tmpfname
 tmpf = open(tmpfname, "w")
 cache.tofile(tmpf)
 gracedb.writeLog(opts.graceid, message="Frame data location", filename=tmpfname)
