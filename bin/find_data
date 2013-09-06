@@ -105,7 +105,7 @@ if opts.verbose:
 	"Placing results in %s" % tmpfname
 tmpf = open(tmpfname, "w")
 cache.tofile(tmpf)
-#gracedb.writeLog(opts.graceid, message="Frame data location", filename=tmpfname)
+gracedb.writeLog(opts.graceid, message="Frame data location", filename=tmpfname)
 tmpf.close()
 
 #
