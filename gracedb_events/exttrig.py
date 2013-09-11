@@ -93,9 +93,9 @@ class GRB(object):
         fits.write_sky_map(self.fits, trig_map, objid=self.graceid, gps_time=self.gpstime)
         gracedb.writeLog(self.graceid, "Uploaded sky map", self.fits, tagname="sky_loc")
 
-    def submit_gracedb_log(self, message):
+    def submit_gracedb_log(self, message, tagname=None):
         """ wrapper for gracedb.writeLog() for this event """
-        gracedb.writeLog(self.graceid,message)
+        gracedb.writeLog(self.graceid,message,tagname=tagname)
 
     def search(self, tl, th):
         """ Search for coincident GW events happening within a window
@@ -118,7 +118,7 @@ class GRB(object):
         result = [event for event in self.search(-5, 1) if event['graceid'][0] == 'G']
         if result == []:
             message = 'No GW candidates in window [-5,+1] seconds'
-            self.submit_gracedb_log(message) # annotate GRB with news of lack of news
+            self.submit_gracedb_log(message, tagname="ext_coinc") # annotate GRB with news of lack of news
         else: 
             from grace import GW
             for i in xrange(len(result)):
@@ -126,10 +126,10 @@ class GRB(object):
                 far = result[i]['far']
                 message1 = "GW candidate found: <a href='http://gracedb.ligo.org/events/"
                 message1 += gid + "'>" + gid + "</a> with FAR = %s within [-5,+1] seconds" % far
-                self.submit_gracedb_log(message1) # annotate GRB with news of discovery
+                self.submit_gracedb_log(message1, tagname="ext_coinc") # annotate GRB with news of discovery
                 message2 = "External trigger <a href='http://gracedb.ligo.org/events/" 
                 message2 += self.graceid + "'>" + self.name + "</a> within window [-5,+1] seconds"
-                GW(gid).submit_gracedb_log(message2) # annotate GW with news of discovery
+                GW(gid).submit_gracedb_log(message2, tagname="ext_coinc") # annotate GW with news of discovery
         return result
 
     def long_search(self):
@@ -140,7 +140,7 @@ class GRB(object):
         result = result1 + result2 # must ensure the two searches do not overlap
         if result == []:
             message = 'No GW candidates in window [-120,+60] seconds'
-            self.submit_gracedb_log(message) # annotate GRB with news of lack of news
+            self.submit_gracedb_log(message, tagname="ext_coinc") # annotate GRB with news of lack of news
         else: 
             from grace import GW
             for i in xrange(len(result)):
@@ -148,8 +148,8 @@ class GRB(object):
                 far = result[i]['far']
                 message1 = "GW candidate found; <a href='http://gracedb.ligo.org/events/"
                 message1 += gid + "'>" + gid + "</a> with FAR = %s within [-120,+60] seconds" % far
-                self.submit_gracedb_log(message1) # annotate GRB with news of discovery
+                self.submit_gracedb_log(message1, tagname="ext_coinc") # annotate GRB with news of discovery
                 message2 = "External trigger <a href='http://gracedb.ligo.org/events/" 
                 message2 += self.graceid + "'>" + self.name + "</a> within window [-120,+60] seconds"
-                GW(gid).submit_gracedb_log(message2) # annotate GW with news of discovery
+                GW(gid).submit_gracedb_log(message2, tagname="ext_coinc") # annotate GW with news of discovery
         return result

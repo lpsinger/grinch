@@ -172,10 +172,11 @@ else:
     gracedb = GraceDb()
 
     # Submit plot to GraCEDb
-    uid = gw_metadata['objid']
+    uid = [gw_metadata['objid'], grb_metadata['objid']]
     message = "Smallest probability contour containing the origin is %.3f%%, " % cont
     message += "corresponding to %.3f%% confidence" % (100 - cont)
     print message
 
     # Publish to both GW and external trigger profiles
-    gracedb.writeLog(uid, message, filename=opts.output, tagname="sky_loc")
+    gracedb.writeLog(uid[0], message, filename=opts.output, tagname="ext_coinc")
+    gracedb.writeLog(uid[1], message, filename=opts.output, tagname="ext_coinc")
