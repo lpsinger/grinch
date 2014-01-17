@@ -55,31 +55,53 @@ elif streamdata['alert_type'] == 'update' and streamdata['file'].contains('.fits
 	fitsfile = streamdata['file']
 
 	# Write plot_allsky.sub.
-	contents   = """\
-	universe            = vanilla
+	contents = """\
+universe            = vanilla
 
-	executable          = /usr/bin/env
-	arguments           = " bayestar_plot_allsky -o %(directory)s/%(fits)s.png --contour=50 --contour=90 --figure-width=12 --figure-height=9 %(directory)s/%(fits)s "
-	getenv              = True
-	notification        = never
+executable          = /usr/bin/env
+arguments           = " bayestar_plot_allsky -o %(directory)s/%(fits)s.png --contour=50 --contour=90 --figure-width=12 --figure-height=9 %(directory)s/%(fits)s "
+getenv              = True
+notification        = never
 
-	error               = %(directory)s/allsky_%(uid)s.err
-	output              = %(directory)s/allsky_%(uid)s.out
+error               = %(directory)s/allsky_%(uid)s.err
+output              = %(directory)s/allsky_%(uid)s.out
 
-	+LVAlertListen      = %(uid)s_plot_allsky
++LVAlertListen      = %(uid)s_plot_allsky
 
-	Queue
-	"""
+Queue
+"""
 	with open('plot_allsky.sub', 'w') as f:
 		f.write(contents%{'fits':fitsfile, 'directory':wdir, 'uid':streamdata['uid']})
 
-	# Write plot_allsky.dag.
+	# Write coinc_search.sub.
 	contents = """\
-	JOB PLOTALLSKY plot_allsky.sub
-	SCRIPT PRE PLOTALLSKY %(gracedbcommand)s download %(uid)s %(fits)s
-	SCRIPT POST PLOTALLSKY %(gracedbcommand)s --tag-name=sky_loc upload %(uid)s %(fits)s.png
-	"""
-	with open('plot_allsky.dag', 'w') as f:
+universe            = vanilla
+
+executable          = %(script)s
+arguments           = " --graceid=%(uid)s --direction=backward "
+getenv              = True
+notification        = never
+
+output              = %(directory)s/coinc_search_%(uid)s.out
+error               = %(directory)s/coinc_search_%(uid)s.error
+
++LVAlertListen      = %(uid)s_coinc_search
+
+Queue
+"""
+	with open('coinc_search.sub', 'w') as f:
+		f.write(contents%{'script': coinc_search, 'directory': wdir, 'uid': streamdata['uid']})
+
+
+	# Write and submit fits_followup.dag.
+	contents = """\
+JOB PLOTALLSKY plot_allsky.sub
+SCRIPT PRE PLOTALLSKY %(gracedbcommand)s download %(uid)s %(fits)s
+SCRIPT POST PLOTALLSKY %(gracedbcommand)s --tag-name=sky_loc upload %(uid)s %(fits)s.png
+
+JOB COINCSEARCH coinc_search.sub
+"""
+	with open('fits_followup.dag', 'w') as f:
 		f.write(contents % {'gracedbcommand': gracedbcommand, 'uid': streamdata['uid'], 'fits': fitsfile},)
 
 	# Create a uniquely-named log file.
@@ -90,7 +112,7 @@ elif streamdata['alert_type'] == 'update' and streamdata['file'].contains('.fits
 	os.environ['_CONDOR_DAGMAN_DEFAULT_NODE_LOG'] = logpath
 
 	# Submit the processor dag.
-	condorargs=['condor_submit_dag','plot_allsky.dag']
+	condorargs=['condor_submit_dag','fits_followup.dag']
 	os.execlp('condor_submit_dag', *condorargs)
 
 # Elsewise, end the processor.
@@ -124,25 +146,6 @@ itime        = str( int( float(gpstime) + 0.5 ) )
 ##############################
 ## PRODUCE CONDOR SUB FILES ##
 ##############################
-
-# Write coinc_search.sub.
-contents   = """\
-universe            = vanilla
-
-executable          = %(script)s
-arguments           = " --graceid=%(uid)s --direction=backward "
-getenv              = True
-notification        = never
-
-output              = %(directory)s/coinc_search_%(uid)s.out
-error               = %(directory)s/coinc_search_%(uid)s.error
-
-+LVAlertListen      = %(uid)s_coinc_search
-
-Queue
-"""
-with open('coinc_search.sub', 'w') as f:
-	f.write(contents%{'script': coinc_search, 'directory': wdir, 'uid': streamdata['uid']})
 
 # Write data quality.sub.
 #contents   = """\
@@ -234,11 +237,7 @@ contents = """\
 JOB LOCALIZE localize.sub
 SCRIPT POST LOCALIZE %(gracedbcommand)s label %(uid)s EM_READY
 
-JOB COINCSEARCH coinc_search.sub
-
 JOB FINDDATA find_data.sub
-
-PARENT LOCALIZE CHILD COINCSEARCH
 """
 with open('lowmass_runner.dag', 'w') as f:
 	f.write(contents % {'gracedbcommand': gracedbcommand, 'uid': streamdata['uid']})
