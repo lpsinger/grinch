@@ -26,7 +26,7 @@ from distutils.core import setup
 
 setup(
     name='gdb-processor',
-    version='1.1',
+    version='1.2',
     url='http://gracedb.ligo.org',
     author='Alex Urban',
     author_email='alexander.urban@ligo.org',
