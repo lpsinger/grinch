@@ -51,7 +51,7 @@ if streamdata['alert_type'] == 'update' and streamdata['file'] == 'psd.xml.gz':
 	pass
 
 # If the update is a .fits file, plot the all-sky map it contains.
-elif streamdata['alert_type'] == 'update' and streamdata['file'].contains('.fits'):
+elif streamdata['alert_type'] == 'update' and ( streamdata['file'].endswith('.fits') or streamdata['file'].endswith('.fits.gz') ):
 	fitsfile = streamdata['file']
 
 	# Write plot_allsky.sub.
