@@ -40,8 +40,6 @@ setup(
 		'bin/exttrig_processor',
 		'bin/dqtolabel',
 		'bin/lvalertlisten',
-		'bin/plot_allsky',
-		'bin/plot_xcorrelate',
 		'bin/coinc_search',
 		'bin/find_data'
 	],
