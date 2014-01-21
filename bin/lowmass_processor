@@ -218,8 +218,6 @@ notification        = never
 error               = %(directory)s/find_data_%(uid)s.err
 output              = %(directory)s/find_data_%(uid)s.out
 
-+Online_CBC_EM_FOLLOWUP = True
-Requirements        = TARGET.Online_CBC_EM_FOLLOWUP =?= True
 +LVAlertListen      = %(uid)s_find_data
 
 Queue
