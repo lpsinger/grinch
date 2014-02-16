@@ -135,6 +135,6 @@ class GW:
                         result[i]['file'] = sim_inspiral_table
                         break
                 message = "Unblind injection <a href='http://gracedb.ligo.org/events/"
-                message += "%s'>%s</a> within window [-5,+5] seconds; " % (gid, gid)
+                message += "%s'>%s</a> within window [-5,+5] seconds" % (gid, gid)
                 self.submit_gracedb_log(message, tagname="analyst_comments") # annotate GW with news of discovery
         return result

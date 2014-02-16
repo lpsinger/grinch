@@ -142,6 +142,9 @@ elif opts.direction == 'backward':
         os.system("/usr/bin/env bayestar_plot_allsky %s skymap.fits.gz" % arglist)
         os.system("/usr/bin/gracedb --tag-name=sky_loc upload %s skymap_with_unblind_injections.png" % opts.graceid)
 
+        # label as a hardware injection	
+        os.system("/usr/bin/gracedb label %s INJ" % opts.graceid)
+
     note2 = 'Coincidence search complete'
     event.submit_gracedb_log(note2)
 
