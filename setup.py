@@ -40,7 +40,7 @@ setup(
 		'bin/exttrig_processor',
 		'bin/dqtolabel',
 		'bin/lvalertlisten',
-		'bin/coinc_search',
+		'bin/raven_coinc_search_gracedb',
 		'bin/unblind_inj_search',
 		'bin/find_data'
 	],
