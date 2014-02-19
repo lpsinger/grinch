@@ -130,7 +130,7 @@ elif opts.direction == 'backward':
 
 	# Prepare a dictionary with informations, and read in the GW sky map.
 	info = {'graceid': event.graceid, '': event.far}
-	gw_sky_map, metadata = fits.read_sky_map(opts.fits_file)
+	gw_sky_map, metadata = fits.read_sky_map(opts.sky_map)
 
 
 	# First, do the short-duration search.
