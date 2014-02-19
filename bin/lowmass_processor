@@ -52,19 +52,15 @@ if streamdata['alert_type'] == 'update' and streamdata['file'] == 'psd.xml.gz':
 
 # If the update is a .fits file, plot the all-sky map it contains.
 elif streamdata['alert_type'] == 'update' and ( streamdata['file'].endswith('.fits') or streamdata['file'].endswith('.fits.gz') ):
-	# Ensure DAG is uniquely named.
-	import string, random
-	lst = [random.choice(string.ascii_letters + string.digits) for n in xrange(10)]
-	rand_string = "".join(lst)
-
 	fitsfile = streamdata['file']
+	plotfile = '%s.png' % fitsfile.split('.')[0]
 
 	# Write plot_allsky.sub.
 	contents = """\
 universe            = vanilla
 
 executable          = /usr/bin/env
-arguments           = " bayestar_plot_allsky -o %(directory)s/%(fits)s.png --colormap=OrRd %(directory)s/%(fits)s "
+arguments           = " bayestar_plot_allsky -o %(directory)s/%(plot)s --colormap=OrRd %(directory)s/%(fits)s "
 getenv              = True
 notification        = never
 
@@ -76,7 +72,26 @@ output              = %(directory)s/allsky_%(uid)s.out
 Queue
 """
 	with open('plot_allsky.sub', 'w') as f:
-		f.write(contents%{'fits':fitsfile, 'directory':wdir, 'uid':streamdata['uid']})
+		f.write(contents%{'fits':fitsfile, 'plot':plotfile, 'directory':wdir, 'uid':streamdata['uid']})
+
+	# Write plot_inj.sub.
+	contents   = """\
+universe            = vanilla
+
+executable          = /usr/bin/env
+arguments           = " unblind_inj_search --graceid %(uid)s --sky-map %(directory)s/%(fits)s"
+getenv              = True
+notification        = never
+
+error               = %(directory)s/plot_inj_%(uid)s.err
+output              = %(directory)s/plot_inj_%(uid)s.out
+
++LVAlertListen      = %(uid)s_plot_inj
+
+Queue
+"""
+	with open('plot_inj.sub', 'w') as f:
+		f.write(contents%{'fits':fitsfile, 'directory':wdir, 'uid': streamdata['uid']})
 
 	# Write coinc_search.sub.
 	contents = """\
@@ -104,10 +119,15 @@ JOB PLOTALLSKY plot_allsky.sub
 SCRIPT PRE PLOTALLSKY %(gracedbcommand)s download %(uid)s %(fits)s
 SCRIPT POST PLOTALLSKY %(gracedbcommand)s --tag-name=sky_loc upload %(uid)s %(fits)s.png
 
+JOB PLOTINJ plot_inj.sub
+
 JOB COINCSEARCH coinc_search.sub
+
+PARENT PLOTALLSKY CHILD PLOTINJ COINCSEARCH
 """
-	with open('fits_followup_%s.dag' % rand_string, 'w') as f:
-		f.write(contents % {'gracedbcommand': gracedbcommand, 'uid': streamdata['uid'], 'fits': fitsfile},)
+	with tempfile.NamedTemporaryFile(mode='w', suffix='.dag', prefix='fits_followup_', dir='.', delete=False) as dagfile:
+		dagfilename = dagfile.name
+		print >>dagfile, contents
 
 	# Create a uniquely-named log file.
 	logfid, logpath = tempfile.mkstemp(suffix='.nodes.log', prefix=streamdata['uid'])
@@ -117,7 +137,7 @@ JOB COINCSEARCH coinc_search.sub
 	os.environ['_CONDOR_DAGMAN_DEFAULT_NODE_LOG'] = logpath
 
 	# Submit the processor dag.
-	condorargs=['condor_submit_dag','fits_followup_%s.dag' % rand_string]
+	condorargs=['condor_submit_dag', dagfilename]
 	os.execlp('condor_submit_dag', *condorargs)
 
 # Elsewise, end the processor.
@@ -171,24 +191,24 @@ itime        = str( int( float(gpstime) + 0.5 ) )
 #	f.write(contents%{'directory': wdir, 'uid': streamdata['uid']})
 #
 #	f.write(contents%{'script': dqtolabelscript, 'gdbcommand': gracedbcommand, 'vetodefinerfile': vetodefinerfile, 'directory': wdir, 'uid': streamdata['uid']})
-#
+
 # Write emlabel.sub.
-#contents   = """\
-#universe            = vanilla
-#
-#executable          = %(script)s
-#arguments           = " --set-em-ready -f /home/gdb_processor/dq-fake.xml -i %(uid)s -g %(gdbcommand)s --veto-definer-file %(vetodefinerfile)s "
-#getenv              = True
-#notification        = never
-#
-#error               = %(directory)s/emlabel_%(uid)s.err
-#output              = %(directory)s/emlabel_%(uid)s.out
-#
-#+LVAlertListen      = %(uid)s_emlabel
-#Queue
-#"""
-#with open('emlabel.sub','w') as f:
-#	f.write(contents%{'script': dqtolabelscript, 'gdbcommand': gracedbcommand, 'vetodefinerfile': vetodefinerfile, 'directory': wdir, 'uid': streamdata['uid']})
+contents   = """\
+universe            = vanilla
+
+executable          = %(gracedbcommand)s
+$arguments           = " label %(uid)s EM_READY "
+getenv              = True
+notification        = never
+
+error               = %(directory)s/emlabel_%(uid)s.err
+output              = %(directory)s/emlabel_%(uid)s.out
+
++LVAlertListen      = %(uid)s_emlabel
+Queue
+"""
+with open('emlabel.sub', 'w') as f:
+	f.write(contents%{'gracedbcommand': gracedbcommand, 'directory': wdir, 'uid': streamdata['uid']})
 
 # Write localize.sub.
 contents   = """\
@@ -210,6 +230,25 @@ Queue
 """
 with open('localize.sub', 'w') as f:
 	f.write(contents%{'directory': wdir, 'uid': streamdata['uid']})
+
+# Write find_inj.sub.
+contents   = """\
+universe            = vanilla
+
+executable          = /usr/bin/env
+arguments           = " unblind_inj_search --graceid %(uid)s --label 1"
+getenv              = True
+notification        = never
+
+error               = %(directory)s/find_inj_%(uid)s.err
+output              = %(directory)s/find_inj_%(uid)s.out
+
++LVAlertListen      = %(uid)s_find_inj
+
+Queue
+"""
+with open('find_inj.sub', 'w') as f:
+	f.write(contents%{'directory':wdir, 'uid': streamdata['uid']})
 
 # Write find_data.sub.
 contents   = """\
@@ -238,9 +277,14 @@ with open('find_data.sub', 'w') as f:
 # Write lowmass_runner.dag.
 contents = """\
 JOB LOCALIZE localize.sub
-SCRIPT POST LOCALIZE %(gracedbcommand)s label %(uid)s EM_READY
+
+JOB EMLABEL emlabel.sub
+
+JOB INJLABEL find_inj.sub
 
 JOB FINDDATA find_data.sub
+
+PARENT LOCALIZE CHILD EMLABEL
 """
 with open('lowmass_runner.dag', 'w') as f:
 	f.write(contents % {'gracedbcommand': gracedbcommand, 'uid': streamdata['uid']})

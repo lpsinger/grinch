@@ -1,0 +1,57 @@
+#!/usr/bin/env python
+
+"""
+Script to execute temporal coincidence search for unblinded software
+or hardware injections neighboring gravitational wave triggers.
+"""
+__author__ = "Alex Urban <alexander.urban@ligo.org>"
+
+# Imports.
+import os
+import sys
+import numpy as np
+from gracedb_events.grace import GW
+from optparse import Option, OptionParser
+from glue.ligolw import table, lsctables, utils
+
+
+# Command line options.
+opts, args = OptionParser(
+	description = __doc__,
+	usage = "%prog [options]",
+	option_list = [
+		Option("-g", "--graceid", metavar="{G,T}XXXXX",
+			help="Graceid of gravitational wave trigger event (required)"),
+		Option("-l", "--label", type=int, metavar="0|1", default=0,
+			help="If passed with value 1, flags this event as an INJ in GraceDB (default: %default)"),
+		Option("-s", "--sky-map", metavar="FILE.fits(.gz)", default=None,
+			help="Optional sky map on which to label RA and dec of neighboring injections (default: %default)"),
+		Option("-p", "--plot-file", metavar="FILE.{png,pdf}", default=None,
+			help="Name of the all-sky plot to upload back to GraceDB; defaults to (name of sky map)_with_unblind_injs.png")
+	]
+).parse_args()
+
+if opts.sky_map is not None and not opts.plot_file:
+	opts.plot_file = '%s_with_unblind_injs.png' % opts.sky_map.split('.')[0]
+
+
+# Search for unblind injections.
+neighbors = GW(opts.graceid).hardware_search()
+
+if neighbors != []:
+	if opts.label == 1:
+		# Label event as a hardware injection.
+		os.system("/usr/bin/gracedb label %s INJ" % opts.graceid)
+
+	if opts.sky_map is not None:
+		# Produce plots of skymaps and upload to GraceDB if there is a non-null result.
+		arglist = " -o %s --colormap=OrRd" % opts.plot_file
+		for neighbor in neighbors:
+			tablename = neighbor['file']
+			os.system("/usr/bin/gracedb download %s %s" % (neighbor['graceid'], tablename))
+			sim_inspiral_table = table.get_table(utils.load_filename(tablename), lsctables.SimInspiralTable.tableName)
+			RA, dec = np.rad2deg((sim_inspiral_table[0].longitude, sim_inspiral_table[0].latitude))
+			arglist = arglist + " --radec %s %s" % (RA, dec)
+
+		os.system( "/usr/bin/env bayestar_plot_allsky %s %s" % (arglist, opts.sky_map) )
+		os.system( "/usr/bin/gracedb --tag-name=sky_loc upload %s %s" % (opts.graceid, opts.plot_file) )

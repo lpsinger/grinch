@@ -49,7 +49,7 @@ if opts.direction == 'forward':
     if coincs != []: # produce plots and skymaps if there is a non-null result
         from gracedb_events.grace import GW
         from workflow_helper import directory
-        arglist = " -o skymap_with_short_triggers.png --colormap=OrRd --contour 50 --contour 90"
+        arglist = " -o skymap_with_short_triggers.png --colormap=OrRd"
         for i in xrange(len(coincs)):
             trigdir = os.getcwd() + '/'
             trigfits = trigdir + trig.fits # will need the path to this file
@@ -70,7 +70,7 @@ if opts.direction == 'forward':
     if coincs2 != []: # produce plots and skymaps if there is a non-null result
         from gracedb_events.grace import GW
         from workflow_helper import directory
-        arglist = " -o skymap_with_long_triggers.png --colormap=OrRd --contour 50 --contour 90"
+        arglist = " -o skymap_with_long_triggers.png --colormap=OrRd"
         for i in xrange(len(coincs2)):
             trigdir = os.getcwd() + '/'
             trigfits = trigdir + trig.fits # will need the path to this file
@@ -104,7 +104,7 @@ elif opts.direction == 'backward':
     if coincs != []: # produce plots and skymaps if there is a non-null result
         from gracedb_events.exttrig import GRB
         from workflow_helper import directory
-        arglist = " -o skymap_with_short_triggers.png --colormap=OrRd --contour 50 --contour 90"
+        arglist = " -o skymap_with_short_triggers.png --colormap=OrRd"
         for i in xrange(len(coincs)):
             trig = GRB(coincs[i]['graceid'],coincs[i]['file']) # initialize object of class GRB
             arglist = arglist + " --radec %s %s" % (trig.RA, trig.dec)
@@ -118,7 +118,7 @@ elif opts.direction == 'backward':
     if coincs2 != []: # produce plots and skymaps if there is a non-null result
         from gracedb_events.exttrig import GRB
         from workflow_helper import directory
-        arglist = " -o skymap_with_long_triggers.png --colormap=OrRd --contour 50 --contour 90"
+        arglist = " -o skymap_with_long_triggers.png --colormap=OrRd"
         for i in xrange(len(coincs2)):
             trig = GRB(coincs2[i]['graceid'],coincs[i]['file']) # initialize object of class GRB
             arglist = arglist + " --radec %s %s" % (trig.RA, trig.dec)
@@ -126,27 +126,6 @@ elif opts.direction == 'backward':
 
         os.system("/usr/bin/env bayestar_plot_allsky %s skymap.fits.gz" % arglist)
         os.system("/usr/bin/gracedb --tag-name=sky_loc upload %s skymap_with_long_triggers.png" % opts.graceid)
-
-    # finally, the hardware injection search
-    coincs3 = event.hardware_search()
-    if coincs3 != []: # produce plots and skymaps if there is a non-null result
-        from glue.ligolw import table, lsctables, utils
-        arglist = " -o skymap_with_unblind_injections.png --colormap=OrRd --contour 50 --contour 90"
-        for i in xrange(len(coincs3)):
-            tablename = coincs3[i]['file']
-            os.system("/usr/bin/gracedb download %s %s" % (coincs3[i]['graceid'], tablename))
-            sim_inspiral_table = table.get_table(utils.load_filename(tablename), lsctables.SimInspiralTable.tableName)
-            RA, dec = np.rad2deg((sim_inspiral_table[0].longitude, sim_inspiral_table[0].latitude))
-            arglist = arglist + " --radec %s %s" % (RA, dec)
-
-        os.system("/usr/bin/env bayestar_plot_allsky %s skymap.fits.gz" % arglist)
-        os.system("/usr/bin/gracedb --tag-name=sky_loc upload %s skymap_with_unblind_injections.png" % opts.graceid)
-
-        # label as a hardware injection	
-        os.system("/usr/bin/gracedb label %s INJ" % opts.graceid)
-
-    note2 = 'Coincidence search complete'
-    event.submit_gracedb_log(note2)
 
 else:
     print "ERROR: Valid direction argument not specified"
