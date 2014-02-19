@@ -117,7 +117,7 @@ JOB COINCSEARCH coinc_search.sub
 	os.environ['_CONDOR_DAGMAN_DEFAULT_NODE_LOG'] = logpath
 
 	# Submit the processor dag.
-	condorargs=['condor_submit_dag','fits_followup.dag']
+	condorargs=['condor_submit_dag','fits_followup_%s.dag' % rand_string]
 	os.execlp('condor_submit_dag', *condorargs)
 
 # Elsewise, end the processor.
