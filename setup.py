@@ -41,6 +41,7 @@ setup(
 		'bin/dqtolabel',
 		'bin/lvalertlisten',
 		'bin/coinc_search',
+		'bin/unblind_inj_search'
 		'bin/find_data'
 	],
 	data_files=[('etc',['etc/lowmass_config.ini','etc/exttrig_config.ini',
