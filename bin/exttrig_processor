@@ -62,7 +62,7 @@ contents   = """\
 universe            = vanilla
 
 executable          = %(script)s
-arguments           = " --graceid=%(uid)s --direction=forward --xml=%(directory)s/%(voevent)s "
+arguments           = " --graceid=%(uid)s --direction=forward --xml=%(voevent)s "
 getenv              = True
 notification        = never
 

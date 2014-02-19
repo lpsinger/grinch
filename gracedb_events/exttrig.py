@@ -147,29 +147,29 @@ class GRB(object):
 				message2 = "Raven: External trigger <a href='http://gracedb.ligo.org/events/" 
 				message2 += self.graceid + "'>" + self.name + "</a> within window [-5,+1] seconds"
 				GW(gid).submit_gracedb_log(message2, tagname="ext_coinc") # annotate GW with news of discovery
-		return result
+		return results
 
 	def long_search(self):
 		""" Speecialized long-duration coincidence search; also annotates
 		    relevant events with brief overview of results """
 		result1 = [event for event in self.search(-120, -5) if event['graceid'][0] == 'G' or event['graceid'][0] == 'T']
 		result2 = [event for event in self.search(1, 60) if event['graceid'][0] == 'G' or event['graceid'][0] == 'T']
-		result = result1 + result2 # must ensure the two searches do not overlap
-		if result == []:
+		results = result1 + result2 # must ensure the two searches do not overlap
+		if results == []:
 			message = 'No GW candidates in window [-120,+60] seconds'
 			self.submit_gracedb_log(message, tagname="ext_coinc") # annotate GRB with news of lack of news
 		else: 
 			from grace import GW
-			for i in xrange(len(result)):
-				gid = result[i]['graceid']
-				far = result[i]['far']
+			for result in results:
+				gid = result['graceid']
+				far = result['far']
 				message1 = "Raven: GW candidate found; <a href='http://gracedb.ligo.org/events/"
 				message1 += gid + "'>" + gid + "</a> with untriggered FAR = %s Hz within [-120,+60] seconds" % far
 				self.submit_gracedb_log(message1, tagname="ext_coinc") # annotate GRB with news of discovery
 				message2 = "Raven: External trigger <a href='http://gracedb.ligo.org/events/" 
 				message2 += self.graceid + "'>" + self.name + "</a> within window [-120,+60] seconds"
 				GW(gid).submit_gracedb_log(message2, tagname="ext_coinc") # annotate GW with news of discovery
-		return result
+		return results
 
 	def calc_signif_gracedb(self, coinc, gw_sky_map, short=True):
 		""" Calculate the improvement in significance that is got out of the second tier
