@@ -56,7 +56,6 @@ if opts.direction == 'forward':
 		print "ERROR: Either the specified VOEvent XML file is invalid or not parsable,"
 		print "		or the given graceid is invalid or unreachable."
 		sys.exit(3)
-	trig.write_fits()
 
 	# Inform GraCEDb that things are about to go down.
 	start = 'Initiating coincidence search'
@@ -67,17 +66,17 @@ if opts.direction == 'forward':
 	short_coincs = trig.short_search()
 	if short_coincs != []:
 		# Produce plots of skymaps and report statistics if coincs exist.
+		from lalinference.bayestar import fits
 		from gracedb_events.grace import GW
 		from workflow_helper import directory
 		arglist = " -o skymap_with_short_triggers.png --colormap=OrRd"
 		for coinc in short_coincs:
-			trigdir = os.getcwd() + '/'
-			trigfits = trigdir + trig.fits # We will need the path to this file.
-
 			working = directory(coinc['graceid'])
 			working.build_and_move() # Move to GW event working directory.
 
-			event = GW(coinc['graceid']) # Initialize object of class GW.
+			gw_sky_map, metadata = fits.read_sky_map('skymap.fits.gz')
+			trig.calc_signif_gracedb(coinc, gw_sky_map)
+
 			arglist = arglist + " --radec %s %s" % (trig.RA, trig.dec)
 
 		os.system("/usr/bin/env bayestar_plot_allsky %s skymap.fits.gz" % arglist)
@@ -93,13 +92,12 @@ if opts.direction == 'forward':
 		from workflow_helper import directory
 		arglist = " -o skymap_with_long_triggers.png --colormap=OrRd"
 		for coinc in long_coincs:
-			trigdir = os.getcwd() + '/'
-			trigfits = trigdir + trig.fits # We will need the path to this file.
-
 			working = directory(coinc['graceid'])
 			working.build_and_move() # Move to GW event working directory.
 
-			event = GW(coinc['graceid']) # Initialize object of class GW.
+			gw_sky_map, metadata = fits.read_sky_map('skymap.fits.gz')
+			trig.calc_signif_gracedb(coinc, gw_sky_map, short=False)
+
 			arglist = arglist + " --radec %s %s" % (trig.RA, trig.dec)
 
 		os.system("/usr/bin/env bayestar_plot_allsky %s skymap.fits.gz" % arglist)
@@ -114,6 +112,7 @@ if opts.direction == 'forward':
 # Launch backward-going coincidence search.
 elif opts.direction == 'backward':
 	from gracedb_events.grace import GW
+	from lalinference.bayestar import fits
 
 	# Get trigger info.
 	try:
@@ -129,18 +128,22 @@ elif opts.direction == 'backward':
 	start = 'Initiating coincidence search'
 	event.submit_gracedb_log(start)
 
+	# Prepare a dictionary with informations, and read in the GW sky map.
+	info = {'graceid': event.graceid, '': event.far}
+	gw_sky_map, metadata = fits.read_sky_map(opts.fits_file)
+
 
 	# First, do the short-duration search.
 	short_coincs = event.short_search()
 	if short_coincs != []:
 		# Produce plots of skymaps and report statistics if coincs exist.
 		from gracedb_events.exttrig import GRB
-		from workflow_helper import directory
 		arglist = " -o %s_with_short_grbs.png --colormap=OrRd" % prefix
 		for coinc in short_coincs:
 			trig = GRB( coinc['graceid'], coinc['file'] ) # Initialize object of class GRB.
 			arglist = arglist + " --radec %s %s" % (trig.RA, trig.dec)
-			os.system("/usr/bin/gracedb download %s %s" % (trig.graceid, trig.fits))
+
+			trig.calc_signif_gracedb(info, gw_sky_map)
 
 		os.system( "/usr/bin/env bayestar_plot_allsky %s skymap.fits.gz" % arglist )
 		os.system( "/usr/bin/gracedb --tag-name=sky_loc upload %s skymap_with_short_grbs.png" % (opts.graceid, prefix) )
@@ -150,12 +153,12 @@ elif opts.direction == 'backward':
 	if long_coincs != []:
 		# Produce plots of skymaps and report statistics if coincs exist.
 		from gracedb_events.exttrig import GRB
-		from workflow_helper import directory
 		arglist = " -o %s_with_long_grbs.png --colormap=OrRd" % prefix
 		for coinc in long_coincs:
 			trig = GRB( coinc['graceid'], coinc['file'] ) # Initialize object of class GRB.
 			arglist = arglist + " --radec %s %s" % (trig.RA, trig.dec)
-			os.system( "/usr/bin/gracedb download %s %s" % (trig.graceid, trig.fits) )
+
+			trig.calc_signif_gracedb(info, gw_sky_map)
 
 		os.system( "/usr/bin/env bayestar_plot_allsky %s skymap.fits.gz" % arglist )
 		os.system( "/usr/bin/gracedb --tag-name=sky_loc upload %s %s_with_long_grbs.png" % (opts.graceid, prefix) )
