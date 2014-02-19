@@ -1,0 +1,174 @@
+#!/usr/bin/python
+
+"""
+Script to execute the online spatiotemporal coincidence search between external
+triggers and internal gravitational wave candidate events
+"""
+__author__ = "Alex Urban <alexander.urban@ligo.org>"
+
+# Global imports.
+import os
+import sys
+import numpy as np
+from optparse import Option, OptionParser
+
+
+# Command line options.
+opts, args = OptionParser(
+	description = __doc__,
+	usage = "%prog [options]",
+	option_list = [
+		Option("-d", "--direction", metavar="forward|backward", default=None,
+			help="Flow of coincidence search: external trigger <-> gravitational wave (required)"),
+		Option("-g", "--graceid", metavar="{E,G,T}XXXXX", default=None,
+			help="Graceid of event (required)"),
+		Option("-x", "--xml", metavar="FILE.xml", default=None,
+			help="VOEvent .xml file of external trigger (required if direction == forward)"),
+		Option("-s", "--sky-map", metavar="FILE.fits(.gz)", default=None,
+			help="FITS file containing GW trigger's sky map (required if direction == backward)")
+	]
+).parse_args()
+
+
+# Handle use cases.
+if not opts.direction:
+	print "ERROR: An argument passed to the --direction flag is required."
+	sys.exit(1)
+if not opts.graceid:
+	print "ERROR: An argument passed to the --graceid flag is required."
+	sys.exit(1)
+if opts.direction == "forward" and not opts.xml:
+	print "ERROR: A parsable VOEvent XML file was not provided."
+	sys.exit(1)
+if opts.direction == "backward" and not opts.sky_map:
+	print "ERROR: A readable FITS file was not provided."
+	sys.exit(1)
+
+
+# Launch forward-going coincidence search.
+if opts.direction == 'forward':
+	from gracedb_events.exttrig import GRB
+
+	# Get trigger info.
+	try:
+		trig = GRB(opts.graceid, opts.xml)
+	except:
+		print "ERROR: Either the specified VOEvent XML file is invalid or not parsable,"
+		print "		or the given graceid is invalid or unreachable."
+		sys.exit(3)
+
+	# Inform GraCEDb that things are about to go down.
+	start = 'Initiating coincidence search'
+	trig.submit_gracedb_log(start)
+
+
+	# First, do the short-duration search.
+	short_coincs = trig.short_search()
+	if short_coincs != []:
+		# Produce plots of skymaps and report statistics if coincs exist.
+		from lalinference.bayestar import fits
+		from gracedb_events.grace import GW
+		from workflow_helper import directory
+		arglist = " -o skymap_with_short_triggers.png --colormap=OrRd"
+		for coinc in short_coincs:
+			working = directory(coinc['graceid'])
+			working.build_and_move() # Move to GW event working directory.
+
+			gw_sky_map, metadata = fits.read_sky_map('skymap.fits.gz')
+			trig.calc_signif_gracedb(coinc, gw_sky_map)
+
+			arglist = arglist + " --radec %s %s" % (trig.RA, trig.dec)
+
+		os.system("/usr/bin/env bayestar_plot_allsky %s skymap.fits.gz" % arglist)
+		os.system("/usr/bin/gracedb --tag-name=sky_loc upload %s skymap_with_short_triggers.png" % coinc['graceid'])
+		os.chdir(trigdir)
+
+
+	# Repeat for the long-duration search.
+	long_coincs = trig.long_search()
+	if long_coincs != []:
+		# Produce plots of skymaps and report statistics if coincs exist.
+		from gracedb_events.grace import GW
+		from workflow_helper import directory
+		arglist = " -o skymap_with_long_triggers.png --colormap=OrRd"
+		for coinc in long_coincs:
+			working = directory(coinc['graceid'])
+			working.build_and_move() # Move to GW event working directory.
+
+			gw_sky_map, metadata = fits.read_sky_map('skymap.fits.gz')
+			trig.calc_signif_gracedb(coinc, gw_sky_map, short=False)
+
+			arglist = arglist + " --radec %s %s" % (trig.RA, trig.dec)
+
+		os.system("/usr/bin/env bayestar_plot_allsky %s skymap.fits.gz" % arglist)
+		os.system("/usr/bin/gracedb --tag-name=sky_loc upload %s skymap_with_long_triggers.png" % coinc['graceid'])
+		os.chdir(trigdir)
+
+	# We're done here.
+	end = 'Coincidence search complete'
+	trig.submit_gracedb_log(end)
+
+
+# Launch backward-going coincidence search.
+elif opts.direction == 'backward':
+	from gracedb_events.grace import GW
+	from lalinference.bayestar import fits
+
+	# Get trigger info.
+	try:
+		event = GW(opts.graceid)
+	except:
+		print "ERROR: The given graceid is invalid or unreachable."
+		sys.exit(1)
+
+	# Sky map plots should use the name of the FITS file passed to --sky-map.
+	prefix = opts.sky_map.split('.')[0]
+
+	# Inform GraCEDb that things are about to go down.
+	start = 'Initiating coincidence search'
+	event.submit_gracedb_log(start)
+
+	# Prepare a dictionary with informations, and read in the GW sky map.
+	info = {'graceid': event.graceid, '': event.far}
+	gw_sky_map, metadata = fits.read_sky_map(opts.fits_file)
+
+
+	# First, do the short-duration search.
+	short_coincs = event.short_search()
+	if short_coincs != []:
+		# Produce plots of skymaps and report statistics if coincs exist.
+		from gracedb_events.exttrig import GRB
+		arglist = " -o %s_with_short_grbs.png --colormap=OrRd" % prefix
+		for coinc in short_coincs:
+			trig = GRB( coinc['graceid'], coinc['file'] ) # Initialize object of class GRB.
+			arglist = arglist + " --radec %s %s" % (trig.RA, trig.dec)
+
+			trig.calc_signif_gracedb(info, gw_sky_map)
+
+		os.system( "/usr/bin/env bayestar_plot_allsky %s skymap.fits.gz" % arglist )
+		os.system( "/usr/bin/gracedb --tag-name=sky_loc upload %s skymap_with_short_grbs.png" % (opts.graceid, prefix) )
+
+	# Repeat for the long-duration search.
+	long_coincs = event.long_search()
+	if long_coincs != []:
+		# Produce plots of skymaps and report statistics if coincs exist.
+		from gracedb_events.exttrig import GRB
+		arglist = " -o %s_with_long_grbs.png --colormap=OrRd" % prefix
+		for coinc in long_coincs:
+			trig = GRB( coinc['graceid'], coinc['file'] ) # Initialize object of class GRB.
+			arglist = arglist + " --radec %s %s" % (trig.RA, trig.dec)
+
+			trig.calc_signif_gracedb(info, gw_sky_map)
+
+		os.system( "/usr/bin/env bayestar_plot_allsky %s skymap.fits.gz" % arglist )
+		os.system( "/usr/bin/gracedb --tag-name=sky_loc upload %s %s_with_long_grbs.png" % (opts.graceid, prefix) )
+
+	# We're done here.
+	end = 'Coincidence search complete'
+	event.submit_gracedb_log(end)
+
+
+# Final use case.
+else:
+	print "ERROR: The argument passed to the --direction flag must be either 'forward' or 'backward.'"
+	sys.exit(1)
