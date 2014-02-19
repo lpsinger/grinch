@@ -59,7 +59,7 @@ voevent = split(streamdata['file'],'/')[-1].replace('#','%23')
 
 # write coinc_search.sub
 contents   = """\
-universe            = vanilla
+universe            = local
 
 executable          = %(script)s
 arguments           = " --graceid=%(uid)s --direction=forward --xml=%(voevent)s "
