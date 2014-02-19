@@ -18,6 +18,7 @@ import VOEventLib.Vutil
 from ligo.gracedb.rest import GraceDb
 from lalinference.bayestar import fits
 from math import floor
+from grace import GW
 
 
 # initiate instance of GraceDB server as a global variable
@@ -44,13 +45,14 @@ def pdf(n, nside, theta0, phi0, err):
 		xi = k * ( ( np.sin(theta0) * np.sin(th) * np.cos(ph - phi0) ) + ( np.cos(theta0) * np.cos(th) ) - 1 )
 		return np.exp( xi )
 
-def Cacc(psky):
+def Cacc(rho_sky):
 	""" Estimator for the cumulative fraction of accidental associations with
 	    sky coincidence better than psky. """
 	if rho_sky < 1e-50: return 1.
-	x = np.log10(rho_sky)
-	p = [6.43375601e+00, -3.83233594e+04, 1.35768892e+01]
-	return p[0] * x**3 / (p[1] + p[2]*x**3)
+	else:
+		x = np.log10(rho_sky)
+		p = [6.43375601e+00, -3.83233594e+04, 1.35768892e+01]
+		return p[0] * x**3 / (p[1] + p[2]*x**3)
 
 
 def stream(voevent):
@@ -137,7 +139,6 @@ class GRB(object):
 			message = 'No GW candidates in window [-5,+1] seconds'
 			self.submit_gracedb_log(message, tagname="ext_coinc") # annotate GRB with news of lack of news
 		else: 
-			from grace import GW
 			for result in results:
 				gid = result['graceid']
 				far = np.float64( result['far'] )
@@ -159,7 +160,6 @@ class GRB(object):
 			message = 'No GW candidates in window [-120,+60] seconds'
 			self.submit_gracedb_log(message, tagname="ext_coinc") # annotate GRB with news of lack of news
 		else: 
-			from grace import GW
 			for result in results:
 				gid = result['graceid']
 				far = result['far']
@@ -171,14 +171,21 @@ class GRB(object):
 				GW(gid).submit_gracedb_log(message2, tagname="ext_coinc") # annotate GW with news of discovery
 		return results
 
-	def calc_signif_gracedb(self, coinc, gw_sky_map, short=True):
+	def calc_signif_gracedb(self, coinc, gw_sky_map=None, incl_sky=False, short=True):
 		""" Calculate the improvement in significance that is got out of the second tier
 		    of this hierarchical GRB-triggered search. """
-		nside = hp.npix2nside( len(gw_sky_map) )
-		grb_sky_map = self.sky_map(nside)
-		psky = (4 * np.pi)**2 * np.sum( [x * y for x, y in zip(gw_sky_map, grb_sky_map)] ) / len(gw_sky_map)
-		if short: far = 6 * 1.268e-6 * Cacc( psky ) * coinc['far']
-		else : far = 180 * 1e-5 * Cacc( psky ) * coinc['far']
-		message = "Raven: Spatiotemporal coincidence with external trigger <a href='http://gracedb.ligo.org/events/"
-		message += self.graceid + "'>" + self.name + "</a> gives a coincident FAR = %s Hz" % far
-		GW(coinc['graceid']).submit_gracedb_log(message, tagname="ext_coinc")
+		if gw_sky_map is not None:
+			nside = hp.npix2nside( len(gw_sky_map) )
+			grb_sky_map = self.sky_map(nside)
+			psky = (4 * np.pi)**2 * np.sum( [x * y for x, y in zip(gw_sky_map, grb_sky_map)] ) / len(gw_sky_map)
+			if short: far = 6 * 1.268e-6 * Cacc( psky ) * coinc['far']
+			else : far = 180 * 1e-5 * Cacc( psky ) * coinc['far']
+			message = "Raven: Spatiotemporal coincidence with external trigger <a href='http://gracedb.ligo.org/events/"
+			message += self.graceid + "'>" + self.name + "</a> gives a coincident FAR = %s Hz" % far
+			GW(coinc['graceid']).submit_gracedb_log(message, tagname="ext_coinc")
+		else:
+			if short: far = 6 * 1.268e-6 * coinc['far']
+			else: far = 180 * 1e-5 * coinc['far']
+			message = "Raven: Temporal coincidence with external trigger <a href='http://gracedb.ligo.org/events/"
+			message += self.graceid + "'>" + self.name + "</a> gives a coincident FAR = %s Hz" % far
+			GW(coinc['graceid']).submit_gracedb_log(message, tagname="ext_coinc")
