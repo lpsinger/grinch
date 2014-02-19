@@ -37,7 +37,7 @@ if streamdata['alert_type'] == 'new':
 elif streamdata['alert_type'] == 'update' and streamdata['file'].endswith('.xml'):
 	pass
 else: # if not, do nothing
-	exit()
+	exit(0)
 
 
 # create working directory for the trigger and move to it
@@ -62,7 +62,7 @@ contents   = """\
 universe            = vanilla
 
 executable          = %(script)s
-arguments           = " --graceid=%(uid)s --xml=%(directory)s/%(voevent)s --direction=forward "
+arguments           = " --graceid=%(uid)s --direction=forward --xml=%(directory)s/%(voevent)s "
 getenv              = True
 notification        = never
 
@@ -74,7 +74,7 @@ error               = %(directory)s/coinc_search_%(uid)s.error
 Queue
 """
 with open('coinc_search.sub', 'w') as f:
-	f.write(contents%{'script':coinc_search,'directory':wdir,'uid':streamdata['uid'],'voevent':voevent})
+	f.write(contents%{'script': coinc_search, 'directory': wdir, 'uid': streamdata['uid'], 'voevent': voevent})
 
 
 #################################

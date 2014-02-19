@@ -98,7 +98,7 @@ Queue
 universe            = vanilla
 
 executable          = %(script)s
-arguments           = " --graceid=%(uid)s --direction=backward "
+arguments           = " --graceid=%(uid)s --direction=backward --sky-map=%(directory)s/%(fits)s "
 getenv              = True
 notification        = never
 
@@ -110,7 +110,7 @@ error               = %(directory)s/coinc_search_%(uid)s.error
 Queue
 """
 	with open('coinc_search.sub', 'w') as f:
-		f.write(contents%{'script': coinc_search, 'directory': wdir, 'uid': streamdata['uid']})
+		f.write(contents%{'script': coinc_search, 'directory': wdir, 'fits': fitsfile, 'uid': streamdata['uid']})
 
 
 	# Write and submit fits_followup.dag.
