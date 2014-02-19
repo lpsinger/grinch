@@ -52,6 +52,11 @@ if streamdata['alert_type'] == 'update' and streamdata['file'] == 'psd.xml.gz':
 
 # If the update is a .fits file, plot the all-sky map it contains.
 elif streamdata['alert_type'] == 'update' and ( streamdata['file'].endswith('.fits') or streamdata['file'].endswith('.fits.gz') ):
+	# Ensure DAG is uniquely named.
+	import string, random
+	lst = [random.choice(string.ascii_letters + string.digits) for n in xrange(10)]
+	string = "".join(lst)
+
 	fitsfile = streamdata['file']
 
 	# Write plot_allsky.sub.
@@ -101,7 +106,7 @@ SCRIPT POST PLOTALLSKY %(gracedbcommand)s --tag-name=sky_loc upload %(uid)s %(fi
 
 JOB COINCSEARCH coinc_search.sub
 """
-	with open('fits_followup.dag', 'w') as f:
+	with open('fits_followup_%s.dag' % string, 'w') as f:
 		f.write(contents % {'gracedbcommand': gracedbcommand, 'uid': streamdata['uid'], 'fits': fitsfile},)
 
 	# Create a uniquely-named log file.
