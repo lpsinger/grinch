@@ -33,11 +33,11 @@ streamdata = get_LVAdata_from_stdin(stdin, as_dict=True)
 
 # test whether this event is new
 if streamdata['alert_type'] == 'new':
-    pass
+	pass
 elif streamdata['alert_type'] == 'update' and streamdata['file'].endswith('.xml'):
-    pass
+	pass
 else: # if not, do nothing
-     exit()
+	exit()
 
 
 # create working directory for the trigger and move to it
@@ -74,7 +74,7 @@ error               = %(directory)s/coinc_search_%(uid)s.error
 Queue
 """
 with open('coinc_search.sub', 'w') as f:
-    f.write(contents%{'script':coinc_search,'directory':wdir,'uid':streamdata['uid'],'voevent':voevent})
+	f.write(contents%{'script':coinc_search,'directory':wdir,'uid':streamdata['uid'],'voevent':voevent})
 
 
 #################################
@@ -86,7 +86,7 @@ JOB COINCSEARCH coinc_search.sub
 SCRIPT PRE COINCSEARCH /usr/bin/gracedb download %(uid)s %(voevent)s
 """
 with open('exttrig_runner.dag', 'w') as f:
-    f.write(contents%{'uid':streamdata['uid'],'voevent':voevent})
+	f.write(contents%{'uid':streamdata['uid'],'voevent':voevent})
 
 # Create uniquely named log file.
 logfid, logpath = tempfile.mkstemp(suffix='.nodes.log', prefix=streamdata['uid'])

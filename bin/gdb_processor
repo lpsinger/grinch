@@ -14,7 +14,7 @@ from sys import exit
 # define and parse command-line arguments
 parser = argparse.ArgumentParser(description='Manage the gdb_processor workflow.')
 parser.add_argument('command', choices=['start', 'status', 'stop'],
-        help='start, stop or status of gdb_processor tasks')
+		help='start, stop or status of gdb_processor tasks')
 args = parser.parse_args()
 
 # store the name of the home directory as a global variable
@@ -22,16 +22,16 @@ home = os.getenv("HOME")
 
 # switch to the working directory
 try: 
-    os.chdir(home+'/working')
+	os.chdir(home+'/working')
 except OSError:
-    os.mkdir(home+'/working')
-    os.mkdir(home+'/working/log')
-    os.chdir(home+'/working')
-    pass
+	os.mkdir(home+'/working')
+	os.mkdir(home+'/working/log')
+	os.chdir(home+'/working')
+	pass
 
 # if run with argument 'start,' write and submit condor .sub file 
 if args.command == 'start':
-    contents = """\
+	contents = """\
 #this is the submit file to condor for lvalert
 
 universe            = local
@@ -51,29 +51,29 @@ error               = log/lvalertlisten.$(Cluster).error
 
 Queue
 """
-    with open('lvalertlisten.sub', 'w') as f:
-        f.write(contents)
-    condorargs = ['condor_submit','lvalertlisten.sub']
-    os.execlp('condor_submit', *condorargs)
-    print 'I am now listening for alerts.'
-    exit()
+	with open('lvalertlisten.sub', 'w') as f:
+		f.write(contents)
+	condorargs = ['condor_submit','lvalertlisten.sub']
+	os.execlp('condor_submit', *condorargs)
+	print 'I am now listening for alerts.'
+	exit()
 
 # if run with argument 'status', print a short summary of the job to screen
 elif args.command == 'status':
-    user = os.getenv("USER")
-    condorargs = ['condor_q','-sub',user]
-    os.execlp('condor_q', *condorargs)
-    exit()
+	user = os.getenv("USER")
+	condorargs = ['condor_q','-sub',user]
+	os.execlp('condor_q', *condorargs)
+	exit()
 
 # if run with argument 'stop', kill the lvalertlisten job
 elif args.command == 'stop':
-    exterminate = raw_input('Are you sure?? This will kill all condor jobs for this user... [y/n] ')
-    if exterminate == 'y' or exterminate == 'yes': 
-        print 'Righty-ho then. Exterminate!'
-        user = os.getenv("USER")
-        condorargs = ['condor_rm',user]
-        os.execlp('condor_rm', *condorargs)
-        exit()
-    else:
-        print 'I thought as much!'
-        exit()
+	exterminate = raw_input('Are you sure?? This will kill all condor jobs for this user... [y/n] ')
+	if exterminate == 'y' or exterminate == 'yes': 
+		print 'Righty-ho then. Exterminate!'
+		user = os.getenv("USER")
+		condorargs = ['condor_rm',user]
+		os.execlp('condor_rm', *condorargs)
+		exit()
+	else:
+		print 'I thought as much!'
+		exit()
