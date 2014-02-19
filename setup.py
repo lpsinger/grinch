@@ -26,7 +26,7 @@ from distutils.core import setup
 
 setup(
 	name='gdb-processor',
-	version='1.2',
+	version='1.3',
 	url='http://gracedb.ligo.org',
 	author='Alex Urban',
 	author_email='alexander.urban@ligo.org',
@@ -41,7 +41,7 @@ setup(
 		'bin/dqtolabel',
 		'bin/lvalertlisten',
 		'bin/coinc_search',
-		'bin/unblind_inj_search'
+		'bin/unblind_inj_search',
 		'bin/find_data'
 	],
 	data_files=[('etc',['etc/lowmass_config.ini','etc/exttrig_config.ini',
