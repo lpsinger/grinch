@@ -36,6 +36,8 @@ setup(
 	py_modules=['workflow_helper', 'argparse', 'GWDataFindClient'],
 	scripts=[
 		'bin/gdb_processor',
+		'bin/gcn_listener',
+		'bin/twistd',
 		'bin/lowmass_processor',
 		'bin/exttrig_processor',
 		'bin/dqtolabel',
