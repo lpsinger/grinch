@@ -15,6 +15,15 @@ if [ $1 == "start" ]; then
   cd $returndir
   fi
 
-if [ $1 == "stop" ];
-  then kill -9 `more $HOME/working/gcn_listener/twistd.pid`
+if [ $1 == "stop" ]; then
+  kill -9 `more $HOME/working/gcn_listener/twistd.pid`
+  fi
+
+if [ $1 == "--help" ] || [ $1 == "-h" ] ; then
+  echo "Usage: gcn_listener [commands] [options]
+Options:
+  -h, --help		Show this help message and exit.
+Commands:
+  start			Start listening for interesting GCN alerts.
+  stop			Kill the listener."
   fi
