@@ -30,7 +30,7 @@ def replaceit(graceid, eventFile):
     print "VOEvent file for %s has been updated; Link is https://gracedb.ligo.org/events/%s " % (graceid, graceid)
 
 
-CACHE = "/home/gdb_processor/working/gcn_listener/cache"
+CACHE = "/home/gdb_processor/gracedb-voevent/comet/comet/cache"
 
 #streams = {'ivo://nasa.gsfc.gcn/AGILE': 'AGILE',
 #           'ivo://nasa.gsfc.gcn/Fermi': 'Fermi',
@@ -41,8 +41,7 @@ CACHE = "/home/gdb_processor/working/gcn_listener/cache"
 #}
 
 streams = { 'ivo://nasa.gsfc.gcn/Fermi': 'Fermi',
-           'ivo://nasa.gsfc.gcn/SWIFT': 'SWIFT',
-           'ivo://nasa.gsfc.gcn/SNEWS': 'SNEWS' }
+           'ivo://nasa.gsfc.gcn/SWIFT': 'SWIFT' }
 
 Fermi_Likely = {
     0  :'An error has occurred',
@@ -99,8 +98,7 @@ class EventCatcher(object):
             print "Utility events not used here %s" % ivorn
             return
 
-# Let SNEWS test events through
-        if stream != 'ivo://nasa.gsfc.gcn/SNEWS' and role == 'test':
+        if role == 'test':
             print "Test events not used here %s" % ivorn
             return
 
@@ -146,12 +144,6 @@ class EventCatcher(object):
                 print 'Fermi GBM_Fin_Pos'
                 send = 1
 
-# Pass through all SNEWS
-        if stream == 'ivo://nasa.gsfc.gcn/SNEWS':
-            keep = 1
-            send = 1
-            print 'SNEWS Alert, may be test'
-
         pfname = id[6:].replace('/','_')
         pfdir = "%s/%s/%s" % (CACHE, role, pfname)
 
@@ -187,11 +179,10 @@ class EventCatcher(object):
 
         if send == 1:
             from lalinference.bayestar.fits import iso8601_to_gps
-            from math import floor
-            eventType = 'External'
+            eventType = 'Test'
             isotime = VOEventLib.Vutil.getWhereWhen(v)['time'] 
             gpstime = int(floor(iso8601_to_gps(isotime)))
-            event = list(gracedb.events('%s GRB %s..%s' % (eventType, gpstime, gpstime+1)))
+            event = list(gracedb.events('%s %s' % (eventType, gpstime)))
             if event:
                 gid = event[0]['graceid']
                 replaceit(gid, filename)
