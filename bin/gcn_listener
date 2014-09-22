@@ -1,22 +1,20 @@
 #!/usr/bin/env bash
 
 if [ $1 == "start" ]; then
-  export returndir=`pwd`
-  cd /home/gdb_processor/working/gcn_listener
-
-  twistd comet \
-  --quiet \
+  twistd \
+  --rundir=/home/gdb_processor/working/gcn_listener/ \
+  --logfile=/home/gdb_processor/working/gcn_listener/logs/gcn_notices.log \
+  comet \
+  --verbose \
+  --eventdb=$TMPDIR \
   --remote=68.169.57.253:8099 \
-  --remote=131.215.145.173:8099 \
   --remote=voevent.phys.soton.ac.uk:8099 \
   --remote=voevent.transientskp.org:8099 \
   --action=catch-event
-
-  cd $returndir
   fi
 
 if [ $1 == "stop" ]; then
-  kill -9 `more $HOME/working/gcn_listener/twistd.pid`
+  pkill twistd
   fi
 
 if [ $1 == "--help" ] || [ $1 == "-h" ] ; then

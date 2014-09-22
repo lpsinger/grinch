@@ -30,7 +30,7 @@ def replaceit(graceid, eventFile):
     print "VOEvent file for %s has been updated; Link is https://gracedb.ligo.org/events/%s " % (graceid, graceid)
 
 
-CACHE = "/home/gdb_processor/gracedb-voevent/comet/comet/cache"
+CACHE = "/home/gdb_processor/working/gcn_listener/cache"
 
 #streams = {'ivo://nasa.gsfc.gcn/AGILE': 'AGILE',
 #           'ivo://nasa.gsfc.gcn/Fermi': 'Fermi',
