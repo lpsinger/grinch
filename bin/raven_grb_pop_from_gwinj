@@ -1,0 +1,484 @@
+#!/usr/bin/env python
+#
+# Copyright (C)         2012 Chris Pankow
+#        2012-2013 Drew Keppel
+#        2013-2014 Alex Urban
+#
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the
+# Free Software Foundation; either version 2 of the License, or (at your
+# option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
+# Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+__doc__ = """
+Build a set of GRB VOEvents from a LIGOLW SimInspiral Table according to user-specified constraints.
+"""
+__author__ = "Chris Pankow, Drew Keppel, Alex Urban"
+
+
+import os
+import sys
+import itertools
+import math
+import time
+import subprocess, shlex 
+from string import ascii_uppercase as up
+
+from optparse import Option, OptionParser
+
+from scipy import random, array, sin, cos, arctan2, pi, sqrt
+import numpy as np
+from numpy.random import lognormal, poisson
+
+from glue import gpstime
+from glue.ligolw import utils
+from glue.ligolw import table
+from glue.ligolw import lsctables
+
+from lal import LAL_MTSUN_SI
+from lal import LIGOTimeGPS
+from lal import GreenwichMeanSiderealTime
+
+from pylal import coherent_inspiral_metric as metric
+from pylal import coherent_inspiral_metric_detector_details as details
+
+from VOEventLib import VOEvent
+from VOEventLib import Vutil
+
+
+# Read in options.
+parser = OptionParser(
+    description = __doc__,
+    usage = "%prog [options] GW_INJ_FILE1.xml GW_INJ_FILE2.xml ...",
+    option_list = [
+        Option("-i", "--inclination-angle", dest="inc_ang", type=float, default=15,
+            help="Maximum inclination angle to allow in degrees [default: %default]"),
+        Option("-d", "--distance", dest="dist", type=float,
+            help="Maximum distance to allow in Mpc [default: unlimited]"),
+        Option("-S", "--snr-detect-threshold", dest="snr_thresh", type=float, default=8,
+            help="Minimum SNR which would be considered 'detectable' [default: %default]"),
+        Option("-w", "--on-source-window", dest="wind", default="-1,+5",
+            help="Time window (in seconds) from GW merger time in which the GRB can appear; "
+            + "Specify with e.g. '--on-source-window \"-2,+4.5\"' [default: %default]"),
+        Option("-D", "--dry-run", action="store_true",
+            help="Check how many events are selected or detectable, but do not output VOEvents"),
+        Option("-s", "--make-schedule", type=int, default=None,
+            help="Create a cron-parseable file to inject the files into gracedb; the argument "
+            + "parameter is the amount of time in seconds to delay from the GRB trigger "
+            + "[default: %default]"),
+        Option("-r", "--random-seed", type=int, default=1,
+            help="Random seed to use for number generation [default: %default]"),
+        Option("-o", "--output-dir", default="VOEvents",
+            help="Directory to place GRB events (if the directory does not exist, it will be created) "
+            + "[default: %default]"),
+        Option("-l", "--log-file", default="/dev/stdout",
+            help="Log file in which to write summary information [default: %default]"),
+        Option("-a", "--author", dest="auth", default="Alex Urban",
+            help="Contact name to put in the VOEvents [default: %default]"),
+        Option("-e", "--email", dest="email", default="alexander.urban@ligo.org",
+            help="Contact email to put in the VOEvents [default: %default]"),
+        Option("-p", "--phone", dest="phone", default="+1-414-229-4049",
+            help="Contact phone number to put in the VOEvents [defualt: %default]")
+    ]
+)
+opts, args = parser.parse_args()
+
+
+# Process options and command-line arguments.
+lf = open( opts.log_file, "w" )
+
+
+# Convert inclination angle to radians and create a random number seed.
+opts.inc_ang *= pi/180.0
+random.seed( opts.random_seed )
+
+# Declare max distance to be infinite if no max distance was specified.
+if opts.dist is None:
+    opts.dist = float("Inf")
+
+# Form a list of sequences of ASCII uppercase letters 
+# in case more than one GRB happens on a given day.
+letters = [m for m in up]
+letters = letters + [m+n for m in up for n in up]
+letters = letters + [m+n+o for m in up for n in up for o in up]
+
+# Keep a list of GRB names.
+kept_grbs = []
+
+# Identify LIGO detectors and their corresponding PSDs.
+dets = {
+    "LLO" : details.make_LLO(),
+    "LHO" : details.make_LHO(),
+    "Virgo" : details.make_Virgo()
+}
+psd_files = {
+    "LLO" :   "/home/aurban/MDCs/Raven_methods_paper/Raven/PSDs/ZERO_DET_high_P.txt", 
+    "LHO" :   "/home/aurban/MDCs/Raven_methods_paper/Raven/PSDs/ZERO_DET_high_P.txt", 
+    "Virgo" : "/home/aurban/MDCs/Raven_methods_paper/Raven/PSDs/AdV_refsens_100512.txt" 
+}
+
+
+# Initialize detector objects.
+def init_detectors():
+    fLow, fNyq, = 10.0, 2048.0
+    deltaF = 1.0
+
+    for name, ifo in dets.iteritems():
+        f, S = details.f_PSD_from_file(psd_files[name], fLow, fNyq, deltaF)
+        ifo.set_psd(f, S)
+        ifo.set_required_moments()
+
+init_detectors()
+
+
+# Define functions for simulating GRBs and writing VOEvent files.
+def parse_on_source( time ):
+    """
+    Parse an on-source interval relative to a GPS time for a given user input.
+    """
+    lo, high = opts.wind.split(",")
+    return float(lo), float(high)
+
+sleft, sright = parse_on_source( opts.wind )
+
+def choose_time( sim_insp, left, right ):
+    """
+    Choose a time in the interval [left, right) around the merger time.
+    """
+    mtime = sim_insp.geocent_end_time + 1e-9 * sim_insp.geocent_end_time_ns
+    return random.random()*(right - left) + left + mtime
+
+def expected_photon_count( T90, HR ):
+    gamma = -1.31 + ( 4.27 / HR )
+    return 0.1 * T90 * (1 - gamma) * (150**(1 - gamma) - 15**(1 - gamma))
+
+def get_grb_name( grb_time ):
+    """
+    Construct a GRB name for the nth event on a given day.
+    """
+    # NOTE This function is broken, probably never written to begin with
+    # That makes this arbitrarily complicated!
+    #isotime = gpstime.PyUTCFromGpsSeconds( grb_time )
+    isotime = subprocess.Popen( shlex.split( "lalapps_tconvert --format %%y%%m%%d %d" % int(grb_time) ), stdout=subprocess.PIPE )
+    isotime = isotime.communicate()[0].strip()
+    n = len( [name for name in kept_grbs if "GRB " + isotime in name] )
+    return "GRB " + isotime + letters[n]
+
+def get_grb_T90():
+    """
+    Generate a T90 timescale based on the empirical distribution of observed short GRBs.
+    """
+    #FIXME: cite a source for this.
+    mu, sigma = np.log(0.3), 0.9
+    return lognormal( mean=mu, sigma=sigma )
+
+def get_grb_HR():
+    """
+    Generate a hardness ratio based on the empirical distribution of observed short GRBs.
+    """
+    #FIXME: cite a source for this.
+    mu, sigma = np.log(7), 0.25
+    return lognormal( mean=mu, sigma=sigma )
+
+def get_grb_SNR( T90, HR ):
+    """
+    Generate an SNR as would be reported by Swift, based on T90 and HR.
+    """
+    #FIXME: cite some manner of instrumentation paper.
+    NB = 10000 * T90  # Expected background photon count rate
+    NC = expected_photon_count( T90, HR )   # Expected burst photon count rate
+    fm = 0.73  # factor compensating for finite size of pixels
+    B  = poisson( lam=NB )  # Number of background photons
+    Cs = poisson( lam=NC )   # Number of burst photons
+    return fm * Cs / np.sqrt( Cs + B ) + 6.5
+
+def cron_from_grb_time( grbtime ):
+    """
+    Get date and time information from a gps time.
+    """
+    isotime = subprocess.Popen( shlex.split( "lalapps_tconvert --local --format '%%Y %%m %%d %%H %%M %%S' %s" % int(grb_time) ), stdout=subprocess.PIPE )
+    isotime = isotime.communicate()[0].strip()
+    return isotime.strip().split()
+
+def categorize_inj( mass1, mass2 ):
+    """
+    Categorize injections into NS-NS, NS-BH, and BH-BH based on component mass.
+    """
+    if mass1 <= 2.0 and mass2 <= 2.0:
+        return "NS-NS"
+    elif mass1 <= 2.0 and mass2 > 2.0:
+        return "NS-BH"
+    else:
+        return "BH-BH"
+
+def compute_amplitude( mchirp, distance ):
+    return (5./24)**0.5*(LAL_MTSUN_SI*mchirp)**(5.0/6)/pi**(2.0/3)/(1e6*metric.pc2s)
+
+def expected_snr( sir, detectors=dets ):
+    m1, m2 = sir.mass1, sir.mass2
+    mchirp = sir.mchirp
+    eta = sir.eta
+    distance = sir.distance # Mpc
+    h0 = compute_amplitude( mchirp, distance )
+    cosi = cos( sir.inclination )
+    cphase, polarization = sir.coa_phase, sir.polarization
+    ra, dec = sir.longitude, sir.latitude # rads
+    mtime = LIGOTimeGPS(sir.geocent_end_time + 1e-9 * sir.geocent_end_time_ns)
+    gmst = GreenwichMeanSiderealTime(mtime)
+    for detector in dets.values():
+        detector.update_I_n(mchirp*LAL_MTSUN_SI, eta)
+        detector.set_required_moments(A=h0**2)
+    return metric.expected_coherent_snr( cosi, distance, cphase, polarization, ra - gmst, dec, dets.values() )**0.5
+
+def Jtotal_LoS_angle( m1, m2, incl, chi1x, chi1y, chi1z, chi2x, chi2y, chi2z, fref ):
+    """
+    Predict the angle between the total angular momentum and the line of
+    sight for a NS-BH system where the BH spin dominates.
+    """
+
+    m1 *= LAL_MTSUN_SI
+    m2 *= LAL_MTSUN_SI
+    M = m1 + m2
+
+    if m1 > m2:
+        S = m1**2*array( [chi1x, chi1y, chi1z] )
+    else:
+        S = m2**2*array( [chi2x, chi2y, chi2z] )
+
+    L = m1*m2/( pi*M*fref )**( 1./3. )*array( [sin( incl ), 0., cos( incl )] )
+    J = L + S
+    J /= sum( J*J )**.5
+
+    return arctan2( ( J[0]**2 + J[1]**2 )**.5, J[2] )
+
+def sort_sim_insp( sim_insp ):
+    """
+    Uses categorize_inj to order injections by their type.
+    """
+    return {"NS-NS": -1, "NS-BH": 0, "BH-BH": 1}[categorize_inj( sim_insp.mass1, sim_insp.mass2 )]
+
+def is_visible( sim_insp, cat ):
+    """
+    Function to determine whether a GRB would be 'visible' to an
+    Earth-based detector given the input conditions.
+    """
+    
+    if cat is "NS-BH":
+        angle = Jtotal_LoS_angle( sim_insp.mass1, sim_insp.mass2, sim_insp.inclination,
+                sim_insp.spin1x, sim_insp.spin1y, sim_insp.spin1z,
+                sim_insp.spin2x, sim_insp.spin2y, sim_insp.spin2z,
+                sim_insp.f_lower )
+        if abs( angle - pi/2. ) <  pi/2. - opts.inc_ang:
+            return False
+    else:
+        if abs( sim_insp.inclination - pi/2. ) < pi/2. - opts.inc_ang:
+            return False
+    if sim_insp.distance > opts.dist:
+        return False
+
+    return True
+
+def make_who_node( v, date ):
+    """
+    Make a 'Who' VOEvent node.
+    """
+    isotime = subprocess.Popen( shlex.split( "lalapps_tconvert --format \"%%Y-%%m-%%dT%%X\" %d" % int(date) ), stdout=subprocess.PIPE )
+    isotime = isotime.communicate()[0].strip()
+    isotime += ("%.2f" % (date-int(date)))[1:]
+
+    w = VOEvent.Who()
+    a = VOEvent.Author()
+    a.add_shortName("VO-GCN")
+    a.add_contactName( opts.auth )
+    a.add_contactEmail( opts.email )
+    a.add_contactPhone( opts.phone )
+    w.set_AuthorIVORN("ivo://nasa.gsfc.tan/gcn")
+    w.set_Date( isotime )
+    w.set_Description("This VOEvent message was created with GCN VOE version: 1.11 09jan13")
+    w.set_Author(a)
+    v.set_Who(w)
+
+def make_what_node( v ):
+    """
+    Make a 'What' VOEvent node.
+    """
+    T90 = get_grb_T90()
+    HR  = get_grb_HR()
+    SNR = get_grb_SNR( T90, HR )
+
+    p1 = VOEvent.Param( name="Trig_Timescale", ucd="time.interval", unit="sec", value="%.3f" % T90 )
+    p2 = VOEvent.Param( name="Data_Timescale", ucd="time.interval", unit="sec", value="%.3f" % T90 )
+    p3 = VOEvent.Param( name="Data_Signif", ucd="stat.snr", unit="sigma", value="%.2f" % SNR )
+    p4 = VOEvent.Param( name="Hardness_Ratio", ucd="arith.ratio", value="%.2f" % HR )
+    p11 = VOEvent.Param( name="Def_NOT_a_GRB", value="false" )
+    p12 = VOEvent.Param( name="Target_in_Blk_Catalog", value="false" )
+    p13 = VOEvent.Param( name="Spatial_Prox_Match", value="false" )
+    p14 = VOEvent.Param( name="Temporal_Prox_Match", value="false" )
+    p15 = VOEvent.Param( name="Test_Submission", value="false" )
+    p21 = VOEvent.Param( name="Values_Out_of_Range", value="false" )
+    p22 = VOEvent.Param( name="Delayed_Transmission", value="false" )
+    p23 = VOEvent.Param( name="Flt_Generated", value="true" )
+    p24 = VOEvent.Param( name="Gnd_Generated", value="false" )
+
+    g1 = VOEvent.Group( name="Trigger_ID", Param=[p11, p12, p13, p14, p15] )
+    g2 = VOEvent.Group( name="Misc_Flags", Param=[p21, p22, p23, p24] )
+
+    w = VOEvent.What( Param=[p1, p2, p3, p4], Group=[g1, g2], Description=["Characterization of data and significance of the trigger."] )
+    v.set_What(w)
+
+def make_wherewhen_node( sim_insp , grb_time, v):
+    """
+    Make a 'WhereWhen' VOEvent node.
+    """
+    isotime = subprocess.Popen( shlex.split( "lalapps_tconvert --format \"%%Y-%%m-%%dT%%X\" %d" % int(grb_time) ), stdout=subprocess.PIPE )
+    isotime = isotime.communicate()[0].strip()
+    isotime += ("%.2f" % (grb_time-int(grb_time)))[1:]
+
+    wwd = {    'observatory':        "GEOLUN",
+        'coord_system':        "UTC-FK5-GEO",
+        'time':            isotime,
+        'timeError':        0,
+        'longitude':        sim_insp.longitude*180./pi,
+        'latitude':        sim_insp.latitude*180./pi,
+        'positionalError':    0.0500,
+        }
+    ww = Vutil.makeWhereWhen(wwd)
+    ww.set_Description( ["The RA,Dec coordinates are of the type: source_object."] )
+    v.set_WhereWhen(ww)
+
+def make_how_node( v ):
+    """
+    Make a 'How' VOEvent node.
+    """
+    #FIXME: In the future, add functionality for Fermi GBM triggers.
+    #       This will require, of course, an estimate of the widely
+    #       varying error radii that GBM reports, and of trigger SNRs
+    #       that are reported by both Swift and Fermi.
+    h = VOEvent.How()
+    h.add_Description("Swift Satellite, BAT Instrument")
+    r = VOEvent.Reference()
+    r.set_type("url")
+    r.set_uri("http://gcn.gsfc.nasa.gov/swift.html")
+    h.add_Reference(r)
+    v.set_How(h)
+
+def make_why_node( v, grbname ):
+    """
+    Make a 'Why' VOEvent node.
+    """
+    inf = VOEvent.Inference( probability=0.9, Name=[grbname], Concept=["process.variation.burst;em.gamma"] )
+    w = VOEvent.Why( importance=0.9, Inference=[inf] )
+    w.set_Description( ["Classification of the observed transient based on inferred properties."] )
+    v.set_Why(w)
+
+def make_voevent( sim_insp, grb_time ):
+    """
+    Construct a VOEevent XML tree from its constituent node parts.
+    """
+    grbname = get_grb_name( grb_time )
+    kept_grbs.append( grbname )
+
+    v = VOEvent.VOEvent(version="2.0", role="test")
+    v.set_ivorn("ivo://ligo.org/fakeGRB#%s" % grbname.replace(" ", ""))
+    make_who_node(v, grb_time)
+    make_what_node(v)
+    make_wherewhen_node(sim_insp, grb_time, v)
+    make_how_node(v)
+    make_why_node(v, grbname)
+
+    return v, grbname
+
+def write_event( event, grbname, fname=None ):
+    """
+    Write VOEvent to a file with name fname. If no fname is provided, the GRB's
+    identified will be used and '.xml' will be appended. If fname is a directory,
+    it will be used with the aforementioned file name provision.
+    (TODO: Validate)
+    """
+    docstr = Vutil.stringVOEvent(event)
+    if fname is None:
+        fname = ""
+    elif os.path.isdir( fname ):
+        fname += "/"
+    fname += grbname.replace(" ", "")
+    fname += ".xml"
+
+    with open( fname, "w" ) as f:
+        f.write( docstr )
+
+    return fname
+
+
+# Parse the input injection file(s).
+sim_inj_table = None
+if len(args) == 0:
+    print >>sys.stderr, "At least one LIGOLW injection file must be specified."
+    exit(1)
+else:
+    for injfile in args:
+        gw_inj = utils.load_filename( injfile )
+        if sim_inj_table == None:
+            sim_inj_table = table.get_table( gw_inj, lsctables.SimInspiralTable.tableName )
+        else:
+            sim_inj_table.extend( table.get_table( gw_inj, lsctables.SimInspiralTable.tableName ) )
+        print >>lf, "Loaded %s; there is now a total of %d injections." % (injfile, len(sim_inj_table))
+
+gw_inj = sorted( sim_inj_table, key=lambda si: sort_sim_insp(si) )
+
+# Group injections by component mass.
+keyval = itertools.groupby( gw_inj, lambda si: categorize_inj(si.mass1, si.mass2) )
+
+# Get ready to write VOEvents.
+if not opts.dry_run and opts.output_dir is not None:
+    opts.output_dir = os.path.abspath( opts.output_dir )
+else:
+    opts.output_dir = "./" 
+
+if not os.path.isdir( opts.output_dir ):
+    os.makedirs( opts.output_dir )
+
+
+# Write VOEvents (and crontab if desired).
+for type, injs in keyval:
+    injs = list(injs)
+    print >>lf, "\n%d/%d events in type %s" % (len(injs), len(gw_inj), type)
+
+    # If the type does not produce a short GRB, skip it.
+    if not (type == "NS-NS" or type == "NS-BH"):
+        print >>lf, "Skipping type %s" % type
+        continue
+
+    # Elsewise, print VOEvents for all GRBs that would be visible.
+    print >>lf, "Checking type %s for GRBs... " % type
+
+    # Define GRB and detectable counterpart counters.
+    accepted, detectable = 0, 0
+
+    for inj in itertools.ifilter( lambda si: is_visible(si, type), injs ):
+        grb_time = choose_time( inj, sleft, sright )
+        efile = None
+        if expected_snr( inj ) > opts.snr_thresh:
+            detectable += 1
+        if not opts.dry_run:
+            event, grbname = make_voevent( inj, grb_time )
+            efile = write_event( event, grbname, opts.output_dir )
+        if opts.make_schedule is not None and efile is not None:
+            #FIXME: Add .globus cert information to the header of the crontab
+            y, m, d, hh, mm, ss = cron_from_grb_time(grb_time+opts.make_schedule)
+            f = open( "%s/GRB_%s.cron" % (opts.output_dir, y), 'a' )
+            ename = get_grb_name( grb_time )
+            cmd = "%s %s %s %s * /usr/bin/gracedb External GRB %s " % (mm, hh, d, m, efile)
+            cmd += ">> %s/GRB_%s.log 2>&1" % (opts.output_dir, y)
+            print >>f, cmd
+            f.close()
+        accepted += 1
+    print >>lf, "%d %s events tagged as short GRBs." % (accepted, type)
+    print >>lf, "Of these, ~%d are expected to have GW counterparts with SNR above %d." % (detectable, opts.snr_thresh)
+lf.close()

@@ -43,6 +43,7 @@ setup(
 		'bin/dqtolabel',
 		'bin/lvalertlisten',
 		'bin/raven_coinc_search_gracedb',
+		'bin/raven_grb_pop_from_gwinj',
 		'bin/unblind_inj_search',
 		'bin/find_data'
 	],
