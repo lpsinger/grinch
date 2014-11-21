@@ -33,7 +33,7 @@ setup(
 	description='Coordinate between LV alerts, gracedb, and condor job submission automatically',
 	license='GNU General Public License Version 3',
 	packages=['gracedb_events'],
-	py_modules=['workflow_helper', 'GWDataFindClient'],
+	py_modules=['workflow_helper', 'argparse', 'GWDataFindClient'],
 	scripts=[
 		'bin/gdb_processor',
 		'bin/gcn_listener',
