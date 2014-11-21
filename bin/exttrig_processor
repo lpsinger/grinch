@@ -3,6 +3,7 @@
 __author__ = "Alex Urban <alexander.urban@ligo.org>"
 
 import os
+import json
 import tempfile
 import urlparse
 import ConfigParser
@@ -11,7 +12,6 @@ from sys             import exit, stdin
 from string          import split
 
 from workflow_helper import directory, home
-from ligo.lvalert.utils import get_LVAdata_from_stdin
 from ligo.gracedb.rest import GraceDb
 
 
@@ -29,7 +29,7 @@ coinc_search   = cp.get('executable','coincscript')
 
 
 # create dictionary from gracedb table
-streamdata = get_LVAdata_from_stdin(stdin, as_dict=True)
+streamdata = json.loads( stdin.read() )
 
 # test whether this event is new
 if streamdata['alert_type'] == 'new':

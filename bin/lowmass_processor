@@ -7,6 +7,7 @@ import os.path
 import tempfile
 import urlparse
 import re
+import json
 import ConfigParser
 import shutil
 import ligo.gracedb.rest
@@ -17,11 +18,10 @@ from glue.ligolw     import ligolw
 from glue.ligolw     import utils
 from glue.ligolw     import table
 from glue.ligolw     import lsctables
-from ligo.lvalert.utils import get_LVAdata_from_stdin
 
 
 # Create a dictionary from the gracedb table.
-streamdata = get_LVAdata_from_stdin(stdin, as_dict=True)
+streamdata = json.loads( stdin.read() )
 
 
 # Read lowmass_config.ini.
