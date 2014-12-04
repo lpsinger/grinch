@@ -1,27 +1,92 @@
-#!/usr/bin/env bash
+#!/usr/bin/env python
 
-if [ $1 == "start" ]; then
-  twistd \
-  --rundir=/home/gdb_processor/working/gcn_listener/ \
-  --logfile=/home/gdb_processor/working/gcn_listener/logs/gcn_notices.log \
-  comet \
-  --verbose \
-  --eventdb=$TMPDIR \
-  --remote=68.169.57.253:8099 \
-  --remote=voevent.phys.soton.ac.uk:8099 \
-  --remote=voevent.transientskp.org:8099 \
-  --action=catch-event
-  fi
+"""
+Script to manage starting, stopping, and monitoring of the 
+real-time GCN listener service.
+"""
+__author__ = "Alex Urban <alexander.urban@ligo.org>"
 
-if [ $1 == "stop" ]; then
-  pkill twistd
-  fi
+import argparse
+import sys
+import os
 
-if [ $1 == "--help" ] || [ $1 == "-h" ] ; then
-  echo "Usage: gcn_listener [commands] [options]
-Options:
-  -h, --help		Show this help message and exit.
-Commands:
-  start			Start listening for interesting GCN alerts.
-  stop			Kill the listener."
-  fi
+
+# Define and parse command-line arguments.
+parser = argparse.ArgumentParser(description='Management script for the real-time GCN listener service.')
+parser.add_argument('command', choices=['start', 'stop', 'status'],
+    help='Launch, kill or check the status of GCN listener tasks')
+args = parser.parse_args()
+
+# Store the name of the home directory as a global variable.
+home = os.getenv("HOME")
+rundir = home + '/working/gcn_listener'
+
+# Switch to the working directory.
+try: 
+    os.chdir(rundir)
+except OSError:
+    print 'ERROR: Required working directory %s does not exist.' % rundir
+    print 'Building this directory now.'
+    try:
+        os.mkdir(home + '/working')
+    except OSError:
+        pass
+    os.mkdir(home + 'working/gcn_listener')
+    os.mkdir(home + 'working/gcn_listener/log')
+    os.mkdir(home + 'working/gcn_listener/cache')
+    os.mkdir(home + 'working/gcn_listener/gcn_logs')
+    pass
+
+# If run with argument 'start,' write and submit condor .sub file.
+if args.command == 'start':
+    contents = """\
+# This is the submit file to condor for the GCN listener.
+
+universe            = local
+
+executable          = %s/opt/bin/gcnlisten
+getenv              = True
+notification        = never
+environment         = DISPLAY=localhost:10.0
+
+## add attribute""" % home + r"""
+## condor_q -format "%s " Owner -format "%s " ClusterId -format "%s\n" gcn_listener
++GCNListen      = "gdb_processor gcn_listener"
+
+log                 = log/gcnlisten.$(Cluster).log 
+output              = log/gcnlisten.$(Cluster).out
+error               = log/gcnlisten.$(Cluster).error
+
+Queue
+"""
+    with open('gcnlisten.sub', 'w') as f:
+        f.write(contents)
+    condorargs = ['condor_submit', 'gcnlisten.sub']
+    os.execlp('condor_submit', *condorargs)
+    print 'I am now listening for GCN notices.'
+    sys.exit()
+
+# If run with argument 'status', print a short summary of the job to screen.
+elif args.command == 'status':
+    user = os.getenv("USER")
+    condorargs = ['condor_q', '-sub', user]
+    os.execlp('condor_q', *condorargs)
+    sys.exit()
+
+# If run with argument 'stop', kill the gcnlisten job.
+elif args.command == 'stop':
+    exterminate = raw_input('Are you sure?? This will kill all condor jobs for this user... [y/n] ')
+    if exterminate == 'y' or exterminate == 'yes': 
+        print 'Righty-ho then. Exterminate!'
+        user = os.getenv("USER")
+        condorargs = ['condor_rm', user]
+        os.execlp('condor_rm', *condorargs)
+        sys.exit()
+    else:
+        print 'I thought as much!'
+        sys.exit()
+
+else:
+    print "ERROR: Unrecognized command line argument '%s'." % args.command
+    print "       Argument must be one of {start,status,stop}."
+    sys.exit(1)
