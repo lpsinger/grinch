@@ -19,13 +19,16 @@ from ligo.gracedb.rest import GraceDb
 # create instance of gracedb REST API
 gracedb = GraceDb()
 
-def sendit(eventFile, group):
-    r = gracedb.createEvent(group,"GRB", eventFile).json()
+
+def sendit(eventFile, group, pipeline, search="GRB"):
+    """ Function for sending events to GraceDB. """
+    r = gracedb.createEvent(group, pipeline, eventFile, search).json()
     graceid = r["graceid"]
     print "Link is https://gracedb.ligo.org/events/%s " % graceid
     return graceid
 
 def replaceit(graceid, eventFile):
+    """ Function for replacing event files with updated information in GraceDB. """
     gracedb.replaceEvent(graceid, eventFile)
     print "VOEvent file for %s has been updated; Link is https://gracedb.ligo.org/events/%s " % (graceid, graceid)
 
@@ -41,7 +44,8 @@ CACHE = "/home/gdb_processor/working/gcn_listener/cache"
 #}
 
 streams = { 'ivo://nasa.gsfc.gcn/Fermi': 'Fermi',
-           'ivo://nasa.gsfc.gcn/SWIFT': 'SWIFT' }
+           'ivo://nasa.gsfc.gcn/SWIFT': 'SWIFT',
+           'ivo://nasa.gsfc.gcn/SNEWS': 'SNEWS' }
 
 Fermi_Likely = {
     0  :'An error has occurred',
@@ -58,17 +62,21 @@ Fermi_Likely = {
     12 :'unrec_value: Unrecognized value',
     19 :'TGF: Terrestrial Gamma Flash',
 }
+
          
 class EventCatcher(object):
-    # Simple example of an event handler plugin. 
-    # Selects on stream and role, and saves the good ones.
+    """
+    Simple example of an event handler plugin. 
+    Selects on stream and role, and saves the ones we're interested in
+    (Swift, Fermi and SNEWS triggers that meet our criteria).
+    """
 
     # Event handlers must implement IPlugin and IHandler.
     implements(IPlugin, IHandler)
 
     # The name attribute enables the user to specify plugins they want on the
     # command line.
-    name = "catch-event"
+    name = "test-event"
 
     # When the handler is called, it is passed an instance of
     # comet.utility.xml.xml_document.
@@ -77,62 +85,68 @@ class EventCatcher(object):
         Print an event to standard output.
         """
 
+        # Get VOEvent string.
         v = VOEventLib.Vutil.parseString(event.text)
 
+        # Parse and save the IVORN.
         id = v.get_ivorn()
         tok = id.split('#')
         if len(tok) != 2:
-            print "Illegal IVORN %s" % id
+            print "Illegal IVORN: %s" % id
             return
         stream = tok[0]
-        print "Ivorn", id
+        print "Ivorn: %s" % id
         localid = tok[1]
         if not streams.has_key(stream):
-#            print "Not in list -- rejected"
             return
 
+        # Parse the role of this event.
         role = v.get_role()
-#        print "Role ", role
 
+        # Ignore all alerts with role "utility."
         if role == 'utility':
-            print "Utility events not used here %s" % ivorn
+            print "Utility events not used here; rejecting %s" % ivorn
             return
 
-        if role == 'test':
-            print "Test events not used here %s" % ivorn
+        # Let SNEWS test events through, but ignore all other tests.
+        if stream != 'ivo://nasa.gsfc.gcn/SNEWS' and role == 'test':
+            print "Test events not used here; rejecting %s" % ivorn
             return
 
-# if it is a GCN, it will have a packet type
+        # If it is a GCN, it will have a packet type.
         p = VOEventLib.Vutil.findParam(v, '', 'Packet_Type')
         if p:
             pt = int(VOEventLib.Vutil.paramValue(p))
             print "Packet type ", pt
         else:
             print "No Packet_Type"
-            return     #   WARNING we are ignoring all non-GCN events!
+            return     # WARNING we are ignoring all non-GCN events!
 
-        keep = 0  # save it in the cache
-        send = 0  # send it to Gracedb
-# SWIFT events, 
-# packet type == 61 means BAT alert    SEND to Gracedb
-# packet_type == 124 means GBM_Test_Pos
+        keep = 0  # Save it in the cache.
+        send = 0  # Send it to Gracedb.
+
+        # SWIFT events: 
+        # packet type == 61 means BAT alert       SEND to Gracedb
+        # packet_type == 124 means GBM_Test_Pos
         if stream == 'ivo://nasa.gsfc.gcn/SWIFT':
             if pt == 61: 
                 keep = 1
                 send = 1
+                eventObservatory = 'Swift'
                 print 'SWIFT BAT Alert'
 
-# Fermi events
-# packet_type == 110 means GBM_Alert      SEND to Gracedb
-# packet_type == 111 means GBM_Flt_Pos    SEND to Gracedb
-# packet_type == 112 means GBM_Gnd_Pos    SEND to Gracedb
-# packet_type == 115 means GBM_Fin_Pos    SEND to Gracedb
-# packet_type == 124 means GBM_Test_Pos
+        # Fermi events:
+        # packet_type == 110 means GBM_Alert      SEND to Gracedb
+        # packet_type == 111 means GBM_Flt_Pos    SEND to Gracedb
+        # packet_type == 112 means GBM_Gnd_Pos    SEND to Gracedb
+        # packet_type == 115 means GBM_Fin_Pos    SEND to Gracedb
+        # packet_type == 124 means GBM_Test_Pos
         qt = 0
         if stream == 'ivo://nasa.gsfc.gcn/Fermi':
             if pt == 110: 
                 keep = 1
                 send = 1
+                eventObservatory = 'Fermi'
                 print 'Fermi GBM_Alert'
             elif pt == 111 or pt == 112 :
                 q = VOEventLib.Vutil.findParam(v, '', 'Most_Likely_Index')
@@ -144,10 +158,19 @@ class EventCatcher(object):
                 print 'Fermi GBM_Fin_Pos'
                 send = 1
 
+        # Send all SNEWS events to Gracedb.
+        if stream == 'ivo://nasa.gsfc.gcn/SNEWS':
+            keep = 1
+            send = 1
+            eventObservatory = 'SNEWS'
+            print 'SNEWS Alert (may be a test)'
+
+        # Create a unique label for this event's portfolio.
         pfname = id[6:].replace('/','_')
         pfdir = "%s/%s/%s" % (CACHE, role, pfname)
 
-        cc = v.get_Citations()    # does it cite a portfolio we already have?
+        # Determine whether this is a portfolio we already have.
+        cc = v.get_Citations()
         if cc and cc.get_EventIVORN():
             for c in cc.get_EventIVORN():
                 citedivorn = c.get_valueOf_()
@@ -160,13 +183,17 @@ class EventCatcher(object):
                     keep = 1
                     break
 
+        # Determine whether this event has a designation.
+        # FIXME: What if it doesn't?
         hasDesignation = False
         if v.Why.Inference[0].get_Name() and send == 1:
             pfname = v.Why.Inference[0].get_Name()[0].replace(' ', '')
             hasDesignation = True
 
+        # Save the textual content of the VOEvent string.
         text = VOEventLib.Vutil.stringVOEvent(v)
 
+        # If this event has been flagged as one we want to keep, save it to disk.
         if keep == 1:
             if not os.path.exists(pfdir): 
                 print 'Making directory ', pfdir
@@ -177,23 +204,24 @@ class EventCatcher(object):
             f.write(text)
             f.close()
 
+        # If it has also been flagged as one to send to GraceDB, send it to GraceDB.
         if send == 1:
             from lalinference.bayestar.fits import iso8601_to_gps
+            from math import floor
             eventType = 'Test'
             isotime = VOEventLib.Vutil.getWhereWhen(v)['time'] 
-            gpstime = int(floor(iso8601_to_gps(isotime)))
-            event = list(gracedb.events('%s %s' % (eventType, gpstime)))
+            gpstime = int( floor(iso8601_to_gps(isotime)) )
+            event = list( gracedb.events('%s %s..%s' % (eventType, gpstime, gpstime+1)) )
             if event:
                 gid = event[0]['graceid']
                 replaceit(gid, filename)
             else: 
-                gid = sendit(filename, eventType)
-                # FIXME: How likely is it that one event could be seen by more than one instrument?
+                gid = sendit(filename, eventType, eventObservatory)
+                # FIXME: SNEWS events will ultimately need a Search label other than the default ("GRB").
                 gracedb.writeLog(gid, 'This event detected by %s' % v.How.get_Description()[0], tagname='analyst_comments')
-            #FIXME: In the future, .fits files for GRBs ought to be uploaded here and not as part of the coincidence search
-            # During ER4 this is acceptable because not all GRBs are real
+
             if hasDesignation: gracedb.writeLog(gid, 'This event has been designated %s' % pfname, tagname='analyst_comments')
 
 # This instance of the handler is what actually constitutes our plugin.
-catch_event = EventCatcher()
-print catch_event.name
+test_event = EventCatcher()
+print test_event.name
