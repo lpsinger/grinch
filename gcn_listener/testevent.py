@@ -206,7 +206,7 @@ class EventCatcher(object):
 
         # If it has also been flagged as one to send to GraceDB, send it to GraceDB.
         if send == 1:
-            from lalinference.bayestar.fits import iso8601_to_gps
+            from lalinference.fits import iso8601_to_gps
             from math import floor
             eventType = 'Test'
             isotime = VOEventLib.Vutil.getWhereWhen(v)['time'] 

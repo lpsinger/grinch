@@ -152,20 +152,20 @@ remote_file = gracedb_client.files(streamdata['uid'], coincfile)
 with open(coincfile, 'w') as local_file:
 	shutil.copyfileobj(remote_file, local_file)
 
-doc        = utils.load_filename(coincfile)
-coinctable = table.get_table(doc,lsctables.CoincInspiralTable.tableName)
-
-
-# Get ifo info.
-gpstime  = coinctable[0].end_time
-ifonames = ['H1','L1','V1']
-if 'test' in cp.sections():
-	ifos = cp.get('test','ifos')
-else:
-	ifos = coinctable[0].ifos
-
-disable_ifos = [ifo for ifo in ifonames if ifo not in ifos]
-itime        = str( int( float(gpstime) + 0.5 ) )
+#doc        = utils.load_filename(coincfile)
+#coinctable = table.get_table(doc,lsctables.CoincInspiralTable.tableName)
+#
+#
+## Get ifo info.
+#gpstime  = coinctable[0].end_time
+#ifonames = ['H1','L1','V1']
+#if 'test' in cp.sections():
+#	ifos = cp.get('test','ifos')
+#else:
+#	ifos = coinctable[0].ifos
+#
+#disable_ifos = [ifo for ifo in ifonames if ifo not in ifos]
+#itime        = str( int( float(gpstime) + 0.5 ) )
 
 
 ##############################

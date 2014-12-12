@@ -17,6 +17,6 @@ comet \
 --remote=68.169.57.253:8099 \
 --remote=209.208.78.170:8099 \
 --remote=50.116.49.68:8099 \
---remote=voevent.transientskp.org:8099
---remote=voevent.phys.soton.ac.uk:8099
+--remote=voevent.transientskp.org:8099 \
+--remote=voevent.phys.soton.ac.uk:8099 \
 --action=catch-event

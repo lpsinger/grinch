@@ -15,19 +15,8 @@ import VOEventLib.Vutil
 import os, json
 from ligo.gracedb.rest import GraceDb
 
-import ConfigParser
 
-
-# Read gcn_config.ini.
-cp = ConfigParser.ConfigParser()
-etc = home + '/opt/etc/'
-cp.read( etc + 'gcn_config.ini' )
-
-# Store relevant configuration variables.
-CACHE = cp.get('working', 'event_cache')
-
-
-# Create instance of gracedb REST API.
+# create instance of gracedb REST API
 gracedb = GraceDb()
 
 
@@ -44,17 +33,19 @@ def replaceit(graceid, eventFile):
     print "VOEvent file for %s has been updated; Link is https://gracedb.ligo.org/events/%s " % (graceid, graceid)
 
 
-# Possible event streams are as follows:
-# 'ivo://nasa.gsfc.gcn/AGILE': 'AGILE',
-# 'ivo://nasa.gsfc.gcn/Fermi': 'Fermi',
-# 'ivo://nasa.gsfc.gcn/INTEGRAL': 'INTEGRAL',
-# 'ivo://nasa.gsfc.gcn/MAXI': 'MAXI',
-# 'ivo://nasa.gsfc.gcn/SWIFT': 'SWIFT',
-# 'ivo://voevent.phys.soton.ac.uk/voevent': '4PISKY'
+CACHE = "/home/gdb_processor/working/gcn_listener/cache"
 
-streams = {'ivo://nasa.gsfc.gcn/Fermi': 'Fermi',
+#streams = {'ivo://nasa.gsfc.gcn/AGILE': 'AGILE',
+#           'ivo://nasa.gsfc.gcn/Fermi': 'Fermi',
+#           'ivo://nasa.gsfc.gcn/INTEGRAL': 'INTEGRAL',
+#           'ivo://nasa.gsfc.gcn/MAXI': 'MAXI',
+#           'ivo://nasa.gsfc.gcn/SWIFT': 'SWIFT',
+#           'ivo://voevent.phys.soton.ac.uk/voevent': '4PISKY',
+#}
+
+streams = { 'ivo://nasa.gsfc.gcn/Fermi': 'Fermi',
            'ivo://nasa.gsfc.gcn/SWIFT': 'SWIFT',
-           'ivo://nasa.gsfc.gcn/SNEWS': 'SNEWS'}
+           'ivo://nasa.gsfc.gcn/SNEWS': 'SNEWS' }
 
 Fermi_Likely = {
     0  :'An error has occurred',
@@ -223,7 +214,7 @@ class EventCatcher(object):
             filename = "%s/%s.xml" % (pfdir, pfname)
 
             # Continue only if we have NOT already saved this file.
-            if not os.path.isfile(filename):
+            if test or not os.path.isfile(filename):
                 print "Saving to ", filename
                 if not test:
                     with open(filename, 'w') as f:
@@ -236,7 +227,7 @@ class EventCatcher(object):
 
         # If it has also been flagged as one to send to GraceDB, send it to GraceDB.
         if send == 1:
-            from lalinference.bayestar.fits import iso8601_to_gps
+            from lalinference.fits import iso8601_to_gps
             from math import floor
             eventType = 'External'
             isotime = VOEventLib.Vutil.getWhereWhen(v)['time'] 

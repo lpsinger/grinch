@@ -17,6 +17,7 @@ import VOEventLib.Vutil
 
 from ligo.gracedb.rest import GraceDb
 from lalinference.bayestar import fits
+from lalinference.fits import iso8601_to_gps
 from math import floor
 from grace import GW
 
@@ -84,7 +85,7 @@ class GRB(object):
 		self.err_rad = wwd['positionalError'] # error radius
 		self.inst = stream(self.voevent) # instrument that detected the event
 		self.fits = self.name+'.fits.gz' # name of .fits file for this event
-		self.gpstime = int(floor(fits.iso8601_to_gps(wwd['time'])))
+		self.gpstime = int(floor(iso8601_to_gps(wwd['time'])))
 
 	def submit_gracedb_log(self, message, filename=None, tagname=None):
 		""" Wrapper for gracedb.writeLog() for this event """
