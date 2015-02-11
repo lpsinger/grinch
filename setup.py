@@ -25,14 +25,13 @@ from distutils.core import setup
 
 
 setup(
-	name='gdb-processor',
+	name='grinch',
 	version='2.0',
 	url='http://gracedb.ligo.org',
 	author='Alex Urban',
 	author_email='alexander.urban@ligo.org',
 	description='Coordinate between GCN notices, LV alerts, gracedb, and condor job submission automatically',
 	license='GNU General Public License Version 3',
-	packages=['gracedb_events'],
 	py_modules=['workflow_helper', 'argparse', 'GWDataFindClient'],
 	scripts=[
 		'bin/gdb_processor',
@@ -43,8 +42,6 @@ setup(
 		'bin/dqtolabel',
 		'bin/lvalertlisten',
 		'bin/gcnlisten',
-		'bin/raven_coinc_search_gracedb',
-		'bin/raven_grb_pop_from_gwinj',
 		'bin/unblind_inj_search',
 		'bin/find_data'
 	],
