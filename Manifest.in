@@ -1,0 +1,4 @@
+include COPYING
+include bin/*
+include etc/*
+include gcn_listener/*

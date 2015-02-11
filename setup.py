@@ -26,7 +26,7 @@ from distutils.core import setup
 
 setup(
 	name='grinch',
-	version='2.0',
+	version='0.0',
 	url='http://gracedb.ligo.org',
 	author='Alex Urban',
 	author_email='alexander.urban@ligo.org',

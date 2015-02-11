@@ -1,66 +1,16 @@
-       ======================================================       
-       | GDB_PROCESSOR INFRASTRUCTURE SOFTWARE DISTRIBUTION |
-       ======================================================
-                            Version 1.0
+Welcome to GRiNCH, the Gravitational-wave Candidate Event Helper.
 
-  Install by running 'python setup.py install --prefix=${HOME}/opt'   
-     from the root directory (i.e. from directory gdb_processor)
+More information can be found at the website:
+   <link to be provided>
 
-  !!-------------------------------------------------------------!!
-  !!  The option --prefix=${HOME}/opt is critical: workflow is   !!
-  !!  designed to be dependent on this file structure, even      !!
-  !!  though it is machine-independent (he says with confidence) !!
-  !!-------------------------------------------------------------!!
+To install GRINCH locally:
+   python setup.py install --prefix=/path/to/install/directory
 
+To run the GRINCH unit tests:
+   python setup.py test
+ (This functionality is to come.)
 
-----------------------------------------------------------------------
-|    DIRECTORY    |       CONTENTS       |        DESCRIPTION        |
-|=================|======================|===========================|
-|                 |  workflow_helper.py  | Python module to handle   |
-|                 |                      |  creation of working dirs |
-|      root       |----------------------|---------------------------|
-|                 |       setup.py       |    Python setup script    |
-|                 |                      |        (see above)        |
-|-----------------|----------------------|---------------------------|
-|                 |    lvalertlisten     |                           |
-|                 |     plot_allsky      |     scripts called by     |    
-|                 |   plot_xcorrelate    |     (xy)_processor.py     |
-|       bin       |     dqtolabel.py     |                           |
-|                 |----------------------|---------------------------|
-|                 | lowmass_processor.py |  scripts called directly  | <--- Writes and submits condor 
-|                 | exttrig_processor.py |  in response to LV Alert  | <--- .dag and .sub files to 
-|-----------------|----------------------|---------------------------|      handle the relevant jobs
-|                 |  lvalertconfig.ini   |                           |
-|                 |  lowmass_config.ini  |    configuration files    | <--- Defines certain variables
-|       etc       |  exttrig_config.ini  |                           |      in the processor scripts
-|                 |----------------------|---------------------------|
-|                 |  lvalertlisten.sub   | LVAlert listener sub file | <--- This is what gets submitted
-|-----------------|----------------------|---------------------------|      to initiate the LV listener
-|                 |                      | Package containing python |
-|                 |      __init__.py     | modules useful in proces- |
-|                 |                      | sing gravitational-wave   |
-|                 |                      | and exttrig events        |
-|                 |----------------------|---------------------------|
-|                 |                      |  Module contains classes  |
-| gracedb_events  |      ExtTrig.py      |  whose attributes are     | 
-|                 |                      |  specific to external     |
-|                 |                      |  triggers                 |
-|                 |----------------------|---------------------------|
-|                 |                      | Module contains classes   |
-|                 |       GraCE.py       | whose attributes are      | 
-|                 |                      | specific to gravitational |
-|                 |                      | wave candidate events     |
-----------------------------------------------------------------------
+Finally, the most current GRINCH development version is always available from the
+git repository:
 
-
-  ----------------------
-  | DEPENDENCIES:      |
-  |====================|
-  | bayestar           |
-  | pyfits             |
-  | healpy             |
-  | ligo.gracedb.rest  |
-  | ligo.lvalert.utils |
-  | glue.ligolw        |
-  | condor             |
-  ----------------------
+   git clone albert.einstein@ligo-vcs.phys.uwm.edu:/usr/local/git/grinch.git 

@@ -1,0 +1,39 @@
+GRiNCH installation instructions
+===============================
+
+Prerequisites
+-------------
+
+* Python 2.6 or 2.7
+  Should be provided by the distribution.
+
+* python-decorator >= 3.3
+  Should be available in the distribution.
+  
+* argparse >= 1.2.0
+  Should be available in the distribution.
+
+* Numpy >= 1.4.1 and Scipy >= 0.7.2
+  Should be installable either via the distribution packaging system,
+  pip or easy_install.
+
+* LALSuite
+  See https://www.lsc-group.phys.uwm.edu/daswg/docs/howto/lal-install.html
+  for installation instructions. LALSuite must be configured with the
+  --enable-swig-python option.
+
+
+Installing GRiNCH
+-----------------
+
+To install from the git repository hosted on LIGO-VCS, use the albert.einstein
+credentials via:
+
+    git clone albert.einstein@ligo-vcs.phys.uwm.edu:/usr/local/git/grinch.git
+    cd grinch
+    python setup.py build
+    python setup.py install --user
+    python setup.py test
+
+To install system-wide, replace the 'setup.py install' command with
+    sudo python setup.py install
