@@ -1,0 +1,289 @@
+#!/usr/bin/env python
+import os
+import json
+from sys import stdin
+from ligo.gracedb.rest import GraceDb
+import re
+import subprocess
+import ConfigParser
+from lal import gpstime 
+
+import logging
+
+#--------------------------------------------------------------------------------------
+# Fetch parameters
+#--------------------------------------------------------------------------------------
+# Import FAR threshold, iDQ threshold from config file
+config = ConfigParser.SafeConfigParser()
+config.read('approval_processor_config.ini')
+idqthresh = config.getfloat('default', 'idqthresh')
+idq_pipelines = config.get('default', 'idqpipelines')
+idq_pipelines = idq_pipelines.replace(' ','') #remove any spaces
+idq_pipelines = idq_pipelines.split(',')
+humanscimons = config.get('default', 'humanscimons')
+
+# Set up logging
+logging.basicConfig(filename=config.get('default', 'approval_processor_logfile'), level=logging.INFO)
+
+#--------------------------------------------------------------------------------------
+# Utilities
+#--------------------------------------------------------------------------------------
+
+# Instantiate the GraceDB client
+# For testing purposes, this is pointed towards simdb. 
+# If we leave out the argument, it will default to https://gracedb.ligo.org/api/
+try:
+	#g = GraceDb('https://simdb.phys.uwm.edu/api/')
+	g = GraceDb()
+except Exception, e:
+	logging.error('Connection to GraceDB failed: %s' % str(e))
+	exit()
+
+# A utility to get the FAR threshold given pipeline and search.
+# It's probably important to have a default value just in case.
+def get_farthresh(pipeline, search):
+	try:
+		return config.getfloat('default', 'farthresh[{0}.{1}]'.format(pipeline, search))
+	except:
+		return config.getfloat('default', 'default_farthresh')
+
+# Define a function for pulling down and sending out the correct VOEvent depending on label type
+def submitToGCN(graceid, voeventtype):
+	# Pull down a VOEvent of type "initial_loc" and submit to GCN
+	# Construct the URL for the VOEvent representation of this event
+	url = g.templates['event-vo-detail-template'].format(graceid=graceid)
+	# Add the type querystring to the URL.
+	url += '?type="{0}"'.format(voeventtype)
+	# Send the GET request to the GraceDB server to fetch the VOEvent
+	try:
+		r = g.get(url)
+		voevent = r.json()
+	except Exception, e:
+		logging.error('Problem getting VOEvent of type %s for %s: %s' % (voeventtype, graceid, str(e)))
+
+	filepath = os.path.join('/tmp', graceid + '{0}.xml'.format(voeventtype))
+	tmpfile = open(os.path.join('/tmp', filepath),"w")
+	tmpfile.write(voevent)
+   	tmpfile.close()
+   	# Send it out with comet!
+	cmd = "comet-sendvo -p 5340 -f %s" % filepath
+	proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+	output, error = proc.communicate(voevent)
+	# Upload the VOEvent to GraceDB
+	if proc.returncode==0:
+       	# Success. Write a log message with the VOEvent attached, and tag it as "em_follow" 
+ 		r = g.writeLog(graceid, "Successfully sent VOEvent of type {0} to GCN.".format(voeventtype),
+			filepath, tagname="em_follow")
+	else:
+		logging.error("Failed to send to GCN: %s" % error)
+		r = g.writeLog(graceid, "Could not send VOEvent of type {0} to GCN.".format(voeventtype),
+			filepath, tagname="em_follow")
+
+#--------------------------------------------------------------------------------------
+# Begin processing
+#--------------------------------------------------------------------------------------
+begintime = gpstime.gps_time_now()
+# Create a dictionary from the LVAlert message contents and extract the info
+streamdata = str(stdin.read())
+streamdata = json.loads(streamdata) #json.loads turns string into dictionary
+
+alert_type = streamdata['alert_type']
+graceid = streamdata['uid']
+description = streamdata['description']
+filename = streamdata['file']
+
+#--------------------------------------------------------------------------------------
+# Handle labelling events
+#--------------------------------------------------------------------------------------
+if alert_type == 'label':
+	if description == 'PE_READY':
+		logging.info('Submitting Update VOEvent to GCN for event %s' % graceid)
+		submitToGCN(graceid, 'revised_loc')
+	elif description == 'EM_READY':
+		logging.info('Submitting Initial VOEvent to GCN for event %s' % graceid)
+		submitToGCN(graceid, 'initial_loc')
+	elif (description=='DQV' or description=='INJ'):
+		# Check: Have we already sent out alerts on this event?  Look through the log messages 
+		# to see if any VOEvents have been uploaded by gdb_processor.
+		log_dicts = g.logs(graceid).json()['log']
+		for message in log_dicts:
+			#XXX: after we connect with GCN, change to-- if 'Successfully sent VOEvent' in message['comment']:
+			if 'VOEvent' in message['comment']:
+				logging.info('Submitting Retraction VOEvent to GCN for event %s' % graceid)
+				submitToGCN(graceid, 'retraction')
+			else: 
+				# This means that no previous VOEvent has been sent out before and 
+				# therefore, no alert needs to be sent out.
+				pass
+
+#--------------------------------------------------------------------------------------
+# Handle new candidate event
+#--------------------------------------------------------------------------------------
+elif alert_type == 'new':
+	# Get event information from streamdata
+	event_dict = streamdata['object']
+	far = event_dict['far']
+	pipeline = event_dict['pipeline']
+	search = event_dict['search']
+	labels = event_dict['labels']
+	# Calculate the FAR threshold for this event
+	farthresh = get_farthresh(pipeline, search)
+
+	# if FAR is above threshold, or if event is labeled INJ or DQV, do not create alert. 
+	# Also log message saying why no alert was created.
+	if far >= farthresh:
+		logging.info("Rejected %s due to large FAR" % graceid)
+		r = g.writeLog(graceid, "Candidate event rejected due to large FAR", tagname="em_follow")
+	elif 'INJ' in labels:
+		logging.info("Rejected %s due to INJ label" % graceid)
+		r = g.writeLog(graceid, "Candidate event rejected due to INJ label", tagname="em_follow")
+	elif 'DQV' in labels:
+		logging.info("Rejected %s due to DQV label" % graceid)
+		r = g.writeLog(graceid, "Candidate event rejected due to DQV label", tagname="em_follow")
+	else:
+		logging.info("Submitting Preliminary VOEvent to GCN for event %s" % graceid)
+		submitToGCN(graceid, 'preliminary')
+
+#--------------------------------------------------------------------------------------
+# Handle uploaded files
+#--------------------------------------------------------------------------------------
+elif alert_type =='update':
+	# No need to continue processing if no file is present.
+	if not len(filename):
+		exit()
+
+	# Since we will also need information about the event itself, let's fetch the event dict.	
+	try:
+		event_dict = g.event(graceid).json()
+	except Exception, e:
+		# Need to handle error here
+		exit()
+	far = event_dict['far']
+	pipeline = event_dict['pipeline']
+	search = event_dict['search']
+	labels = event_dict['labels']
+	detectors = str(event_dict['instruments']).split(',')
+	farthresh = get_farthresh(pipeline, search)
+	# First check FAR and labels
+	if (far >= farthresh or 'INJ' in labels or 'DQV' in labels):
+		logging.info("Ignoring update for %s due to INJ, DQV, or high FAR" % graceid)
+		exit()
+
+	# Check whether the file in question is a skymap. We assume that any file with
+	# the .fits or .fits.gz extension *and* the 'sky_loc' tag will be a skymap.
+	# The tag names should also contain provenance information for the skymap, which
+	# could be useful here.
+	log_dict = streamdata['object']
+	tag_names = log_dict['tag_names']	
+
+	if (filename.endswith('.fits.gz') or filename.endswith('.fits')) and 'sky_loc' in tag_names:
+		# Now if new skymaps are loaded, we can check if the event has passed iDQ checks by 
+		# reading the log and labeling the event as either 'EM_READY' or 'PE_READY'.
+        # 'EM_READY' is the label set if there have been no previous skymaps
+        # 'PE_READY' is the label set if we've already sent out an Initial Localization Map.
+
+		logging.info("Got skymap %s for event %s" % (filename, graceid))
+
+		# Fetch the event log list from the GraceDB server
+		log_dicts = g.logs(graceid).json()['log']
+		for message in log_dicts:
+			if 'VOEvent of type initial_loc' in message['comment']:
+				# set label PE_READY since the initial_localization alert was already sent out, 
+				# it must already be labeled EM_READY
+				logging.info('Labelling %s with PE_READY' % graceid)
+				r = g.writeLabel(graceid, 'PE_READY')
+			elif 'Candidate event passed iDQ checks.' in message['comment']:
+				# set label EM_READY. this will prompt the script to send out an initial_localization alert
+				logging.info('Labelling %s with EM_READY' % graceid)
+				r=g.writeLabel(graceid, 'EM_READY')
+			else: 
+				# This means that our event did not pass the iDQ checks or the iDQ checks are 
+				# not finished yet. Thus, we will apply the label when the iDQ check finishes.
+				logging.info('No action taken on skymap.')
+
+	# Check: Is the iDQ code finished running at each site?
+	# When each detector site finishes running (check by looking through the log message), 
+	#get the iDQ values for particular algorithm.
+	if (filename.endswith('.txt') and 'idq' in filename):
+		logging.info("Got idq file %s for event %s" % (filename, graceid))
+
+		# Set up the idqvalue and joint_FAP_values dictonaries. These will store the minfap values 
+		# and computed joint_FAP values from all of the detector sites for each pipeline.
+		idqvalues = {}
+		joint_FAP_values={}
+		timeseriesinfo = re.findall(r'-(.*?)-(.*?).txt', filename)
+		mingpstime = timeseriesinfo[0][0]
+		duration = timeseriesinfo[0][1]
+		for pipeline in idq_pipelines:
+			for detector in detectors:
+				minfapfilename = '{0}_idq_{1}_summary_{2}_test-{3}-{4}.txt'.format(detector, pipeline, graceid, mingpstime, duration)
+				try:
+					idqfiletxt = g.files(graceid, minfapfilename)
+					min_fap = re.findall(r'min_fap : (.*?)\n',idqfiletxt.read())
+					min_fap = float(min_fap[0])
+					detectorstring = '{0}.{1}'.format(pipeline, detector)
+					idqvalues[detectorstring] = min_fap
+					logging.info('Got the min_fap for {0} {1} using {2} is {3}'.format(detector, graceid, pipeline, min_fap))
+				except:
+					logging.info('Could not get minfap from {0} for {1} yet.'.format(detector, pipeline))
+		if (len(idqvalues) < (len(idq_pipelines)*len(detectors))):
+			logging.info('Have not gotten all the minfap values yet.')
+		elif (len(idqvalues) > (len(idq_pipelines)*len(detectors))):
+			logging.info('Too many minfap values in idqvalues dictionary.')
+		else:
+			logging.info('Ready to run idq_checks.')
+			# First make sure that we haven't already run the checks. We don't want to over-send alerts.
+			# Check log to see if we've said 'Finished running iDQ checks.'
+			log_dicts = g.logs(graceid).json()['log']
+			for message in log_dicts:
+				if 'Finished running iDQ checks.' in message['comment']:
+					exit()
+			# Now that iDQ checks are finished, we want to know whether the event passed the iDQ checks or not.
+			# If they don't pass the checks, we set the label 'DQV'.
+			# If they do pass the checks, we write a log message saying that they did. 
+			# 'glitch-FAP' is the probability that the classifier thinks there was a glitch and *there was not a glitch*.
+			# 'glitch-FAP'->0 means high confidence there is a glitch.
+			# 'glitch-FAP'->1 means low confidence there is a glitch
+			# What we want is something like the minimum of the products of FAPs from different sites computed for each classifier.
+			# Calculate joint_FAP values for all the idq_pipelines
+			for pipeline in idq_pipelines:
+				joint_FAP = 1
+				for detector in detectors:
+					detectorstring = '{0}.{1}'.format(pipeline, detector)
+					joint_FAP = joint_FAP*idqvalues[detectorstring]
+				joint_FAP_values[pipeline] = joint_FAP
+				logging.info("Got joint_FAP = %f for %s pipeline" % (joint_FAP, pipeline))
+			if min(joint_FAP_values.values()) > idqthresh:
+				logging.info("Passed iDQ check.")
+				r = g.writeLog(graceid, "Finished running iDQ checks. Candidate event passed iDQ checks.", tagname="em_follow")
+				# check log to see if there is a skymap file or not... if so, set label 'EM_READY'
+				for message in log_dicts:
+					#XXX Need to generalize this since not all messages say 'skymap created'
+					if 'skymap created' in message['comment']: 
+						# set label EM_READY
+						logging.info("Applying EM_READY label to event %s" % graceid)
+						r = g.writeLabel(graceid, 'EM_READY')
+						# break so that we only try applying this label once at most
+						break
+			else:
+				message = "Finished running iDQ checks. " 
+				message += "Candidate event rejected due to low iDQ FAP value of {0}".format(joint_FAP)
+				r = g.writeLog(graceid, message, tagname="em_follow")
+				# set label 'DQV'
+				logging.info("iDQ check failed. Applying DQV label to event %s" % graceid)
+				r = g.writeLabel(graceid, 'DQV')
+
+#--------------------------------------------------------------------------------------
+# Handle unknown alert type
+#--------------------------------------------------------------------------------------
+else:
+	# GraceDB gave us a strange alert type.
+	logging.error("Alert type %s unrecognized. Quitting." % alert_type)
+	exit()
+
+#--------------------------------------------------------------------------------------
+# Wrap up
+#--------------------------------------------------------------------------------------
+endtime = gpstime.gps_time_now()
+processtime = endtime - begintime
+logging.info("Process time: %d s" % processtime)
