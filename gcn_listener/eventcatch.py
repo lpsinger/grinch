@@ -240,9 +240,9 @@ class EventCatcher(object):
                 else:
                     print "WARNING: Because the test flag was passed, GraceDB event %s was not updated." % gid
             else: 
-                gid = sendit(filename, eventType, eventObservatory)
-                # FIXME: SNEWS events will ultimately need a Search label other than the default ("GRB").
                 if not test:
+                    gid = sendit(filename, eventType, eventObservatory)
+                    # FIXME: SNEWS events will ultimately need a Search label other than the default ("GRB").
                     gracedb.writeLog(gid, 'This event detected by %s' % v.How.get_Description()[0], tagname='analyst_comments')
                 else:
                     print "WARNING: Because the test flag was passed, this new event was not uploaded to GraceDB."

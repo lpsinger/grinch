@@ -9,3 +9,4 @@ Making directory  /home/gdb_processor/working/gcn_listener/cache/observation/nas
 WARNING: Because the test flag was passed, this directory was not actually made.
 Saving to  /home/gdb_processor/working/gcn_listener/cache/observation/nasa.gsfc.gcn_Fermi#GBM_Alert_2015-02-03T13:04:30.40_444661473_1-395/nasa.gsfc.gcn_Fermi#GBM_Alert_2015-02-03T13:04:30.40_444661473_1-395.xml
 WARNING: Because the test flag was passed, this event was not actually saved.
+WARNING: Because the test flag was passed, this new event was not uploaded to GraceDB.
