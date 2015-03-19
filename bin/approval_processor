@@ -51,7 +51,7 @@ def get_farthresh(pipeline, search):
 
 # Define a function for pulling down and sending out the correct VOEvent depending on label type
 
-def process_alert(client, voevent_type, skymap_filename=None, 
+def process_alert(client, graceid, voevent_type, skymap_filename=None, 
     skymap_type=None, skymap_image_filename=None):
     logging.debug("Processing %s VOEvent for MDC event %s .... " % (voevent_type, graceid))
 
@@ -61,7 +61,7 @@ def process_alert(client, voevent_type, skymap_filename=None,
             skymap_type=skymap_type, skymap_image_filename=skymap_image_filename)
         voevent = r.json()['text']
     except HTTPError, e:
-        print "Caught HTTPError: %s" % str(e)
+        logging.debug("Caught HTTPError: %s" % str(e))
     tmpfile = open('/tmp/voevent.tmp',"w")
     tmpfile.write(voevent)
     tmpfile.close()
@@ -142,10 +142,10 @@ filename = streamdata['file']
 if alert_type == 'label':
 	if description == 'PE_READY':
 		logging.info('Submitting Update VOEvent to GCN for event {0}'.format(graceid))
-		process_alert(graceid, 'update',None, None, None)
+		process_alert(g, graceid, 'update',None, None, None)
 	elif description == 'EM_READY':
 		logging.info('Submitting Initial VOEvent to GCN for event {0}'.format(graceid))
-		process_alert(graceid, 'initial', None, None, None)
+		process_alert(g, graceid, 'initial', None, None, None)
 	elif (description=='DQV' or description=='INJ'):
         # Check: Have we already sent out alerts on this event?
 	# Look through the log messages to see if any VOEvents have been uploaded by gdb_processor
@@ -154,7 +154,7 @@ if alert_type == 'label':
 			#XXX: After we connect with GCN, change to-- if 'Successfully sent VOEvent' in message['comment']:
 			if 'VOEvent' in message['comment']:
 				logging.info('Submitting Retraction VOEvent to GCN for event {0}'.format(graceid))
-				process_alert(graceid, 'retraction')
+				process_alert(g, graceid, 'retraction')
 			else:
 				# This means that no previous VOEvent has been sent out before and therefore, no alert needs to be sent out
 				pass
@@ -185,7 +185,7 @@ elif alert_type == 'new':
 		r = g.writeLog(graceid, 'Candidate event rejected due to DQV label', tagname = 'em_follow')
 	else:
 		logging.info('Submitting Preliminary VOEvent to GCN for event {0}'.format(graceid))
-		process_alert(graceid, 'preliminary')
+		process_alert(g, graceid, 'preliminary')
 
 #--------------------------------------------------------------------------------------
 # Handle uploaded files
