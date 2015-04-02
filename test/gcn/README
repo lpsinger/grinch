@@ -1,28 +1,36 @@
-Hi Badri, Alicia and Marco,
+Welcome to the the grinch test directory for LIGO's
+Gamma-ray Coordination Network (GCN) listener, ~grinch/test/gcn.
 
-The event handler for GRBs may now be called with a flag called "test" with a default value of False. When passed with value True, the flag enables verbose logging and disables GraceDB event submission as well as saving of files on disk.
+The test script is run from the command line as
 
-To successfully run the enclosed helper script (test_gcn_end2end.py), you should first log into Nemo (any account on any headnode will do) and set the PYTHONPATH variable:
+python test_gcn_end2end.py [voevent.xml]
 
-export PYTHONPATH=/usr/lib/python2.7/dist-packages/:/home/gdb_processor/opt/lib/python2.6/site-packages:
+provided grinch, VOEventLib, and lalsuite are installed locally.
 
-This reflects the configuration on the gdb_processor account, where the GCN listener is actually run.
+A simulated VOEvent file (emulating the behavior of real alerts)
+has been prepared to test each of the alert types LIGO is interested
+in. In particular, the files
 
-To run the script, simply do
+[gdb_processor@pcdev2:~/src/grinch/test/gcn] $ ls Swift/*.xml
+Swift/Swift_BAT_Alert.xml
 
-python test_gcn_end2end.py [VOEvent.xml]
+[gdb_processor@pcdev2:~/src/grinch/test/gcn] $ ls -1 Fermi/*.xml
+Fermi/Fermi_Fin_Pos.xml
+Fermi/Fermi_Flt_Pos.xml
+Fermi/Fermi_GBM_Alert.xml
 
-where VOEvent.xml is the name of the file you'd like to pass to the event filter.
+test each alert type in turn, while the associated log files
 
-The directories Swift/ and Fermi/ each contain sample VOEvents, taken from actual GRB notices, that ought to cover each use case we have for these two satellite observatories. They also contain similarly named output files with the output of running test_gcn_end2end.py on the associated VOEvent file; for example:
+[gdb_processor@pcdev2:~/src/grinch/test/gcn] $ ls Swift/*.xml
+Swift/Swift_BAT_Alert.out
 
-catch-event
-VOEvent string successfully parsed.
-Ivorn: ivo://nasa.gsfc.gcn/SWIFT#BAT_GRB_Pos_629693-134
-Event role successfully parsed; role is observation
-Packet type  61
-SWIFT BAT Alert
-The name for this event's portfolio (derived from its IVORN) is: nasa.gsfc.gcn_SWIFT#BAT_GRB_Pos_629693-134
-Saving to  /home/gdb_processor/working/gcn_listener/cache/observation/nasa.gsfc.gcn_SWIFT#BAT_GRB_Pos_629693-134/GRB150204.xml
-WARNING: Because the test flag was passed, this event was not actually saved.
-WARNING: Because the test flag was passed, GraceDB event E125383 was not updated.
+[gdb_processor@pcdev2:~/src/grinch/test/gcn] $ ls -1 Fermi/*.xml
+Fermi/Fermi_Fin_Pos.out
+Fermi/Fermi_Flt_Pos.out
+Fermi/Fermi_GBM_Alert.out
+
+contain the results of running the above script on each one, organized
+by gamma-ray observatory. For evidence that the GCN listener passes the
+unit tests suggested by our review team, please consider the output of
+these log files, as well as some purposefully "wrong" VOEvent files (to
+come).
