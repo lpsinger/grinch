@@ -13,7 +13,7 @@ import shutil
 import ligo.gracedb.rest
 
 from sys             import exit, stdin
-from workflow_helper import directory, home
+from grinch.workflow_helper import directory, home
 from glue.ligolw     import ligolw
 from glue.ligolw     import utils
 from glue.ligolw     import table

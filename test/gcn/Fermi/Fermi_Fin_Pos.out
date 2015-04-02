@@ -1,0 +1,9 @@
+VOEvent string successfully parsed.
+INFO:grinch.gcnhandler.archive:Ivorn: ivo://nasa.gsfc.gcn/Fermi#GBM_Fin_Pos2015-02-03T13:04:30.40_444661473_0-724
+Event role successfully parsed; role is observation
+INFO:grinch.gcnhandler.archive:Packet type 115
+INFO:grinch.gcnhandler.archive:Fermi GBM_Fin_Pos
+The name for this event's portfolio (derived from its IVORN) is: nasa.gsfc.gcn_Fermi#GBM_Fin_Pos2015-02-03T13:04:30.40_444661473_0-724
+INFO:grinch.gcnhandler.archive:Cites ivo://nasa.gsfc.gcn/Fermi#GBM_Alert_2015-02-03T13:04:30.40_444661473_1-395
+No existing event portfolio found; now assuming this event is new.
+WARNING: Because the test flag was passed, this new event was not uploaded to GraceDB.
