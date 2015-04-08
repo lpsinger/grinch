@@ -1,6 +1,6 @@
 #!/bin/sh
 
 echo starting...
-exec lvalert_listen --username gdb_processor --password skrite#batz --config-file=${HOME}/opt/etc/lvalertconfig.ini
+exec lvalert_listen -s lvalert.cgca.uwm.edu --username gdb_processor --password skrite#batz --config-file=${HOME}/opt/etc/lvalertconfig.ini
 echo terminating...
 exit
