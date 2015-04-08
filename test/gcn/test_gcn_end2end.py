@@ -11,12 +11,9 @@ filename = args[0]
 # Set up logger
 logging.basicConfig(level=logging.INFO, stream=sys.stdout)
 
-# Get root directory
-root = os.getcwd()
-
 # Store the textual content of the VOEvent
 with open (filename, "r") as f:
     payload = f.read()
 
 # Call the event filter
-archive( payload, root, test=True )
+archive( payload, test=True )

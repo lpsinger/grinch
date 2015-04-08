@@ -62,7 +62,7 @@ Fermi_Likely = {
 }
 
          
-def archive(payload, root, test=False):
+def archive(payload, root=None, test=False):
     """
     Simple example of an event handler plugin. 
     Selects on stream and role, and saves the ones we're interested in
