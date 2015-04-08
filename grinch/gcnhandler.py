@@ -115,35 +115,39 @@ def archive(payload, root=None, test=False):
     # SWIFT events: 
     # packet type == 61 means BAT alert       SEND to Gracedb
     # packet_type == 124 means GBM_Test_Pos
-    if stream == 'ivo://nasa.gsfc.gcn/SWIFT':
-        if pt == 61: 
-            keep = 1
-            send = 1
-            eventObservatory = 'Swift'
-            logging.getLogger('grinch.gcnhandler.archive').info( 'SWIFT BAT Alert' )
+    if pt == 61: 
+        keep = 1
+        send = 1
+        eventObservatory = 'Swift'
+        logging.getLogger('grinch.gcnhandler.archive').info( 'SWIFT BAT Alert' )
 
     # Fermi events:
-    # packet_type == 110 means GBM_Alert      SEND to Gracedb
-    # packet_type == 111 means GBM_Flt_Pos    SEND to Gracedb
+    # packet_type == 110 means GBM_Alert
+    # packet_type == 111 means GBM_Flt_Pos
     # packet_type == 112 means GBM_Gnd_Pos    SEND to Gracedb
     # packet_type == 115 means GBM_Fin_Pos    SEND to Gracedb
     # packet_type == 124 means GBM_Test_Pos
-    qt = 0
-    if stream == 'ivo://nasa.gsfc.gcn/Fermi':
-        if pt == 110: 
-            keep = 1
-            send = 1
-            eventObservatory = 'Fermi'
-            logging.getLogger('grinch.gcnhandler.archive').info( 'Fermi GBM_Alert' )
-        elif pt == 111 or pt == 112 :
-            q = VOEventLib.Vutil.findParam(v, '', 'Most_Likely_Index')
-            qt = int( VOEventLib.Vutil.paramValue(q) )
-            logging.getLogger('grinch.gcnhandler.archive').info( "param value q is: %s" % qt )
-            logging.getLogger('grinch.gcnhandler.archive').info( 'Fermi most likely is %s' % Fermi_Likely[qt] )
-            send = 1
-        elif pt == 115: 
-            logging.getLogger('grinch.gcnhandler.archive').info( 'Fermi GBM_Fin_Pos' )
-            send = 1
+    if pt == 110:
+        keep = 1
+        logging.getLogger('grinch.gcnhandler.archive').info( 'Fermi GBM_Alert' )
+    elif pt == 112:
+        keep = 1
+        send = 1
+        eventObservatory = 'Fermi'
+        logging.getLogger('grinch.gcnhandler.archive').info( 'Fermi GBM_Gnd_Pos' )
+    elif pt == 115:
+        send = 1
+        logging.getLogger('grinch.gcnhandler.archive').info( 'Fermi GBM_Fin_Pos' )
+
+    try:
+        # FIXME: It appears that only GBM_Flt_Pos notices contain a Fermi_Likely index,
+        #        and we won't be paying attention to them in the future.
+        q = VOEventLib.Vutil.findParam(v, '', 'Most_Likely_Index')
+        qt = int( VOEventLib.Vutil.paramValue(q) )
+        logging.getLogger('grinch.gcnhandler.archive').info( "param value q is: %s" % qt )
+        logging.getLogger('grinch.gcnhandler.archive').info( 'Fermi most likely is %s' % Fermi_Likely[qt] )
+    except:
+        pass
 
     # Send all SNEWS events to Gracedb.
     if stream == 'ivo://nasa.gsfc.gcn/SNEWS':
