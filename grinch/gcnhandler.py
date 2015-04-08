@@ -1,9 +1,10 @@
-# Comet VOEvent Broker for LIGO
+# PyGCN VOEvent Handler for LIGO
 # John Swinbank, <swinbank@trtransientskp.org>, 2012.
 # Matthew J. Graham, <mjg@caltech.edu>, 2012.
 # Roy Williams, <roy.williams@ligo.org>, 2013.
 # Alex Urban, <alexander.urban@ligo.org>, 2013.
 
+# Imports.
 import logging
 
 import VOEventLib.VOEvent
@@ -13,7 +14,7 @@ import os, json
 from ligo.gracedb.rest import GraceDb
 
 
-# create instance of gracedb REST API
+# Create instance of gracedb REST API.
 gracedb = GraceDb()
 
 
