@@ -115,11 +115,12 @@ def archive(payload, root=None, test=False):
     # SWIFT events: 
     # packet type == 61 means BAT alert       SEND to Gracedb
     # packet_type == 124 means GBM_Test_Pos
-    if pt == 61: 
-        keep = 1
-        send = 1
-        eventObservatory = 'Swift'
-        logging.getLogger('grinch.gcnhandler.archive').info( 'SWIFT BAT Alert' )
+    if stream == 'ivo://nasa.gsfc.gcn/SWIFT':
+        if pt == 61: 
+            keep = 1
+            send = 1
+            eventObservatory = 'Swift'
+            logging.getLogger('grinch.gcnhandler.archive').info( 'SWIFT BAT Alert' )
 
     # Fermi events:
     # packet_type == 110 means GBM_Alert
@@ -127,17 +128,19 @@ def archive(payload, root=None, test=False):
     # packet_type == 112 means GBM_Gnd_Pos    SEND to Gracedb
     # packet_type == 115 means GBM_Fin_Pos    SEND to Gracedb
     # packet_type == 124 means GBM_Test_Pos
-    if pt == 110:
-        keep = 1
-        logging.getLogger('grinch.gcnhandler.archive').info( 'Fermi GBM_Alert' )
-    elif pt == 112:
-        keep = 1
-        send = 1
-        eventObservatory = 'Fermi'
-        logging.getLogger('grinch.gcnhandler.archive').info( 'Fermi GBM_Gnd_Pos' )
-    elif pt == 115:
-        send = 1
-        logging.getLogger('grinch.gcnhandler.archive').info( 'Fermi GBM_Fin_Pos' )
+    if stream == 'ivo://nasa.gsfc.gcn/Fermi':
+        if pt == 110:
+            keep = 1
+            logging.getLogger('grinch.gcnhandler.archive').info( 'Fermi GBM_Alert' )
+        # GBM_Flt_Pos notices will be stored because they reference GBM_Alert notices.
+        elif pt == 112:
+            keep = 1
+            send = 1
+            eventObservatory = 'Fermi'
+            logging.getLogger('grinch.gcnhandler.archive').info( 'Fermi GBM_Gnd_Pos' )
+        elif pt == 115:
+            send = 1
+            logging.getLogger('grinch.gcnhandler.archive').info( 'Fermi GBM_Fin_Pos' )
 
     try:
         # FIXME: It appears that only GBM_Flt_Pos notices contain a Fermi_Likely index,
