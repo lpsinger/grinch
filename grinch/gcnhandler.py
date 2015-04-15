@@ -139,6 +139,7 @@ def archive(payload, root=None, test=False):
             eventObservatory = 'Fermi'
             logging.getLogger('grinch.gcnhandler.archive').info( 'Fermi GBM_Gnd_Pos' )
         elif pt == 115:
+            keep = 1
             send = 1
             logging.getLogger('grinch.gcnhandler.archive').info( 'Fermi GBM_Fin_Pos' )
 
