@@ -1,9 +1,12 @@
-VOEvent string successfully parsed.
-INFO:grinch.gcnhandler.archive:Ivorn: ivo://nasa.gsfc.gcn/Fermi#GBM_Fin_Pos2015-02-03T13:04:30.40_444661473_0-724
-Event role successfully parsed; role is observation
-INFO:grinch.gcnhandler.archive:Packet type 115
-INFO:grinch.gcnhandler.archive:Fermi GBM_Fin_Pos
-The name for this event's portfolio (derived from its IVORN) is: nasa.gsfc.gcn_Fermi#GBM_Fin_Pos2015-02-03T13:04:30.40_444661473_0-724
-INFO:grinch.gcnhandler.archive:Cites ivo://nasa.gsfc.gcn/Fermi#GBM_Alert_2015-02-03T13:04:30.40_444661473_1-395
-No existing event portfolio found; now assuming this event is new.
-WARNING: Because the test flag was passed, this new event was not uploaded to GraceDB.
+2015-04-16 00:23:25.553 DEBUG: VOEvent string successfully parsed.
+2015-04-16 00:23:25.553 INFO: Ivorn: ivo://nasa.gsfc.gcn/Fermi#GBM_Fin_Pos2015-04-12T22:20:36.20_450570039_0-677
+2015-04-16 00:23:25.553 DEBUG: Event role successfully parsed; role is observation
+2015-04-16 00:23:25.554 INFO: Packet type 115
+2015-04-16 00:23:25.554 INFO: Fermi GBM_Fin_Pos
+Cannot find param named /Most_Likely_Index
+2015-04-16 00:23:25.554 DEBUG: The name for this event's portfolio (derived from its IVORN) is: nasa.gsfc.gcn_Fermi#GBM_Fin_Pos2015-04-12T22:20:36.20_450570039_0-677
+2015-04-16 00:23:25.554 INFO: Cites ivo://nasa.gsfc.gcn/Fermi#GBM_Alert_2015-04-12T22:20:36.20_450570039_1-575
+2015-04-16 00:23:25.555 INFO: Found portfolio /home/gdb_processor/working/gcn_listener/cache/observation/nasa.gsfc.gcn_Fermi#GBM_Alert_2015-04-12T22:20:36.20_450570039_1-575
+2015-04-16 00:23:25.555 INFO: Saving to /home/gdb_processor/working/gcn_listener/cache/observation/nasa.gsfc.gcn_Fermi#GBM_Alert_2015-04-12T22:20:36.20_450570039_1-575/nasa.gsfc.gcn_Fermi#GBM_Fin_Pos2015-04-12T22:20:36.20_450570039_0-677.xml
+2015-04-16 00:23:25.555 WARNING: Because the test flag was passed, this event was not actually saved.
+2015-04-16 00:23:27.157 WARNING: Because the test flag was passed, GraceDB event E135274 was not updated.
