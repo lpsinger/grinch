@@ -25,7 +25,7 @@ def sendit(eventFile, group, pipeline, search="GRB"):
     """ Function for sending events to GraceDB. """
     r = gracedb.createEvent(group, pipeline, eventFile, search).json()
     graceid = r["graceid"]
-    logger.info( "Link is https://gracedb.ligo.org/events/%s " % graceid )
+    logger.info( "Event uploaded to GraceDB; Link is https://gracedb.ligo.org/events/%s " % graceid )
     return graceid
 
 def replaceit(graceid, eventFile):
@@ -73,19 +73,24 @@ def archive(payload, root=None, test=False):
     """
 
     # Get VOEvent string.
-    v = VOEventLib.Vutil.parseString( payload )
-    logger.debug( "VOEvent string successfully parsed." )
+    try:
+        v = VOEventLib.Vutil.parseString( payload )
+        logger.debug( "VOEvent string successfully parsed." )
+    except:
+        logger.error( "Problem parsing VOEvent string; possibly corrupted XML file." )
+        return
 
     # Parse and save the IVORN.
     id = v.get_ivorn()
     tok = id.split('#')
     if len(tok) != 2:
-        logger.info( "Illegal IVORN: %s" % id )
+        logger.error( "Illegal IVORN: %s" % id )
         return
     stream = tok[0]
     logger.info( "Ivorn: %s" % id )
     localid = tok[1]
     if not streams.has_key(stream):
+        logger.error( "Stream %s not handled." % stream )
         return
 
     # Parse the role of this event.
@@ -98,8 +103,13 @@ def archive(payload, root=None, test=False):
         return
 
     # Let SNEWS test events through, but ignore all other tests.
-    if stream != 'ivo://nasa.gsfc.gcn/SNEWS' and role == 'test':
+    elif stream != 'ivo://nasa.gsfc.gcn/SNEWS' and role == 'test':
         logger.info( "Test events not used here; rejecting %s" % id )
+        return
+
+    # Is the role variable something weird?
+    elif role != 'observation':
+        logger.error( "Role %s not recognized; rejecting %s" % (role, id) )
         return
 
     # If it is a GCN, it will have a packet type.
@@ -108,8 +118,8 @@ def archive(payload, root=None, test=False):
         pt = int(VOEventLib.Vutil.paramValue(p))
         logger.info( "Packet type %s" % pt )
     else:
-        logger.info( "No Packet_Type" )
-        logger.debug( "This is a non-GCN event; it will be ignored." )
+        logger.error( "No Packet_Type" )
+        logger.debug( "This is a non-GCN event with no packet type; it will be ignored." )
         return     # WARNING we are ignoring all non-GCN events!
 
     keep = 0  # Save it in the cache: 0 for no save, 1 for save.
@@ -119,11 +129,13 @@ def archive(payload, root=None, test=False):
     # packet type == 61 means BAT alert       SEND to Gracedb
     # packet_type == 124 means GBM_Test_Pos
     if stream == 'ivo://nasa.gsfc.gcn/SWIFT':
+        eventObservatory = 'Swift'
         if pt == 61: 
             keep = 1
             send = 1
-            eventObservatory = 'Swift'
-            logger.info( 'SWIFT BAT Alert' )
+            logger.info( 'Swift BAT_Pos' )
+        else:
+            logger.debug( 'Swift packet type %s not handled; ignoring unless it cites an IVORN we already have.' % pt )
 
     # Fermi events:
     # packet_type == 110 means GBM_Alert
@@ -132,35 +144,31 @@ def archive(payload, root=None, test=False):
     # packet_type == 115 means GBM_Fin_Pos    SEND to Gracedb
     # packet_type == 124 means GBM_Test_Pos
     if stream == 'ivo://nasa.gsfc.gcn/Fermi':
+        eventObservatory = 'Fermi'
         if pt == 110:
             keep = 1
+            send = 0
             logger.info( 'Fermi GBM_Alert' )
-        # GBM_Flt_Pos notices will be stored because they reference GBM_Alert notices.
+        elif pt == 111:
+            keep = 1
+            send = 0
+            logger.info( 'Fermi Flt_Pos' )
         elif pt == 112:
             keep = 1
             send = 1
-            eventObservatory = 'Fermi'
             logger.info( 'Fermi GBM_Gnd_Pos' )
         elif pt == 115:
             keep = 1
             send = 1
             logger.info( 'Fermi GBM_Fin_Pos' )
-
-    try:
-        # FIXME: It appears that only GBM_Flt_Pos notices contain a Fermi_Likely index,
-        #        and we won't be paying attention to them in the future.
-        q = VOEventLib.Vutil.findParam(v, '', 'Most_Likely_Index')
-        qt = int( VOEventLib.Vutil.paramValue(q) )
-        logger.info( "param value q is: %s" % qt )
-        logger.info( 'Fermi most likely is %s' % Fermi_Likely[qt] )
-    except:
-        pass
+        else:
+            logger.debug( 'Fermi packet type %s not handled; ignoring unless it cites an IVORN we already have.' % pt )
 
     # Send all SNEWS events to Gracedb.
     if stream == 'ivo://nasa.gsfc.gcn/SNEWS':
+        eventObservatory = 'SNEWS'
         keep = 1
         send = 1
-        eventObservatory = 'SNEWS'
         logger.info( 'SNEWS Alert (may be a test)' )
 
     # Create a unique label for this event's portfolio.
@@ -184,6 +192,12 @@ def archive(payload, root=None, test=False):
             else:
                 logger.debug( "No existing event portfolio found; now assuming this event is new." )
 
+    if keep == 0:
+        logger.debug( "Ignoring event %s because is not flagged for saving on-disk." % pfname )
+        return
+    else:
+        logger.debug( "Event %s is flagged for saving on-disk." % pfname )
+
     # Determine whether this event has a designation.
     # FIXME: What if it doesn't?
     hasDesignation = False
@@ -193,31 +207,32 @@ def archive(payload, root=None, test=False):
         hasDesignation = True
         logger.debug( "This event has designation %s; this will be reflected in the filename it is saved under." % desig )
 
+    # Determine the filename for this event.
+    filename = "%s/%s.xml" % (pfdir, pfname)
+    logger.debug( "The name of the file to which this event will be saved on disk is: %s" % filename )
+
     # If this event has been flagged as one we want to keep, save it to disk.
-    if keep == 1:
-        if not os.path.exists(pfdir): 
-            logger.info( 'Making directory %s' % pfdir )
-            if not test:
-                os.mkdir(pfdir)
-            else:
-                logger.warning( "Because the test flag was passed, this directory was not actually made." )
-
-        filename = "%s/%s.xml" % (pfdir, pfname)
-
-        # Continue only if we have NOT already saved this file.
-        if test or not os.path.isfile(filename):
-            logger.info( "Saving to %s" % filename )
-            if not test:
-                try:
-                    with open(filename, 'w') as f:
-                        f.write(payload)
-                except:
-                    logger.warning( "VOEvent file %s failed to save on disk." % filename )
-            else:
-                logger.warning( "Because the test flag was passed, this event was not actually saved." )
+    if not os.path.exists(pfdir): 
+        logger.info( 'Making directory %s' % pfdir )
+        if not test:
+            os.mkdir(pfdir)
         else:
-            logger.info( "File %s has already been stored; ignoring this Notice." % filename )
-            send = 0
+            logger.warning( "Because the test flag was passed, this directory was not actually made." )
+
+    # Continue only if we have NOT already saved this file.
+    if not os.path.isfile(filename):
+        logger.info( "Saving to %s" % filename )
+        if not test:
+            try:
+                with open(filename, 'w') as f:
+                    f.write(payload)
+            except:
+                logger.critical( "VOEvent file %s failed to save on disk." % filename )
+        else:
+            logger.warning( "Because the test flag was passed, this event was not actually saved." )
+    else:
+        logger.info( "File %s has already been stored; ignoring this Notice." % filename )
+        return
 
     # If it has also been flagged as one to send to GraceDB, send it to GraceDB.
     if send == 1:
@@ -232,7 +247,7 @@ def archive(payload, root=None, test=False):
             if not test:
                 try:
                     replaceit(gid, filename)
-                except UnboundLocalError:
+                except:
                     logger.critical( "GraceDB event %s was not updated because the event was not saved!" % gid )
             else:
                 logger.warning( "Because the test flag was passed, GraceDB event %s was not updated." % gid )
@@ -242,7 +257,7 @@ def archive(payload, root=None, test=False):
                     gid = sendit(filename, eventType, eventObservatory)
                     # FIXME: SNEWS events will ultimately need a Search label other than the default ("GRB").
                     gracedb.writeLog(gid, 'This event detected by %s' % v.How.get_Description()[0], tagname='analyst_comments')
-                except UnboundLocalError:
+                except:
                     logger.critical( "This event failed to save, and therefore could not be uploaded to GraceDB!" )
             else:
                 logger.warning( "Because the test flag was passed, this new event was not uploaded to GraceDB." )
