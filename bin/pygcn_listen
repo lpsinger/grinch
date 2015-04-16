@@ -33,10 +33,10 @@ parser = OptionParser(
     description = __doc__,
     usage = "%prog [options] [HOSTNAME[:PORT]]",
     option_list = [
-        Option("-l", "--logfile", metavar="FILE", default="gcn.out",
-            help="Name of file in which to print log statements"),
+        Option("-l", "--logfile", metavar="FILE", default=None,
+            help="Name of file in which to print log statements [default: print to stdout]"),
         Option("-v", "--verbose",
-            help="Include verbose log messages.")
+            help="Include verbose log messages [default: off]")
     ]
 )
 opts, args = parser.parse_args()
@@ -68,8 +68,13 @@ else:
     loglevel = logging.INFO
 
 # Set up logger
-logging.basicConfig(filename=opts.logfile, level=loglevel,
-    format='%(asctime)s.%(msecs)d %(levelname)s: %(message)s', datefmt="%Y-%m-%d %H:%M:%S")
+if opts.logfile:
+    logging.basicConfig(filename=opts.logfile, level=loglevel,
+        format='%(asctime)s.%(msecs)d %(levelname)s: %(message)s', datefmt="%Y-%m-%d %H:%M:%S")
+else:
+    import sys
+    logging.basicConfig(stream=sys.stdout, level=loglevel,
+        format='%(asctime)s.%(msecs)d %(levelname)s: %(message)s', datefmt="%Y-%m-%d %H:%M:%S")
 
 # Listen for GCN notices (until interrupted or killed)
 gcn.listen(host=host, port=port, handler=grinch.gcnhandler.archive)
