@@ -208,8 +208,11 @@ def archive(payload, root=None, test=False):
         if test or not os.path.isfile(filename):
             logger.info( "Saving to %s" % filename )
             if not test:
-                with open(filename, 'w') as f:
-                    f.write(payload)
+                try:
+                    with open(filename, 'w') as f:
+                        f.write(payload)
+                except:
+                    logger.warning( "VOEvent file %s failed to save on disk." % filename )
             else:
                 logger.warning( "Because the test flag was passed, this event was not actually saved." )
         else:
@@ -227,14 +230,20 @@ def archive(payload, root=None, test=False):
         if event:
             gid = event[0]['graceid']
             if not test:
-                replaceit(gid, filename)
+                try:
+                    replaceit(gid, filename)
+                except UnboundLocalError:
+                    logger.critical( "GraceDB event %s was not updated because the event was not saved!" % gid )
             else:
                 logger.warning( "Because the test flag was passed, GraceDB event %s was not updated." % gid )
         else: 
             if not test:
-                gid = sendit(filename, eventType, eventObservatory)
-                # FIXME: SNEWS events will ultimately need a Search label other than the default ("GRB").
-                gracedb.writeLog(gid, 'This event detected by %s' % v.How.get_Description()[0], tagname='analyst_comments')
+                try:
+                    gid = sendit(filename, eventType, eventObservatory)
+                    # FIXME: SNEWS events will ultimately need a Search label other than the default ("GRB").
+                    gracedb.writeLog(gid, 'This event detected by %s' % v.How.get_Description()[0], tagname='analyst_comments')
+                except UnboundLocalError:
+                    logger.critical( "This event failed to save, and therefore could not be uploaded to GraceDB!" )
             else:
                 logger.warning( "Because the test flag was passed, this new event was not uploaded to GraceDB." )
 
