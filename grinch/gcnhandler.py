@@ -17,18 +17,21 @@ from ligo.gracedb.rest import GraceDb
 # Create instance of gracedb REST API.
 gracedb = GraceDb()
 
+# Create instance of the logging module, with the appropriate logger.
+logger = logging.getLogger('grinch.gcnhandler.archive')
+
 
 def sendit(eventFile, group, pipeline, search="GRB"):
     """ Function for sending events to GraceDB. """
     r = gracedb.createEvent(group, pipeline, eventFile, search).json()
     graceid = r["graceid"]
-    logging.getLogger('grinch.gcnhandler.archive').info( "Link is https://gracedb.ligo.org/events/%s " % graceid )
+    logger.info( "Link is https://gracedb.ligo.org/events/%s " % graceid )
     return graceid
 
 def replaceit(graceid, eventFile):
     """ Function for replacing event files with updated information in GraceDB. """
     gracedb.replaceEvent(graceid, eventFile)
-    logging.getLogger('grinch.gcnhandler.archive').info( "VOEvent file for %s has been updated; Link is https://gracedb.ligo.org/events/%s " % (graceid, graceid) )
+    logger.info( "VOEvent file for %s has been updated; Link is https://gracedb.ligo.org/events/%s " % (graceid, graceid) )
 
 
 CACHE = "/home/gdb_processor/working/gcn_listener/cache"
@@ -71,42 +74,42 @@ def archive(payload, root=None, test=False):
 
     # Get VOEvent string.
     v = VOEventLib.Vutil.parseString( payload )
-    logging.getLogger('grinch.gcnhandler.archive').debug( "VOEvent string successfully parsed." )
+    logger.debug( "VOEvent string successfully parsed." )
 
     # Parse and save the IVORN.
     id = v.get_ivorn()
     tok = id.split('#')
     if len(tok) != 2:
-        logging.getLogger('grinch.gcnhandler.archive').info( "Illegal IVORN: %s" % id )
+        logger.info( "Illegal IVORN: %s" % id )
         return
     stream = tok[0]
-    logging.getLogger('grinch.gcnhandler.archive').info( "Ivorn: %s" % id )
+    logger.info( "Ivorn: %s" % id )
     localid = tok[1]
     if not streams.has_key(stream):
         return
 
     # Parse the role of this event.
     role = v.get_role()
-    logging.getLogger('grinch.gcnhandler.archive').debug( "Event role successfully parsed; role is %s" % role )
+    logger.debug( "Event role successfully parsed; role is %s" % role )
 
     # Ignore all alerts with role "utility."
     if role == 'utility':
-        logging.getLogger('grinch.gcnhandler.archive').info( "Utility events not used here; rejecting %s" % id )
+        logger.info( "Utility events not used here; rejecting %s" % id )
         return
 
     # Let SNEWS test events through, but ignore all other tests.
     if stream != 'ivo://nasa.gsfc.gcn/SNEWS' and role == 'test':
-        logging.getLogger('grinch.gcnhandler.archive').info( "Test events not used here; rejecting %s" % id )
+        logger.info( "Test events not used here; rejecting %s" % id )
         return
 
     # If it is a GCN, it will have a packet type.
     p = VOEventLib.Vutil.findParam(v, '', 'Packet_Type')
     if p:
         pt = int(VOEventLib.Vutil.paramValue(p))
-        logging.getLogger('grinch.gcnhandler.archive').info( "Packet type %s" % pt )
+        logger.info( "Packet type %s" % pt )
     else:
-        logging.getLogger('grinch.gcnhandler.archive').info( "No Packet_Type" )
-        logging.getLogger('grinch.gcnhandler.archive').debug( "This is a non-GCN event; it will be ignored." )
+        logger.info( "No Packet_Type" )
+        logger.debug( "This is a non-GCN event; it will be ignored." )
         return     # WARNING we are ignoring all non-GCN events!
 
     keep = 0  # Save it in the cache: 0 for no save, 1 for save.
@@ -120,7 +123,7 @@ def archive(payload, root=None, test=False):
             keep = 1
             send = 1
             eventObservatory = 'Swift'
-            logging.getLogger('grinch.gcnhandler.archive').info( 'SWIFT BAT Alert' )
+            logger.info( 'SWIFT BAT Alert' )
 
     # Fermi events:
     # packet_type == 110 means GBM_Alert
@@ -131,25 +134,25 @@ def archive(payload, root=None, test=False):
     if stream == 'ivo://nasa.gsfc.gcn/Fermi':
         if pt == 110:
             keep = 1
-            logging.getLogger('grinch.gcnhandler.archive').info( 'Fermi GBM_Alert' )
+            logger.info( 'Fermi GBM_Alert' )
         # GBM_Flt_Pos notices will be stored because they reference GBM_Alert notices.
         elif pt == 112:
             keep = 1
             send = 1
             eventObservatory = 'Fermi'
-            logging.getLogger('grinch.gcnhandler.archive').info( 'Fermi GBM_Gnd_Pos' )
+            logger.info( 'Fermi GBM_Gnd_Pos' )
         elif pt == 115:
             keep = 1
             send = 1
-            logging.getLogger('grinch.gcnhandler.archive').info( 'Fermi GBM_Fin_Pos' )
+            logger.info( 'Fermi GBM_Fin_Pos' )
 
     try:
         # FIXME: It appears that only GBM_Flt_Pos notices contain a Fermi_Likely index,
         #        and we won't be paying attention to them in the future.
         q = VOEventLib.Vutil.findParam(v, '', 'Most_Likely_Index')
         qt = int( VOEventLib.Vutil.paramValue(q) )
-        logging.getLogger('grinch.gcnhandler.archive').info( "param value q is: %s" % qt )
-        logging.getLogger('grinch.gcnhandler.archive').info( 'Fermi most likely is %s' % Fermi_Likely[qt] )
+        logger.info( "param value q is: %s" % qt )
+        logger.info( 'Fermi most likely is %s' % Fermi_Likely[qt] )
     except:
         pass
 
@@ -158,28 +161,28 @@ def archive(payload, root=None, test=False):
         keep = 1
         send = 1
         eventObservatory = 'SNEWS'
-        logging.getLogger('grinch.gcnhandler.archive').info( 'SNEWS Alert (may be a test)' )
+        logger.info( 'SNEWS Alert (may be a test)' )
 
     # Create a unique label for this event's portfolio.
     pfname = id[6:].replace('/','_')
     pfdir = "%s/%s/%s" % (CACHE, role, pfname)
-    logging.getLogger('grinch.gcnhandler.archive').debug( "The name for this event's portfolio (derived from its IVORN) is: %s" % pfname )
+    logger.debug( "The name for this event's portfolio (derived from its IVORN) is: %s" % pfname )
 
     # Determine whether this is a portfolio we already have.
     cc = v.get_Citations()
     if cc and cc.get_EventIVORN():
         for c in cc.get_EventIVORN():
             citedivorn = c.get_valueOf_()
-            logging.getLogger('grinch.gcnhandler.archive').info( "Cites %s" % citedivorn )
+            logger.info( "Cites %s" % citedivorn )
             qfname = citedivorn[6:].replace('/','_')
             qfdir = "%s/%s/%s" % (CACHE, role, qfname)
             if os.path.exists(qfdir):
-                logging.getLogger('grinch.gcnhandler.archive').info( "Found portfolio %s" % qfdir )
+                logger.info( "Found portfolio %s" % qfdir )
                 pfdir = qfdir
                 keep = 1
                 break
             else:
-                logging.getLogger('grinch.gcnhandler.archive').debug( "No existing event portfolio found; now assuming this event is new." )
+                logger.debug( "No existing event portfolio found; now assuming this event is new." )
 
     # Determine whether this event has a designation.
     # FIXME: What if it doesn't?
@@ -188,29 +191,29 @@ def archive(payload, root=None, test=False):
         desig = v.Why.Inference[0].get_Name()[0]
         pfname = desig.replace(' ', '')
         hasDesignation = True
-        logging.getLogger('grinch.gcnhandler.archive').debug( "This event has designation %s; this will be reflected in the filename it is saved under." % desig )
+        logger.debug( "This event has designation %s; this will be reflected in the filename it is saved under." % desig )
 
     # If this event has been flagged as one we want to keep, save it to disk.
     if keep == 1:
         if not os.path.exists(pfdir): 
-            logging.getLogger('grinch.gcnhandler.archive').info( 'Making directory %s' % pfdir )
+            logger.info( 'Making directory %s' % pfdir )
             if not test:
                 os.mkdir(pfdir)
             else:
-                logging.getLogger('grinch.gcnhandler.archive').warning( "Because the test flag was passed, this directory was not actually made." )
+                logger.warning( "Because the test flag was passed, this directory was not actually made." )
 
         filename = "%s/%s.xml" % (pfdir, pfname)
 
         # Continue only if we have NOT already saved this file.
         if test or not os.path.isfile(filename):
-            logging.getLogger('grinch.gcnhandler.archive').info( "Saving to %s" % filename )
+            logger.info( "Saving to %s" % filename )
             if not test:
                 with open(filename, 'w') as f:
                     f.write(payload)
             else:
-                logging.getLogger('grinch.gcnhandler.archive').warning( "Because the test flag was passed, this event was not actually saved." )
+                logger.warning( "Because the test flag was passed, this event was not actually saved." )
         else:
-            logging.getLogger('grinch.gcnhandler.archive').info( "File %s has already been stored; ignoring this Notice." % filename )
+            logger.info( "File %s has already been stored; ignoring this Notice." % filename )
             send = 0
 
     # If it has also been flagged as one to send to GraceDB, send it to GraceDB.
@@ -226,14 +229,14 @@ def archive(payload, root=None, test=False):
             if not test:
                 replaceit(gid, filename)
             else:
-                logging.getLogger('grinch.gcnhandler.archive').warning( "Because the test flag was passed, GraceDB event %s was not updated." % gid )
+                logger.warning( "Because the test flag was passed, GraceDB event %s was not updated." % gid )
         else: 
             if not test:
                 gid = sendit(filename, eventType, eventObservatory)
                 # FIXME: SNEWS events will ultimately need a Search label other than the default ("GRB").
                 gracedb.writeLog(gid, 'This event detected by %s' % v.How.get_Description()[0], tagname='analyst_comments')
             else:
-                logging.getLogger('grinch.gcnhandler.archive').warning( "Because the test flag was passed, this new event was not uploaded to GraceDB." )
+                logger.warning( "Because the test flag was passed, this new event was not uploaded to GraceDB." )
 
         if hasDesignation and not test: gracedb.writeLog(gid, 'This event has been designated %s' % desig, tagname='analyst_comments')
 
