@@ -35,7 +35,7 @@ parser = OptionParser(
     option_list = [
         Option("-l", "--logfile", metavar="FILE", default=None,
             help="Name of file in which to print log statements [default: print to stdout]"),
-        Option("-v", "--verbose",
+        Option("-v", "--verbose", action="store_true", default=False,
             help="Include verbose log messages [default: off]")
     ]
 )
