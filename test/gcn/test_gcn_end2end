@@ -17,7 +17,7 @@ opts, args = parser.parse_args()
 
 # Set up logger
 if opts.output:
-    logging.logging.basicConfig(level=logging.DEBUG, file=opts.output,
+    logging.basicConfig(level=logging.DEBUG, file=opts.output,
         format='%(asctime)s.%(msecs)d %(levelname)s: %(message)s', datefmt="%Y-%m-%d %H:%M:%S")
 else:
     logging.basicConfig(level=logging.DEBUG, stream=sys.stdout,

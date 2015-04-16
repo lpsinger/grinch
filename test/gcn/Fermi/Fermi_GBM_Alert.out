@@ -1,9 +1,9 @@
-2015-04-16 00:21:45.800 DEBUG: VOEvent string successfully parsed.
-2015-04-16 00:21:45.800 INFO: Ivorn: ivo://nasa.gsfc.gcn/Fermi#GBM_Alert_2015-04-12T22:20:36.20_450570039_1-575
-2015-04-16 00:21:45.800 DEBUG: Event role successfully parsed; role is observation
-2015-04-16 00:21:45.800 INFO: Packet type 110
-2015-04-16 00:21:45.800 INFO: Fermi GBM_Alert
-Cannot find param named /Most_Likely_Index
-2015-04-16 00:21:45.800 DEBUG: The name for this event's portfolio (derived from its IVORN) is: nasa.gsfc.gcn_Fermi#GBM_Alert_2015-04-12T22:20:36.20_450570039_1-575
-2015-04-16 00:21:45.800 INFO: Saving to /home/gdb_processor/working/gcn_listener/cache/observation/nasa.gsfc.gcn_Fermi#GBM_Alert_2015-04-12T22:20:36.20_450570039_1-575/nasa.gsfc.gcn_Fermi#GBM_Alert_2015-04-12T22:20:36.20_450570039_1-575.xml
-2015-04-16 00:21:45.800 WARNING: Because the test flag was passed, this event was not actually saved.
+2015-04-16 11:24:43.513 DEBUG: VOEvent string successfully parsed.
+2015-04-16 11:24:43.514 INFO: Ivorn: ivo://nasa.gsfc.gcn/Fermi#GBM_Alert_2015-04-12T22:20:36.20_450570039_1-575
+2015-04-16 11:24:43.514 DEBUG: Event role successfully parsed; role is observation
+2015-04-16 11:24:43.514 INFO: Packet type 110
+2015-04-16 11:24:43.514 INFO: Fermi GBM_Alert
+2015-04-16 11:24:43.514 DEBUG: The name for this event's portfolio (derived from its IVORN) is: nasa.gsfc.gcn_Fermi#GBM_Alert_2015-04-12T22:20:36.20_450570039_1-575
+2015-04-16 11:24:43.514 DEBUG: Event nasa.gsfc.gcn_Fermi#GBM_Alert_2015-04-12T22:20:36.20_450570039_1-575 is flagged for saving on-disk.
+2015-04-16 11:24:43.514 DEBUG: The name of the file to which this event will be saved on disk is: /home/gdb_processor/working/gcn_listener/cache/observation/nasa.gsfc.gcn_Fermi#GBM_Alert_2015-04-12T22:20:36.20_450570039_1-575/nasa.gsfc.gcn_Fermi#GBM_Alert_2015-04-12T22:20:36.20_450570039_1-575.xml
+2015-04-16 11:24:43.516 INFO: File /home/gdb_processor/working/gcn_listener/cache/observation/nasa.gsfc.gcn_Fermi#GBM_Alert_2015-04-12T22:20:36.20_450570039_1-575/nasa.gsfc.gcn_Fermi#GBM_Alert_2015-04-12T22:20:36.20_450570039_1-575.xml has already been stored; ignoring this Notice.
