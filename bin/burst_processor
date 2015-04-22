@@ -105,7 +105,7 @@ Queue
 	with open('plot_inj.sub', 'w') as f:
 		f.write(contents%{'fits':fitsfile, 'directory':wdir, 'uid': streamdata['uid']})
 
-	# Write coinc_search.sub.
+	# Write coinc_search_with_sky_map.sub.
 	contents = """\
 universe            = local
 
@@ -121,7 +121,7 @@ error               = %(directory)s/coinc_search_%(uid)s.error
 
 Queue
 """
-	with open('coinc_search.sub', 'w') as f:
+	with open('coinc_search_with_sky_map.sub', 'w') as f:
 		f.write(contents%{'script': coinc_search, 'directory': wdir, 'fits': fitsfile, 'uid': streamdata['uid']})
 
 	# Write and submit fits_followup.dag.
@@ -133,6 +133,8 @@ SCRIPT PRE PLOTALLSKY %(gracedbcommand)s download %(uid)s %(fits)s
 SCRIPT POST PLOTALLSKY %(gracedbcommand)s --tag-name=sky_loc upload %(uid)s %(plot)s
 
 JOB PLOTINJ plot_inj.sub
+
+JOB COINCSEARCH coinc_search_with_sky_map.sub
 
 PARENT PLOTALLSKY CHILD PLOTINJ COINCSEARCH
 """
@@ -213,8 +215,6 @@ with open('find_inj.sub', 'w') as f:
 
 # Write burst_runner.dag.
 contents = """\
-JOB EMLABEL emlabel.sub
-
 JOB COINCSEARCH coinc_search.sub
 
 JOB INJLABEL find_inj.sub
