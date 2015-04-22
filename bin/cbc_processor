@@ -24,10 +24,10 @@ from glue.ligolw     import lsctables
 streamdata = json.loads( stdin.read() )
 
 
-# Read lowmass_config.ini.
+# Read cbc_config.ini.
 cp = ConfigParser.ConfigParser()
 etc = home + '/opt/etc/'
-cp.read( etc + 'lowmass_config.ini' )
+cp.read( etc + 'cbc_config.ini' )
 
 #dqwaitscript       = cp.get('executable', 'dqwaitscript')
 #dqtolabelscript    = cp.get('executable', 'dqtolabelscript')
@@ -274,7 +274,7 @@ with open('find_data.sub', 'w') as f:
 ## WRITE CONDOR DAG AND SUBMIT ##
 #################################
 
-# Write lowmass_runner.dag.
+# Write cbc_runner.dag.
 contents = """\
 JOB LOCALIZE localize.sub
 
@@ -286,7 +286,7 @@ JOB FINDDATA find_data.sub
 
 PARENT LOCALIZE CHILD EMLABEL
 """
-with open('lowmass_runner.dag', 'w') as f:
+with open('cbc_runner.dag', 'w') as f:
 	f.write(contents % {'gracedbcommand': gracedbcommand, 'uid': streamdata['uid']})
 
 # Create a uniquely-named log file.
@@ -297,5 +297,5 @@ logfid, logpath = tempfile.mkstemp(suffix='.nodes.log', prefix=streamdata['uid']
 os.environ['_CONDOR_DAGMAN_DEFAULT_NODE_LOG'] = logpath
 
 # Submit the processor dag.
-condorargs=['condor_submit_dag','lowmass_runner.dag']
+condorargs=['condor_submit_dag','cbc_runner.dag']
 os.execlp('condor_submit_dag', *condorargs)

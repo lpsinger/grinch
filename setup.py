@@ -38,13 +38,13 @@ setup(
 		'bin/gdb_processor',
 		'bin/gcn_listener',
 		'bin/pygcn_listen',
-		'bin/lowmass_processor',
+		'bin/cbc_processor',
 		'bin/exttrig_processor',
 		'bin/dqtolabel',
 		'bin/lvalertlisten',
 		'bin/unblind_inj_search',
 		'bin/find_data'
 	],
-	data_files=[('etc',['etc/lowmass_config.ini','etc/exttrig_config.ini',
+	data_files=[('etc',['etc/cbc_config.ini','etc/exttrig_config.ini',
 		'etc/lvalertconfig.ini'])]
 )
