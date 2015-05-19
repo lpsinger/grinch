@@ -44,7 +44,7 @@ if args.command == 'start':
 
 universe            = local
 
-executable          = %s/opt/bin/gcnlisten
+executable          = %s/opt/bin/pygcn_listen
 getenv              = True
 notification        = never
 environment         = DISPLAY=localhost:10.0
@@ -53,9 +53,9 @@ environment         = DISPLAY=localhost:10.0
 ## condor_q -format "%s " Owner -format "%s " ClusterId -format "%s\n" gcn_listener
 +GCNListen      = "gdb_processor gcn_listener"
 
-log                 = log/gcnlisten.$(Cluster).log 
-output              = log/gcnlisten.$(Cluster).out
-error               = log/gcnlisten.$(Cluster).error
+log                 = log/gcn.$(Cluster).log 
+output              = log/gcn.$(Cluster).out
+error               = log/gcn.$(Cluster).error
 
 Queue
 """
@@ -73,7 +73,7 @@ elif args.command == 'status':
     os.execlp('condor_q', *condorargs)
     sys.exit()
 
-# If run with argument 'stop', kill the gcnlisten job.
+# If run with argument 'stop', kill the pygcn_listen job.
 elif args.command == 'stop':
     exterminate = raw_input('Are you sure?? This will kill all condor jobs for this user... [y/n] ')
     if exterminate == 'y' or exterminate == 'yes': 

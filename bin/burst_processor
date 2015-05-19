@@ -1,0 +1,234 @@
+#!/usr/bin/python
+
+
+# Imports.
+import os
+import os.path
+import tempfile
+import urlparse
+import re
+import json
+import ConfigParser
+import shutil
+import ligo.gracedb.rest
+
+from sys             import exit, stdin
+from grinch.workflow_helper import directory, home
+from glue.ligolw     import ligolw
+from glue.ligolw     import utils
+from glue.ligolw     import table
+from glue.ligolw     import lsctables
+
+
+# Create a dictionary from the gracedb table.
+streamdata = json.loads( stdin.read() )
+
+
+# Read burst_config.ini.
+cp = ConfigParser.ConfigParser()
+etc = home + '/opt/etc/'
+cp.read( etc + 'burst_config.ini' )
+
+gracedbcommand     = cp.get('executable', 'gracedbcommand')
+coinc_search       = cp.get('executable', 'coincscript')
+#vetodefinerfile    = cp.get('veto', 'vetodefinerfile')
+
+
+# Build and move to a unique working directory.
+working = directory(streamdata['uid'])
+working.build_and_move()
+wdir = working.name
+
+
+## Check if the incoming event is new.
+if streamdata['alert_type'] == 'new':
+    pass
+
+# If the update is a .fits file, plot the all-sky map it contains.
+elif streamdata['alert_type'] == 'update' and ( streamdata['file'].endswith('.fits') or streamdata['file'].endswith('.fits.gz') ):
+	fitsfile = streamdata['file']
+	plotfile = '%s.png' % fitsfile.split('.')[0]
+
+    # Write emlabel.sub.
+    contents   = """\
+universe            = local
+
+executable          = %(gracedbcommand)s
+arguments           = " label %(uid)s EM_READY "
+getenv              = True
+notification        = never
+
+error               = %(directory)s/emlabel_%(uid)s.err
+output              = %(directory)s/emlabel_%(uid)s.out
+
++LVAlertListen      = %(uid)s_emlabel
+Queue
+"""
+    with open('emlabel.sub', 'w') as f:
+        f.write(contents%{'gracedbcommand': gracedbcommand, 'directory': wdir, 'uid': streamdata['uid']})
+
+	# Write plot_allsky.sub.
+	contents = """\
+universe            = local
+
+executable          = /usr/bin/env
+arguments           = " bayestar_plot_allsky -o %(directory)s/%(plot)s --colormap=OrRd %(directory)s/%(fits)s "
+getenv              = True
+notification        = never
+
+error               = %(directory)s/allsky_%(uid)s.err
+output              = %(directory)s/allsky_%(uid)s.out
+
++LVAlertListen      = %(uid)s_plot_allsky
+
+Queue
+"""
+	with open('plot_allsky.sub', 'w') as f:
+		f.write(contents%{'fits':fitsfile, 'plot':plotfile, 'directory':wdir, 'uid':streamdata['uid']})
+
+	# Write plot_inj.sub.
+	contents   = """\
+universe            = local
+
+executable          = /usr/bin/env
+arguments           = " unblind_inj_search --graceid %(uid)s --sky-map %(directory)s/%(fits)s"
+getenv              = True
+notification        = never
+
+error               = %(directory)s/plot_inj_%(uid)s.err
+output              = %(directory)s/plot_inj_%(uid)s.out
+
++LVAlertListen      = %(uid)s_plot_inj
+
+Queue
+"""
+	with open('plot_inj.sub', 'w') as f:
+		f.write(contents%{'fits':fitsfile, 'directory':wdir, 'uid': streamdata['uid']})
+
+	# Write coinc_search_with_sky_map.sub.
+	contents = """\
+universe            = local
+
+executable          = %(script)s
+arguments           = " --graceid=%(uid)s --direction=backward --sky-map=%(directory)s/%(fits)s "
+getenv              = True
+notification        = never
+
+output              = %(directory)s/coinc_search_%(uid)s.out
+error               = %(directory)s/coinc_search_%(uid)s.error
+
++LVAlertListen      = %(uid)s_coinc_search
+
+Queue
+"""
+	with open('coinc_search_with_sky_map.sub', 'w') as f:
+		f.write(contents%{'script': coinc_search, 'directory': wdir, 'fits': fitsfile, 'uid': streamdata['uid']})
+
+	# Write and submit fits_followup.dag.
+	contents = """\
+JOB EMLABEL emlabel.sub
+
+JOB PLOTALLSKY plot_allsky.sub
+SCRIPT PRE PLOTALLSKY %(gracedbcommand)s download %(uid)s %(fits)s
+SCRIPT POST PLOTALLSKY %(gracedbcommand)s --tag-name=sky_loc upload %(uid)s %(plot)s
+
+JOB PLOTINJ plot_inj.sub
+
+JOB COINCSEARCH coinc_search_with_sky_map.sub
+
+PARENT PLOTALLSKY CHILD PLOTINJ COINCSEARCH
+"""
+	with tempfile.NamedTemporaryFile(mode='w', suffix='.dag', prefix='fits_followup_', dir='.', delete=False) as dagfile:
+		dagfilename = dagfile.name
+		print >>dagfile, contents%{'gracedbcommand': gracedbcommand, 'uid': streamdata['uid'], 'fits': fitsfile, 'plot': plotfile}
+
+	# Create a uniquely-named log file.
+	logfid, logpath = tempfile.mkstemp(suffix='.nodes.log', prefix=streamdata['uid'])
+
+	# Set environment variable telling condor to use this log file
+	# for communication with nodes.
+	os.environ['_CONDOR_DAGMAN_DEFAULT_NODE_LOG'] = logpath
+
+	# Submit the processor dag.
+	condorargs=['condor_submit_dag', dagfilename]
+	os.execlp('condor_submit_dag', *condorargs)
+
+# Elsewise, end the processor.
+else:
+	 exit()
+
+# Extract information about the event.
+coincfile = 'coinc.xml'
+gracedb_client = ligo.gracedb.rest.GraceDb()
+remote_file = gracedb_client.files(streamdata['uid'], coincfile)
+
+with open(coincfile, 'w') as local_file:
+	shutil.copyfileobj(remote_file, local_file)
+
+
+##############################
+## PRODUCE CONDOR SUB FILES ##
+##############################
+
+# Write coinc_search.sub.
+contents = """\
+universe            = local
+
+executable          = %(script)s
+arguments           = " --graceid=%(uid)s --direction=backward "
+getenv              = True
+notification        = never
+
+output              = %(directory)s/coinc_search_%(uid)s.out
+error               = %(directory)s/coinc_search_%(uid)s.error
+
++LVAlertListen      = %(uid)s_coinc_search
+
+Queue
+"""
+with open('coinc_search.sub', 'w') as f:
+    f.write(contents%{'script': coinc_search, 'directory': wdir, 'uid': streamdata['uid']})
+
+# Write find_inj.sub.
+contents   = """\
+universe            = local
+
+executable          = /usr/bin/env
+arguments           = " unblind_inj_search --graceid %(uid)s --label 1"
+getenv              = True
+notification        = never
+
+error               = %(directory)s/find_inj_%(uid)s.err
+output              = %(directory)s/find_inj_%(uid)s.out
+
++LVAlertListen      = %(uid)s_find_inj
+
+Queue
+"""
+with open('find_inj.sub', 'w') as f:
+	f.write(contents%{'directory':wdir, 'uid': streamdata['uid']})
+
+
+#################################
+## WRITE CONDOR DAG AND SUBMIT ##
+#################################
+
+# Write burst_runner.dag.
+contents = """\
+JOB COINCSEARCH coinc_search.sub
+
+JOB INJLABEL find_inj.sub
+"""
+with open('burst_runner.dag', 'w') as f:
+	f.write(contents % {'gracedbcommand': gracedbcommand, 'uid': streamdata['uid']})
+
+# Create a uniquely-named log file.
+logfid, logpath = tempfile.mkstemp(suffix='.nodes.log', prefix=streamdata['uid'])
+
+# Set environment variable telling condor to use this log file
+# for communication with nodes.
+os.environ['_CONDOR_DAGMAN_DEFAULT_NODE_LOG'] = logpath
+
+# Submit the processor dag.
+condorargs=['condor_submit_dag','burst_runner.dag']
+os.execlp('condor_submit_dag', *condorargs)

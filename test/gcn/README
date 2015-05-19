@@ -1,0 +1,36 @@
+Welcome to the the grinch test directory for LIGO's
+Gamma-ray Coordination Network (GCN) listener, ~grinch/test/gcn.
+
+The test script is run from the command line as
+
+python test_gcn_end2end.py [voevent.xml]
+
+provided grinch, VOEventLib, and lalsuite are installed locally.
+
+A simulated VOEvent file (emulating the behavior of real alerts)
+has been prepared to test each of the alert types LIGO is interested
+in. In particular, the files
+
+[gdb_processor@pcdev2:~/src/grinch/test/gcn] $ ls Swift/*.xml
+Swift/Swift_BAT_Alert.xml
+
+[gdb_processor@pcdev2:~/src/grinch/test/gcn] $ ls -1 Fermi/*.xml
+Fermi/Fermi_Fin_Pos.xml
+Fermi/Fermi_Flt_Pos.xml
+Fermi/Fermi_GBM_Alert.xml
+
+test each alert type in turn, while the associated log files
+
+[gdb_processor@pcdev2:~/src/grinch/test/gcn] $ ls Swift/*.xml
+Swift/Swift_BAT_Alert.out
+
+[gdb_processor@pcdev2:~/src/grinch/test/gcn] $ ls -1 Fermi/*.xml
+Fermi/Fermi_Fin_Pos.out
+Fermi/Fermi_Flt_Pos.out
+Fermi/Fermi_GBM_Alert.out
+
+contain the results of running the above script on each one, organized
+by gamma-ray observatory. For evidence that the GCN listener passes the
+unit tests suggested by our review team, please consider the output of
+these log files, as well as some purposefully "wrong" VOEvent files (to
+come).

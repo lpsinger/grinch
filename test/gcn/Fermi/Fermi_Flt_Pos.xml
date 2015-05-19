@@ -1,6 +1,6 @@
 <?xml version = '1.0' encoding = 'UTF-8'?>
 <voe:VOEvent
-      ivorn="ivo://nasa.gsfc.gcn/Fermi#GBM_Flt_Pos_2015-02-03T13:04:30.40_444661473_45-396"
+      ivorn="ivo://nasa.gsfc.gcn/Fermi#GBM_Flt_Pos_2015-04-12T22:20:36.20_450570039_46-576"
       role="observation" version="2.0"
       xmlns:voe="http://www.ivoa.net/xml/VOEvent/v2.0"
       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -13,30 +13,30 @@
       <contactPhone>+1-301-286-1632</contactPhone>
       <contactEmail>Julie.E.McEnery@nasa.gov</contactEmail>
     </Author>
-    <Date>2015-02-03T13:04:54</Date>
-    <Description>This VOEvent message was created with GCN VOE version: 1.14 01may14</Description>
+    <Date>2015-04-12T22:21:00</Date>
+    <Description>This VOEvent message was created with GCN VOE version: 1.17 08apr15</Description>
   </Who>
   <What>
     <Param name="Packet_Type"    value="111" />
-    <Param name="Pkt_Ser_Num"    value="29" />
-    <Param name="TrigID"         value="444661473" ucd="meta.id" />
-    <Param name="Sequence_Num"   value="45" ucd="meta.id.part" />
-    <Param name="Burst_TJD"      value="17056" unit="days" ucd="time" />
-    <Param name="Burst_SOD"      value="47070.40" unit="sec" ucd="time" />
-    <Param name="Burst_Inten"    value="125" unit="cts" ucd="phot.count" />
-    <Param name="Trig_Timescale" value="1.024" unit="sec" ucd="time.interval" />
-    <Param name="Data_Timescale" value="1.024" unit="sec" ucd="time.interval" />
-    <Param name="Data_Signif"    value="5.10" unit="sigma" ucd="stat.snr" />
-    <Param name="Phi"            value="195.00" unit="deg" ucd="pos.az.azi" />
-    <Param name="Theta"          value="90.00" unit="deg" ucd="pos.az.zd" />
-    <Param name="SC_Long"        value="158.75" unit="deg" ucd="pos.earth.lon" />
+    <Param name="Pkt_Ser_Num"    value="21" />
+    <Param name="TrigID"         value="450570039" ucd="meta.id" />
+    <Param name="Sequence_Num"   value="46" ucd="meta.id.part" />
+    <Param name="Burst_TJD"      value="17124" unit="days" ucd="time" />
+    <Param name="Burst_SOD"      value="80436.20" unit="sec" ucd="time" />
+    <Param name="Burst_Inten"    value="308" unit="cts" ucd="phot.count" />
+    <Param name="Trig_Timescale" value="0.256" unit="sec" ucd="time.interval" />
+    <Param name="Data_Timescale" value="0.256" unit="sec" ucd="time.interval" />
+    <Param name="Data_Signif"    value="7.40" unit="sigma" ucd="stat.snr" />
+    <Param name="Phi"            value="161.00" unit="deg" ucd="pos.az.azi" />
+    <Param name="Theta"          value="70.00" unit="deg" ucd="pos.az.zd" />
+    <Param name="SC_Long"        value="84.99" unit="deg" ucd="pos.earth.lon" />
     <Param name="SC_Lat"         value="0.00" unit="deg" ucd="pos.earth.lat" />
     <Param name="Algorithm"             value="3" unit="dn" />
     <Param name="Most_Likely_Index"     value="4" unit="dn" />
-    <Param name="Most_Likely_Prob"      value="66" />
+    <Param name="Most_Likely_Prob"      value="70" />
     <Param name="Sec_Most_Likely_Index" value="7" unit="dn" />
-    <Param name="Sec_Most_Likely_Prob"  value="32" />
-    <Param name="Hardness_Ratio"        value="0.99" ucd="arith.ratio" />
+    <Param name="Sec_Most_Likely_Prob"  value="26" />
+    <Param name="Hardness_Ratio"        value="0.21" ucd="arith.ratio" />
     <Param name="Trigger_ID"            value="0x0" />
     <Param name="Misc_flags"            value="0x1000000" />
     <Group name="Trigger_ID" >
@@ -52,23 +52,23 @@
       <Param name="Flt_Generated"         value="true" />
       <Param name="Gnd_Generated"         value="false" />
     </Group>
-    <Param name="LightCurve_URL" value="http://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/triggers/2015/bn024abb545/quicklook/glg_lc_medres34_bn024abb545.gif" ucd="meta.ref.url" />
+    <Param name="LightCurve_URL" value="http://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/triggers/2015/bn024b8c931/quicklook/glg_lc_medres34_bn024b8c931.gif" ucd="meta.ref.url" />
     <Param name="Coords_Type"   value="1" unit="dn" />
     <Param name="Coords_String" value="source_object" />
     <Group name="Obs_Support_Info" >
       <Description>The Sun and Moon values are valid at the time the VOEvent XML message was created.</Description>
-      <Param name="Sun_RA"        value="316.84" unit="deg" ucd="pos.eq.ra" />
-      <Param name="Sun_Dec"       value="-16.52" unit="deg" ucd="pos.eq.dec" />
-      <Param name="Sun_Distance"  value="163.34" unit="deg" ucd="pos.angDistance" />
-      <Param name="Sun_Hr_Angle"  value="11.14" unit="hr" />
-      <Param name="Moon_RA"       value="130.88" unit="deg" ucd="pos.eq.ra" />
-      <Param name="Moon_Dec"      value="13.56" unit="deg" ucd="pos.eq.dec" />
-      <Param name="MOON_Distance" value="20.19" unit="deg" ucd="pos.angDistance" />
-      <Param name="Moon_Illum"    value="99.83" unit="%" ucd="arith.ratio" />
-      <Param name="Galactic_Long" value="232.40" unit="deg" ucd="pos.galactic.lon" />
-      <Param name="Galactic_Lat"  value="43.62" unit="deg" ucd="pos.galactic.lat" />
-      <Param name="Ecliptic_Long" value="149.64" unit="deg" ucd="pos.ecliptic.lon" />
-      <Param name="Ecliptic_Lat"  value="-6.25" unit="deg" ucd="pos.ecliptic.lat" />
+      <Param name="Sun_RA"        value="20.99" unit="deg" ucd="pos.eq.ra" />
+      <Param name="Sun_Dec"       value="8.83" unit="deg" ucd="pos.eq.dec" />
+      <Param name="Sun_Distance"  value="136.96" unit="deg" ucd="pos.angDistance" />
+      <Param name="Sun_Hr_Angle"  value="10.13" unit="hr" />
+      <Param name="Moon_RA"       value="303.79" unit="deg" ucd="pos.eq.ra" />
+      <Param name="Moon_Dec"      value="-14.87" unit="deg" ucd="pos.eq.dec" />
+      <Param name="MOON_Distance" value="82.81" unit="deg" ucd="pos.angDistance" />
+      <Param name="Moon_Illum"    value="41.54" unit="%" ucd="arith.ratio" />
+      <Param name="Galactic_Long" value="36.44" unit="deg" ucd="pos.galactic.lon" />
+      <Param name="Galactic_Lat"  value="57.60" unit="deg" ucd="pos.galactic.lat" />
+      <Param name="Ecliptic_Long" value="217.77" unit="deg" ucd="pos.ecliptic.lon" />
+      <Param name="Ecliptic_Lat"  value="40.74" unit="deg" ucd="pos.ecliptic.lat" />
     </Group>
     <Description>The Fermi-GBM location of a transient.</Description>
   </What>
@@ -80,17 +80,17 @@
         <AstroCoords coord_system_id="UTC-FK5-GEO">
           <Time unit="s">
             <TimeInstant>
-              <ISOTime>2015-02-03T13:04:30.40</ISOTime>
+              <ISOTime>2015-04-12T22:20:36.20</ISOTime>
             </TimeInstant>
           </Time>
           <Position2D unit="deg">
             <Name1>RA</Name1>
             <Name2>Dec</Name2>
             <Value2>
-              <C1>149.5500</C1>
-              <C2>5.7333</C2>
+              <C1>228.8500</C1>
+              <C2>24.4667</C2>
             </Value2>
-            <Error2Radius>20.6000</Error2Radius>
+            <Error2Radius>18.1667</Error2Radius>
           </Position2D>
         </AstroCoords>
       </ObservationLocation>
@@ -107,7 +107,7 @@
     </Inference>
   </Why>
   <Citations>
-    <EventIVORN cite="followup">ivo://nasa.gsfc.gcn/Fermi#GBM_Alert_2015-02-03T13:04:30.40_444661473_1-395</EventIVORN>
+    <EventIVORN cite="followup">ivo://nasa.gsfc.gcn/Fermi#GBM_Alert_2015-04-12T22:20:36.20_450570039_1-575</EventIVORN>
     <Description>This is an updated position to the original trigger.</Description> 
   </Citations>
   <Description>

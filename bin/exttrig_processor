@@ -11,7 +11,7 @@ import ConfigParser
 from sys             import exit, stdin
 from string          import split
 
-from workflow_helper import directory, home
+from grinch.workflow_helper import directory, home
 from ligo.gracedb.rest import GraceDb
 
 

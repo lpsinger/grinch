@@ -26,25 +26,26 @@ from distutils.core import setup
 
 setup(
 	name='grinch',
-	version='0.0',
+	version='1.0',
 	url='http://gracedb.ligo.org',
 	author='Alex Urban',
 	author_email='alexander.urban@ligo.org',
 	description='Coordinate between GCN notices, LV alerts, gracedb, and condor job submission automatically',
 	license='GNU General Public License Version 3',
-	py_modules=['workflow_helper', 'argparse', 'GWDataFindClient'],
+	py_modules=['argparse'],
+	packages=['grinch'],
 	scripts=[
 		'bin/gdb_processor',
 		'bin/gcn_listener',
-		'bin/twistd',
-		'bin/lowmass_processor',
+		'bin/pygcn_listen',
+		'bin/cbc_processor',
+        'bin/burst_processor',
 		'bin/exttrig_processor',
 		'bin/dqtolabel',
 		'bin/lvalertlisten',
-		'bin/gcnlisten',
 		'bin/unblind_inj_search',
 		'bin/find_data'
 	],
-	data_files=[('etc',['etc/lowmass_config.ini','etc/exttrig_config.ini',
+	data_files=[('etc',['etc/cbc_config.ini', 'etc/burst_config.ini', 'etc/exttrig_config.ini',
 		'etc/lvalertconfig.ini'])]
 )
