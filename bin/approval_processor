@@ -2,7 +2,8 @@
 import os
 import json
 from sys import stdin
-from ligo.gracedb.rest import GraceDb, HTTPError
+#from ligo.gracedb.rest import GraceDb, HTTPError
+from rest import GraceDb, HTTPError
 import re
 import subprocess
 import ConfigParser
@@ -53,29 +54,34 @@ def get_farthresh(pipeline, search):
 
 def process_alert(client, graceid, voevent_type, skymap_filename=None, 
     skymap_type=None, skymap_image_filename=None):
-    logging.debug("Processing %s VOEvent for MDC event %s .... " % (voevent_type, graceid))
+    logging.info("Processing %s VOEvent for MDC event %s .... " % (voevent_type, graceid))
 
     # Create the VOEvent.
+    voevent = None
     try:
         r = client.createVOEvent(graceid, voevent_type, skymap_filename=skymap_filename, 
             skymap_type=skymap_type, skymap_image_filename=skymap_image_filename)
         voevent = r.json()['text']
     except HTTPError, e:
-        logging.debug("Caught HTTPError: %s" % str(e))
-    tmpfile = open('/tmp/voevent.tmp',"w")
-    tmpfile.write(voevent)
-    tmpfile.close()
-    # Send it out with comet!
-    cmd = "comet-sendvo -p 5340 -f /tmp/voevent.tmp"
-    proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    output, error = proc.communicate(voevent)
-    logging.debug("output = %s" % output)
-    logging.debug("error = %s" % error)
+        logging.info("Caught HTTPError: %s" % str(e))
+    if voevent:
+        tmpfile = open('/tmp/voevent.tmp',"w")
+        tmpfile.write(voevent)
+        tmpfile.close()
+        # Send it out with comet!
+        cmd = "comet-sendvo -p 5340 -f /tmp/voevent.tmp"
+        proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        output, error = proc.communicate(voevent)
+        logging.debug("output = %s" % output)
+        logging.debug("error = %s" % error)
 
     if proc.returncode == 0:
         message = "%s VOEvent sent to GCN for testing purposes." % voevent_type
+	r = g.writeLog(graceid, 'Successfully sent VOEvent of type %s' % voevent_type, None, None, 'em_follow')
     else:
         message = "Error sending %s VOEvent! %s" % (voevent_type, error)
+	# XXX: Writing in the GraceDb log that we successfully sent VOEvent just for de-bugging purposes. We aren't connected to GCN yet so delete this later.
+	r = g.writeLog(graceid, 'Successfully sent VOEvent of type %s' % voevent_type, None, None, 'em_follow')
     logging.debug(message)
 
 
@@ -141,11 +147,30 @@ filename = streamdata['file']
 #--------------------------------------------------------------------------------------
 if alert_type == 'label':
 	if description == 'PE_READY':
-		logging.info('Submitting Update VOEvent to GCN for event {0}'.format(graceid))
-		process_alert(g, graceid, 'update',None, None, None)
+		# Fetch the event log list from the GraceDB server
+		log_dicts = g.logs(graceid).json()['log']
+		for message in log_dicts:
+			if 'Last skymap submitted was' in message['comment']:
+				skymapinfo = re.findall(r'Last skymap submitted was (\S+) type (\S+).', message['comment'])
+				skymap_filename = skymapinfo[0][0]
+				skymapname = re.findall(r'(\S+).fits', skymap_filename)[0]
+				skymap_type = skymapname + '-' + skymapinfo[0][1]
+				skymap_image_filename = skymapname + '.png'
+				process_alert(g, graceid, 'update', '%s' % skymap_filename, '%s' % skymap_type, '%s' % skymap_image_filename)
+				break
 	elif description == 'EM_READY':
 		logging.info('Submitting Initial VOEvent to GCN for event {0}'.format(graceid))
-		process_alert(g, graceid, 'initial', None, None, None)
+		# Fetch the event log list from the GraceDB server
+		log_dicts = g.logs(graceid).json()['log']
+		for message in log_dicts:
+			if 'Last skymap submitted was' in message['comment']:
+				skymapinfo = re.findall(r'Last skymap submitted was (\S+) type (\S+).', message['comment'])
+				skymap_filename = skymapinfo[0][0]
+				skymapname = re.findall(r'(\S+).fits', skymap_filename)[0]
+				skymap_type = skymapname + '-' + skymapinfo[0][1]
+				skymap_image_filename = skymapname + '.png'
+				process_alert(g, graceid, 'initial', '%s' % skymap_filename, '%s' % skymap_type, '%s' % skymap_image_filename)
+				break
 	elif (description=='DQV' or description=='INJ'):
         # Check: Have we already sent out alerts on this event?
 	# Look through the log messages to see if any VOEvents have been uploaded by gdb_processor
@@ -163,6 +188,7 @@ if alert_type == 'label':
 # Handle new candidate event
 #--------------------------------------------------------------------------------------
 elif alert_type == 'new':
+	logging.info('Got new event {0}'.format(graceid))
 	# Get event information from streamdata
 	event_dict = streamdata['object'] # This used to be-- event_dict = g.events(graceid).next()
 	far = event_dict['far']
@@ -205,7 +231,8 @@ elif alert_type=='update':
 
 	far = event_dict['far']
 	pipeline = event_dict['pipeline']
-	search = event_dict['search']
+	group = event_dict['group']
+        search = event_dict['search']
 	labels = event_dict['labels']
 	detectors = str(event_dict['instruments']).split(',')
 	farthresh = get_farthresh(pipeline, search)
@@ -219,11 +246,16 @@ elif alert_type=='update':
 	# We assume that any file with the .fits or .fits.gz extension *and* the 'sky_loc' tag will be a skymap
 	# The tag names should also contain provenance information for the skymap, which could be useful here
 	alert_dict = streamdata['object']
-	tag_names = alert_dict['tag_names']
 
 	#XXX Right now, 'sky_loc' tag does not appear under tag_names section of the alert that tips off lvalert_listen.
 	#XXX Eventually change this to-- if (filename.endswith('.fits.gz') or filename.endswith('.fits')) and 'sky_loc' in tag_names:
 	if (filename.endswith('.fits.gz') or filename.endswith('.fits')):
+		# First, get the submitter name 
+		skymap_filename = filename
+		#skymap_type = alert_dict['issuer']['username']
+		skymap_type = group + search
+		r = g.writeLog(graceid, 'Last skymap submitted was {0} type {1}.'.format(skymap_filename, skymap_type), None, None, None)
+
 		# If new skymaps are loaded, check if the event has passed iDQ checks by reading the log and labeling the event as either 'EM_READY' or 'PE_READY'
 		#'EM_READY' is the label set if there have been no previous skymaps
 		# 'PE_READY' is the label set if we've already sent out an Initial Localization VOEvent
