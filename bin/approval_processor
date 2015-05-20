@@ -23,6 +23,7 @@ idqthresh = config.getfloat('default', 'idqthresh')
 idq_pipelines = config.get('default', 'idq_pipelines')
 idq_pipelines = idq_pipelines.replace(' ','') # remove any spaces
 idq_pipelines = idq_pipelines.split(',') # a list of iDQ pipelines
+hardware_inj = config.get('default', 'hardware_inj')
 humanscimons = config.get('default', 'humanscimons')
 
 # Set up logging
@@ -131,7 +132,7 @@ begintime = gpstime.gps_time_now()
 streamdata = str(stdin.read())
 streamdata = json.loads(streamdata) #json.loads turns string into dictionary
 
-#outfile = open('tmp_for_gracedb.txt', 'a')
+#outfile = open('tmp_for_simdb.txt', 'a')
 #outfile.write(str(streamdata))
 #outfile.write('\n')
 #outfile.write('\n')
@@ -141,6 +142,11 @@ alert_type = streamdata['alert_type']
 graceid = streamdata['uid']
 description = streamdata['description']
 filename = streamdata['file']
+
+# XXX For ER7 if the graceid starts with 'M' for MDCs, we want to ignore the event.
+if re.match('M', graceid):
+	logging.error('Event {0} was mock data challenge. Quitting'.format(graceid))
+	exit()
 
 #--------------------------------------------------------------------------------------
 # Handle labeling events
@@ -265,7 +271,7 @@ elif alert_type=='update':
 		# Fetch the event log list from the GraceDB server
 		log_dicts = g.logs(graceid).json()['log']
 		for message in log_dicts:
-			if 'VOEvent of type initial_loc' in message['comment']:
+			if 'VOEvent of type initial' in message['comment']:
 				# Set label 'PE_READY' since the initial_localization alert was already sent out
 				# It must already be labeled EM_READY
 				logging.info('Labeling {0} with PE_READY'.format(graceid))
@@ -374,8 +380,8 @@ elif alert_type=='update':
 					pass
 				# Check log to see if there is a skymap file or not... If so, set label 'EM_READY'
 				for message in log_dicts:
-					#XXX Need to generalize this since not all messages say 'skymap created'
-					if 'skymap created' in message['comment']: 
+					#XXX Make sure that whenever skymaps are uploaded they always log 'skymap' in the comment
+					if 'skymap' in message['comment']: 
 						logging.info('Applying EM_READY label to event {0}'.format(graceid))
 						r = g.writeLabel(graceid, 'EM_READY')
 						break
@@ -403,7 +409,7 @@ elif alert_type=='update':
 		for message in log_dicts:
 			if 'Candidate event passed iDQ checks.' in message['comment']:
 				for message in log_dicts:
-					if 'skymap created' in message['comment']: #XXX Need to generalize this since not all messages say 'skymap created'
+					if 'skymap' in message['comment']: #XXX Make sure that whenever skymaps are uploaded they always log 'skymap' in the comment
 						logging.info('Labeling {0} with EM_READY'.format(graceid))
 						r = g.writeLabel(graceid, 'EM_READY')
 						break
