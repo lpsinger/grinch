@@ -123,6 +123,19 @@ def checkSignoffs(graceid):
 		else:
 			return 'Passed human signoff checks.'
 
+# Define a function that disqualifies an event for being and INJ or DQV. 
+# This function depends on the value of hardware_inj in the config file
+# hardware_inj == 'yes' means we treat hardware injections are real events
+def checkLabels(hardware_inj, labels):
+	if hardware_inj == 'yes':
+		badlabels = ['DQV']
+	else:
+		badlabels = ['DQV','INJ']
+	# create a list of the intersection of our badlabels list and the event labels
+	intersectionlist = list(set(badlabels).intersection(labels))
+	# if the length of the intersection list is 0, then our event is either DQV or INJ (if hardware_inj == 'no')
+	return len(intersectionlist)
+
 #--------------------------------------------------------------------------------------
 # Begin processing
 #--------------------------------------------------------------------------------------
@@ -132,7 +145,7 @@ begintime = gpstime.gps_time_now()
 streamdata = str(stdin.read())
 streamdata = json.loads(streamdata) #json.loads turns string into dictionary
 
-#outfile = open('tmp_for_simdb.txt', 'a')
+#outfile = open('tmp_for_gracedb.txt', 'a')
 #outfile.write(str(streamdata))
 #outfile.write('\n')
 #outfile.write('\n')
@@ -177,7 +190,7 @@ if alert_type == 'label':
 				skymap_image_filename = skymapname + '.png'
 				process_alert(g, graceid, 'initial', '%s' % skymap_filename, '%s' % skymap_type, '%s' % skymap_image_filename)
 				break
-	elif (description=='DQV' or description=='INJ'):
+	elif (checkLabels(hardware_inj, description) > 0):
         # Check: Have we already sent out alerts on this event?
 	# Look through the log messages to see if any VOEvents have been uploaded by gdb_processor
 		log_dicts = g.logs(graceid).json()['log']
@@ -209,12 +222,9 @@ elif alert_type == 'new':
 	if far >= farthresh:
 		logging.info('Rejected {0} due to large FAR'.format(graceid))
 		r = g.writeLog(graceid, 'Candidate event rejected due to large FAR', tagname = 'em_follow')
-	elif 'INJ' in labels:
-		logging.info('Rejected {0} due to INJ label'.format(graceid))
-		r = g.writeLog(graceid, 'Candidate event rejected due to INJ label', tagname = 'em_follow')
-	elif 'DQV' in labels:
-		logging.info('Rejected {0} due to DQV label'.format(graceid))
-		r = g.writeLog(graceid, 'Candidate event rejected due to DQV label', tagname = 'em_follow')
+	elif checkLabels(hardware_inj, labels) > 0:
+		logging.info('Ignoring update for {0} due to INJ or DQV'.format(graceid))
+		r = g.writeLog(graceid, 'Candidate event rejected due to INJ or DQV label', tagname = 'em_follow')
 	else:
 		logging.info('Submitting Preliminary VOEvent to GCN for event {0}'.format(graceid))
 		process_alert(g, graceid, 'preliminary')
@@ -244,7 +254,7 @@ elif alert_type=='update':
 	farthresh = get_farthresh(pipeline, search)
 
 	# First check FAR and labels
-	if (far >= farthresh or 'INJ' in labels or 'DQV' in labels):
+	if (far >= farthresh or (checkLabels(hardware_inj, labels) > 0)):
 		logging.info('Ignoring update for {0} due to INJ, DQV, or high FAR'.format(graceid))
 		exit()
 
