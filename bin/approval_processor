@@ -66,11 +66,11 @@ def process_alert(client, graceid, voevent_type, skymap_filename=None,
     except HTTPError, e:
         logging.info("Caught HTTPError: %s" % str(e))
     if voevent:
-        tmpfile = open('/tmp/voevent.tmp',"w")
+        tmpfile = open('/tmp/voevent_%s.tmp' % graceid,"w")
         tmpfile.write(voevent)
         tmpfile.close()
         # Send it out with comet!
-        cmd = "comet-sendvo -p 5340 -f /tmp/voevent.tmp"
+        cmd = "comet-sendvo -p 5340 -f /tmp/voevent_%s.tmp" % graceid
         proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         output, error = proc.communicate(voevent)
         logging.debug("output = %s" % output)
@@ -81,9 +81,9 @@ def process_alert(client, graceid, voevent_type, skymap_filename=None,
 	r = g.writeLog(graceid, 'Successfully sent VOEvent of type %s' % voevent_type, None, None, 'em_follow')
     else:
         message = "Error sending %s VOEvent! %s" % (voevent_type, error)
-	# XXX: Writing in the GraceDb log that we successfully sent VOEvent just for de-bugging purposes. We aren't connected to GCN yet so delete this later.
-	r = g.writeLog(graceid, 'Successfully sent VOEvent of type %s' % voevent_type, None, None, 'em_follow')
+	r = g.writeLog(graceid, 'Could not send VOEvent of type %s' % voevent_type, None, None, 'em_follow')
     logging.debug(message)
+    os.remove('/tmp/voevent_%s.tmp' % graceid)
 
 
 # Define a function that checks for the human scimon signoffs
@@ -131,9 +131,9 @@ def checkLabels(hardware_inj, labels):
 		badlabels = ['DQV']
 	else:
 		badlabels = ['DQV','INJ']
-	# create a list of the intersection of our badlabels list and the event labels
+	# Create a list of the intersection of our badlabels list and the event labels
 	intersectionlist = list(set(badlabels).intersection(labels))
-	# if the length of the intersection list is 0, then our event is either DQV or INJ (if hardware_inj == 'no')
+	# If the length of the intersection list is greater than 0, then our event is either DQV or INJ (if hardware_inj == 'no')
 	return len(intersectionlist)
 
 #--------------------------------------------------------------------------------------
@@ -217,7 +217,7 @@ elif alert_type == 'new':
 	# Calculate the FAR threshold for this event
 	farthresh = get_farthresh(pipeline, search)
 
-	# if FAR is above threshold, or if event is labeled INJ or DQV, do not create alert
+	# If FAR is above threshold, or if event is labeled INJ or DQV, do not create alert
 	# Also log message saying why no alert was created
 	if far >= farthresh:
 		logging.info('Rejected {0} due to large FAR'.format(graceid))
@@ -282,7 +282,7 @@ elif alert_type=='update':
 		log_dicts = g.logs(graceid).json()['log']
 		for message in log_dicts:
 			if 'VOEvent of type initial' in message['comment']:
-				# Set label 'PE_READY' since the initial_localization alert was already sent out
+				# Set label 'PE_READY' since the initial_localization alert was already created and/or sent out
 				# It must already be labeled EM_READY
 				logging.info('Labeling {0} with PE_READY'.format(graceid))
 				r = g.writeLabel(graceid, 'PE_READY')
