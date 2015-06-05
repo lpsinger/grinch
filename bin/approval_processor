@@ -2,7 +2,8 @@
 import os
 import json
 from sys import stdin
-from ligo.gracedb.rest import GraceDb, HTTPError
+#from ligo.gracedb.rest import GraceDb, HTTPError
+from rest import GraceDb, HTTPError
 import re
 import subprocess
 import ConfigParser
@@ -22,6 +23,7 @@ idqthresh = config.getfloat('default', 'idqthresh')
 idq_pipelines = config.get('default', 'idq_pipelines')
 idq_pipelines = idq_pipelines.replace(' ','') # remove any spaces
 idq_pipelines = idq_pipelines.split(',') # a list of iDQ pipelines
+hardware_inj = config.get('default', 'hardware_inj')
 humanscimons = config.get('default', 'humanscimons')
 
 # Set up logging
@@ -53,30 +55,35 @@ def get_farthresh(pipeline, search):
 
 def process_alert(client, graceid, voevent_type, skymap_filename=None, 
     skymap_type=None, skymap_image_filename=None):
-    logging.debug("Processing %s VOEvent for MDC event %s .... " % (voevent_type, graceid))
+    logging.info("Processing %s VOEvent for MDC event %s .... " % (voevent_type, graceid))
 
     # Create the VOEvent.
+    voevent = None
     try:
         r = client.createVOEvent(graceid, voevent_type, skymap_filename=skymap_filename, 
             skymap_type=skymap_type, skymap_image_filename=skymap_image_filename)
         voevent = r.json()['text']
     except HTTPError, e:
-        logging.debug("Caught HTTPError: %s" % str(e))
-    tmpfile = open('/tmp/voevent.tmp',"w")
-    tmpfile.write(voevent)
-    tmpfile.close()
-    # Send it out with comet!
-    cmd = "comet-sendvo -p 5340 -f /tmp/voevent.tmp"
-    proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    output, error = proc.communicate(voevent)
-    logging.debug("output = %s" % output)
-    logging.debug("error = %s" % error)
+        logging.info("Caught HTTPError: %s" % str(e))
+    if voevent:
+        tmpfile = open('/tmp/voevent_%s.tmp' % graceid,"w")
+        tmpfile.write(voevent)
+        tmpfile.close()
+        # Send it out with comet!
+        cmd = "comet-sendvo -p 5340 -f /tmp/voevent_%s.tmp" % graceid
+        proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        output, error = proc.communicate(voevent)
+        logging.debug("output = %s" % output)
+        logging.debug("error = %s" % error)
 
     if proc.returncode == 0:
         message = "%s VOEvent sent to GCN for testing purposes." % voevent_type
+	r = g.writeLog(graceid, 'Successfully sent VOEvent of type %s' % voevent_type, None, None, 'em_follow')
     else:
         message = "Error sending %s VOEvent! %s" % (voevent_type, error)
+	r = g.writeLog(graceid, 'Could not send VOEvent of type %s' % voevent_type, None, None, 'em_follow')
     logging.debug(message)
+    os.remove('/tmp/voevent_%s.tmp' % graceid)
 
 
 # Define a function that checks for the human scimon signoffs
@@ -116,6 +123,19 @@ def checkSignoffs(graceid):
 		else:
 			return 'Passed human signoff checks.'
 
+# Define a function that disqualifies an event for being and INJ or DQV. 
+# This function depends on the value of hardware_inj in the config file
+# hardware_inj == 'yes' means we treat hardware injections are real events
+def checkLabels(hardware_inj, labels):
+	if hardware_inj == 'yes':
+		badlabels = ['DQV']
+	else:
+		badlabels = ['DQV','INJ']
+	# Create a list of the intersection of our badlabels list and the event labels
+	intersectionlist = list(set(badlabels).intersection(labels))
+	# If the length of the intersection list is greater than 0, then our event is either DQV or INJ (if hardware_inj == 'no')
+	return len(intersectionlist)
+
 #--------------------------------------------------------------------------------------
 # Begin processing
 #--------------------------------------------------------------------------------------
@@ -136,17 +156,41 @@ graceid = streamdata['uid']
 description = streamdata['description']
 filename = streamdata['file']
 
+# XXX For ER7 if the graceid starts with 'M' for MDCs, we want to ignore the event.
+if re.match('M', graceid):
+	logging.error('Event {0} was mock data challenge. Quitting'.format(graceid))
+	exit()
+
 #--------------------------------------------------------------------------------------
 # Handle labeling events
 #--------------------------------------------------------------------------------------
 if alert_type == 'label':
 	if description == 'PE_READY':
-		logging.info('Submitting Update VOEvent to GCN for event {0}'.format(graceid))
-		process_alert(g, graceid, 'update',None, None, None)
+		# Fetch the event log list from the GraceDB server
+		log_dicts = g.logs(graceid).json()['log']
+		for message in log_dicts:
+			if 'Last skymap submitted was' in message['comment']:
+				skymapinfo = re.findall(r'Last skymap submitted was (\S+) type (\S+).', message['comment'])
+				skymap_filename = skymapinfo[0][0]
+				skymapname = re.findall(r'(\S+).fits', skymap_filename)[0]
+				skymap_type = skymapname + '-' + skymapinfo[0][1]
+				skymap_image_filename = skymapname + '.png'
+				process_alert(g, graceid, 'update', '%s' % skymap_filename, '%s' % skymap_type, '%s' % skymap_image_filename)
+				break
 	elif description == 'EM_READY':
 		logging.info('Submitting Initial VOEvent to GCN for event {0}'.format(graceid))
-		process_alert(g, graceid, 'initial', None, None, None)
-	elif (description=='DQV' or description=='INJ'):
+		# Fetch the event log list from the GraceDB server
+		log_dicts = g.logs(graceid).json()['log']
+		for message in log_dicts:
+			if 'Last skymap submitted was' in message['comment']:
+				skymapinfo = re.findall(r'Last skymap submitted was (\S+) type (\S+).', message['comment'])
+				skymap_filename = skymapinfo[0][0]
+				skymapname = re.findall(r'(\S+).fits', skymap_filename)[0]
+				skymap_type = skymapname + '-' + skymapinfo[0][1]
+				skymap_image_filename = skymapname + '.png'
+				process_alert(g, graceid, 'initial', '%s' % skymap_filename, '%s' % skymap_type, '%s' % skymap_image_filename)
+				break
+	elif (checkLabels(hardware_inj, description) > 0):
         # Check: Have we already sent out alerts on this event?
 	# Look through the log messages to see if any VOEvents have been uploaded by gdb_processor
 		log_dicts = g.logs(graceid).json()['log']
@@ -163,6 +207,7 @@ if alert_type == 'label':
 # Handle new candidate event
 #--------------------------------------------------------------------------------------
 elif alert_type == 'new':
+	logging.info('Got new event {0}'.format(graceid))
 	# Get event information from streamdata
 	event_dict = streamdata['object'] # This used to be-- event_dict = g.events(graceid).next()
 	far = event_dict['far']
@@ -172,17 +217,14 @@ elif alert_type == 'new':
 	# Calculate the FAR threshold for this event
 	farthresh = get_farthresh(pipeline, search)
 
-	# if FAR is above threshold, or if event is labeled INJ or DQV, do not create alert
+	# If FAR is above threshold, or if event is labeled INJ or DQV, do not create alert
 	# Also log message saying why no alert was created
 	if far >= farthresh:
 		logging.info('Rejected {0} due to large FAR'.format(graceid))
 		r = g.writeLog(graceid, 'Candidate event rejected due to large FAR', tagname = 'em_follow')
-	elif 'INJ' in labels:
-		logging.info('Rejected {0} due to INJ label'.format(graceid))
-		r = g.writeLog(graceid, 'Candidate event rejected due to INJ label', tagname = 'em_follow')
-	elif 'DQV' in labels:
-		logging.info('Rejected {0} due to DQV label'.format(graceid))
-		r = g.writeLog(graceid, 'Candidate event rejected due to DQV label', tagname = 'em_follow')
+	elif checkLabels(hardware_inj, labels) > 0:
+		logging.info('Ignoring update for {0} due to INJ or DQV'.format(graceid))
+		r = g.writeLog(graceid, 'Candidate event rejected due to INJ or DQV label', tagname = 'em_follow')
 	else:
 		logging.info('Submitting Preliminary VOEvent to GCN for event {0}'.format(graceid))
 		process_alert(g, graceid, 'preliminary')
@@ -205,13 +247,14 @@ elif alert_type=='update':
 
 	far = event_dict['far']
 	pipeline = event_dict['pipeline']
-	search = event_dict['search']
+	group = event_dict['group']
+        search = event_dict['search']
 	labels = event_dict['labels']
 	detectors = str(event_dict['instruments']).split(',')
 	farthresh = get_farthresh(pipeline, search)
 
 	# First check FAR and labels
-	if (far >= farthresh or 'INJ' in labels or 'DQV' in labels):
+	if (far >= farthresh or (checkLabels(hardware_inj, labels) > 0)):
 		logging.info('Ignoring update for {0} due to INJ, DQV, or high FAR'.format(graceid))
 		exit()
 
@@ -219,11 +262,16 @@ elif alert_type=='update':
 	# We assume that any file with the .fits or .fits.gz extension *and* the 'sky_loc' tag will be a skymap
 	# The tag names should also contain provenance information for the skymap, which could be useful here
 	alert_dict = streamdata['object']
-	tag_names = alert_dict['tag_names']
 
 	#XXX Right now, 'sky_loc' tag does not appear under tag_names section of the alert that tips off lvalert_listen.
 	#XXX Eventually change this to-- if (filename.endswith('.fits.gz') or filename.endswith('.fits')) and 'sky_loc' in tag_names:
 	if (filename.endswith('.fits.gz') or filename.endswith('.fits')):
+		# First, get the submitter name 
+		skymap_filename = filename
+		#skymap_type = alert_dict['issuer']['username']
+		skymap_type = group + search
+		r = g.writeLog(graceid, 'Last skymap submitted was {0} type {1}.'.format(skymap_filename, skymap_type), None, None, None)
+
 		# If new skymaps are loaded, check if the event has passed iDQ checks by reading the log and labeling the event as either 'EM_READY' or 'PE_READY'
 		#'EM_READY' is the label set if there have been no previous skymaps
 		# 'PE_READY' is the label set if we've already sent out an Initial Localization VOEvent
@@ -233,8 +281,8 @@ elif alert_type=='update':
 		# Fetch the event log list from the GraceDB server
 		log_dicts = g.logs(graceid).json()['log']
 		for message in log_dicts:
-			if 'VOEvent of type initial_loc' in message['comment']:
-				# Set label 'PE_READY' since the initial_localization alert was already sent out
+			if 'VOEvent of type initial' in message['comment']:
+				# Set label 'PE_READY' since the initial_localization alert was already created and/or sent out
 				# It must already be labeled EM_READY
 				logging.info('Labeling {0} with PE_READY'.format(graceid))
 				r = g.writeLabel(graceid, 'PE_READY')
@@ -342,8 +390,8 @@ elif alert_type=='update':
 					pass
 				# Check log to see if there is a skymap file or not... If so, set label 'EM_READY'
 				for message in log_dicts:
-					#XXX Need to generalize this since not all messages say 'skymap created'
-					if 'skymap created' in message['comment']: 
+					#XXX Make sure that whenever skymaps are uploaded they always log 'skymap' in the comment
+					if 'skymap' in message['comment']: 
 						logging.info('Applying EM_READY label to event {0}'.format(graceid))
 						r = g.writeLabel(graceid, 'EM_READY')
 						break
@@ -371,7 +419,7 @@ elif alert_type=='update':
 		for message in log_dicts:
 			if 'Candidate event passed iDQ checks.' in message['comment']:
 				for message in log_dicts:
-					if 'skymap created' in message['comment']: #XXX Need to generalize this since not all messages say 'skymap created'
+					if 'skymap' in message['comment']: #XXX Make sure that whenever skymaps are uploaded they always log 'skymap' in the comment
 						logging.info('Labeling {0} with EM_READY'.format(graceid))
 						r = g.writeLabel(graceid, 'EM_READY')
 						break
