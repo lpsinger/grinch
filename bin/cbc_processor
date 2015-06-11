@@ -193,22 +193,22 @@ with open(coincfile, 'w') as local_file:
 #	f.write(contents%{'script': dqtolabelscript, 'gdbcommand': gracedbcommand, 'vetodefinerfile': vetodefinerfile, 'directory': wdir, 'uid': streamdata['uid']})
 
 # Write emlabel.sub.
-contents   = """\
-universe            = local
-
-executable          = %(gracedbcommand)s
-arguments           = " label %(uid)s EM_READY "
-getenv              = True
-notification        = never
-
-error               = %(directory)s/emlabel_%(uid)s.err
-output              = %(directory)s/emlabel_%(uid)s.out
-
-+LVAlertListen      = %(uid)s_emlabel
-Queue
-"""
-with open('emlabel.sub', 'w') as f:
-	f.write(contents%{'gracedbcommand': gracedbcommand, 'directory': wdir, 'uid': streamdata['uid']})
+#contents   = """\
+#universe            = local
+#
+#executable          = %(gracedbcommand)s
+#arguments           = " label %(uid)s EM_READY "
+#getenv              = True
+#notification        = never
+#
+#error               = %(directory)s/emlabel_%(uid)s.err
+#output              = %(directory)s/emlabel_%(uid)s.out
+#
+#+LVAlertListen      = %(uid)s_emlabel
+#Queue
+#"""
+#with open('emlabel.sub', 'w') as f:
+#	f.write(contents%{'gracedbcommand': gracedbcommand, 'directory': wdir, 'uid': streamdata['uid']})
 
 # Write localize.sub.
 contents   = """\
@@ -278,13 +278,9 @@ with open('find_data.sub', 'w') as f:
 contents = """\
 JOB LOCALIZE localize.sub
 
-JOB EMLABEL emlabel.sub
-
 JOB INJLABEL find_inj.sub
 
 JOB FINDDATA find_data.sub
-
-PARENT LOCALIZE CHILD EMLABEL
 """
 with open('cbc_runner.dag', 'w') as f:
 	f.write(contents % {'gracedbcommand': gracedbcommand, 'uid': streamdata['uid']})
