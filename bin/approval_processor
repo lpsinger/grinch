@@ -2,8 +2,7 @@
 import os
 import json
 from sys import stdin
-#from ligo.gracedb.rest import GraceDb, HTTPError
-from rest import GraceDb, HTTPError
+from ligo.gracedb.rest import GraceDb, HTTPError
 import re
 import subprocess
 import ConfigParser
@@ -132,7 +131,7 @@ def checkLabels(hardware_inj, labels):
 	else:
 		badlabels = ['DQV','INJ']
 	# Create a list of the intersection of our badlabels list and the event labels
-	intersectionlist = list(set(badlabels).intersection(labels))
+	intersectionlist = list(set(badlabels).intersection(labels.split()))
 	# If the length of the intersection list is greater than 0, then our event is either DQV or INJ (if hardware_inj == 'no')
 	return len(intersectionlist)
 
@@ -168,7 +167,7 @@ if alert_type == 'label':
 	if description == 'PE_READY':
 		# Fetch the event log list from the GraceDB server
 		log_dicts = g.logs(graceid).json()['log']
-		for message in log_dicts:
+		for message in reversed(log_dicts):
 			if 'Last skymap submitted was' in message['comment']:
 				skymapinfo = re.findall(r'Last skymap submitted was (\S+) type (\S+).', message['comment'])
 				skymap_filename = skymapinfo[0][0]
