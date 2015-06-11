@@ -131,7 +131,7 @@ def checkLabels(hardware_inj, labels):
 	else:
 		badlabels = ['DQV','INJ']
 	# Create a list of the intersection of our badlabels list and the event labels
-	intersectionlist = list(set(badlabels).intersection(labels.split()))
+	intersectionlist = list(set(badlabels).intersection(labels))
 	# If the length of the intersection list is greater than 0, then our event is either DQV or INJ (if hardware_inj == 'no')
 	return len(intersectionlist)
 
@@ -155,9 +155,9 @@ graceid = streamdata['uid']
 description = streamdata['description']
 filename = streamdata['file']
 
-# XXX For ER7 if the graceid starts with 'M' for MDCs, we want to ignore the event.
-if re.match('M', graceid):
-	logging.error('Event {0} was mock data challenge. Quitting'.format(graceid))
+# XXX For ER7 if the graceid starts with 'M' for MDCs or 'S' for Simulation, we want to ignore the event.
+if re.match('M', graceid) or re.match('S', graceid):
+	logging.error('Event {0} was mock data challenge or simulation. Quitting'.format(graceid))
 	exit()
 
 #--------------------------------------------------------------------------------------
@@ -189,7 +189,7 @@ if alert_type == 'label':
 				skymap_image_filename = skymapname + '.png'
 				process_alert(g, graceid, 'initial', '%s' % skymap_filename, '%s' % skymap_type, '%s' % skymap_image_filename)
 				break
-	elif (checkLabels(hardware_inj, description) > 0):
+	elif (checkLabels(hardware_inj, description.split()) > 0):
         # Check: Have we already sent out alerts on this event?
 	# Look through the log messages to see if any VOEvents have been uploaded by gdb_processor
 		log_dicts = g.logs(graceid).json()['log']
@@ -221,7 +221,7 @@ elif alert_type == 'new':
 	if far >= farthresh:
 		logging.info('Rejected {0} due to large FAR'.format(graceid))
 		r = g.writeLog(graceid, 'Candidate event rejected due to large FAR', tagname = 'em_follow')
-	elif checkLabels(hardware_inj, labels) > 0:
+	elif checkLabels(hardware_inj, labels.keys()) > 0:
 		logging.info('Ignoring update for {0} due to INJ or DQV'.format(graceid))
 		r = g.writeLog(graceid, 'Candidate event rejected due to INJ or DQV label', tagname = 'em_follow')
 	else:
@@ -253,7 +253,7 @@ elif alert_type=='update':
 	farthresh = get_farthresh(pipeline, search)
 
 	# First check FAR and labels
-	if (far >= farthresh or (checkLabels(hardware_inj, labels) > 0)):
+	if (far >= farthresh or (checkLabels(hardware_inj, labels.keys()) > 0)):
 		logging.info('Ignoring update for {0} due to INJ, DQV, or high FAR'.format(graceid))
 		exit()
 
