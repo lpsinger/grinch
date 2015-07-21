@@ -208,11 +208,14 @@ if alert_type == 'label':
 elif alert_type == 'new':
 	logging.info('Got new event {0}'.format(graceid))
 	# Get event information from streamdata
-	event_dict = streamdata['object'] # This used to be-- event_dict = g.events(graceid).next()
+	event_dict = streamdata['object']
 	far = event_dict['far']
 	pipeline = event_dict['pipeline']
-	search = event_dict['search']
 	labels = event_dict['labels']
+	if 'search' in event_dict.keys():
+		search = event_dict['search']
+	else:
+		search = ''
 	# Calculate the FAR threshold for this event
 	farthresh = get_farthresh(pipeline, search)
 
@@ -246,9 +249,15 @@ elif alert_type=='update':
 
 	far = event_dict['far']
 	pipeline = event_dict['pipeline']
-	group = event_dict['group']
-        search = event_dict['search']
+	
+	try:
+		search = event_dict['search']
+	except Exception, e:
+		logging.error('Event dict for %s does not contain search.' % graceid)
+		search = ''
+
 	labels = event_dict['labels']
+	group = event_dict['group']
 	detectors = str(event_dict['instruments']).split(',')
 	farthresh = get_farthresh(pipeline, search)
 
@@ -267,7 +276,6 @@ elif alert_type=='update':
 	if (filename.endswith('.fits.gz') or filename.endswith('.fits')):
 		# First, get the submitter name 
 		skymap_filename = filename
-		#skymap_type = alert_dict['issuer']['username']
 		skymap_type = group + search
 		r = g.writeLog(graceid, 'Last skymap submitted was {0} type {1}.'.format(skymap_filename, skymap_type), None, None, None)
 
@@ -323,7 +331,10 @@ elif alert_type=='update':
 		for pipeline in idq_pipelines:
 			pipeline_values = []
 			for detector in detectors:
-				minfapfilename = '{0}_idq_{1}_summary_{2}_test-{3}-{4}.txt'.format(detector, pipeline, graceid, mingpstime, duration)
+				if group=='Test':
+					minfapfilename = '{0}_idq_{1}_summary_{2}_test-{3}-{4}.txt'.format(detector, pipeline, graceid, mingpstime, duration)
+				else:
+					minfapfilename = '{0}_idq_{1}_summary_{2}_test-{3}-{4}.txt'.format(detector, pipeline, graceid, mingpstime, duration)
 				try:
 					idqfiletxt = g.files(graceid, minfapfilename)
 					min_fap = re.findall(r'min_fap : (.*?)\n',idqfiletxt.read())
