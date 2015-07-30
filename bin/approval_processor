@@ -283,6 +283,11 @@ elif alert_type=='update':
 		# Fetch the event log list from the GraceDB server
 		log_dicts = g.logs(graceid).json()['log']
 		for message in log_dicts:
+			if 'VOEvent of type update' in message['comment']:
+				skymapname = re.findall(r'(\S+).fits', skymap_filename)[0]
+				skymap_image_filename = skymapname + '.png'
+				process_alert(g, graceid, 'update', '%s' % skymap_filename, '%s' % skymap_type, '%s' % skymap_image_filename)
+				break
 			if 'VOEvent of type initial' in message['comment']:
 				# Set label 'PE_READY' since the initial_localization alert was already created and/or sent out
 				# It must already be labeled EM_READY
@@ -315,7 +320,6 @@ elif alert_type=='update':
 
 	# Log comments have no files attached but could still contain iDQ information
 	if len(filename)==0:
-		# We only care about log comments that have minimum glitch-FAP information
 		comment = streamdata['object']['comment']
 		if not re.match('minimum glitch-FAP', comment):
 			exit()
@@ -351,7 +355,7 @@ elif alert_type=='update':
 						pipeline_values.append(idqvalues[key])
 				joint_FAP_values[pipeline] = functools.reduce(operator.mul, pipeline_values, 1)
 			if (len(idqvalues) < (len(idq_pipelines)*len(detectors))):
-				logging.info('Have not gotten all the min-FAP values for {0} yet'.format(graceid))
+				logging.info('Have not gotten all the minfap values for {0} yet'.format(graceid))
 				if (min(idqvalues.values() and joint_FAP_values.values()) < idqthresh):
 					r = g.writeLog(graceid, 'Finished running iDQ checks. Candidate event rejected because incomplete joint min-FAP value already less than iDQ threshold.', tagname = 'em_follow')
 					logging.info('iDQ check failed. Applying DQV label to event {0}'.format(graceid))
@@ -359,7 +363,7 @@ elif alert_type=='update':
 					exit()
 
 			elif (len(idqvalues) > (len(idq_pipelines)*len(detectors))):
-				logging.info('Too many min-FAP values in idqvalues dictionary for {0}'.format(graceid))
+				logging.info('Too many minfap values in idqvalues dictionary for {0}'.format(graceid))
 			else:
 				logging.info('Ready to run idq_checks for {0}'.format(graceid))
 				# First make sure that we haven't already run the checks -- we don't want to over-send alerts
@@ -407,13 +411,13 @@ elif alert_type=='update':
 							r = g.writeLabel(graceid, 'EM_READY')
 							break
 				else:
-					r = g.writeLog(graceid, 'Finished running iDQ checks. Candidate event rejected due to low iDQ min-FAP value of {0}'.format(joint_FAP), tagname = 'em_follow')
+					r = g.writeLog(graceid, 'Finished running iDQ checks. Candidate event rejected due to low iDQ FAP value of {0}'.format(joint_FAP), tagname = 'em_follow')
 					logging.info('iDQ check failed. Applying DQV label to event {0}'.format(graceid))
 					r = g.writeLabel(graceid, 'DQV')
 		os.remove('/tmp/idqmessages_%s.tmp' % graceid)
 
 	# If the uploaded file is a human signoff file, start the human signoff check process if necessary
-	if alert_type =='update' and (filename.endswith('.txt') and ('signoff' in filename)):
+	if (filename.endswith('.txt') and ('signoff' in filename)):
 		if humanscimons=='yes':
 			if checkSignoffs(graceid)=='Failed human signoff checks.':
 				r = g.writeLog(graceid, "Finished running human signoff checks. Candidate event failed human signoff checks.", None, None, "em_follow")
@@ -426,26 +430,36 @@ elif alert_type=='update':
 				r = g.writeLog(graceid, "Finished running human signoff checks. Candidate event passed human signoff checks.", None, None, "em_follow")
 				pass
 		elif humanscimons!='yes':
-			pass
-		log_dicts = g.logs(graceid).json()['log']
-		for message in log_dicts:
-			if 'Candidate event passed iDQ checks.' in message['comment']:
-				for message in log_dicts:
-					if 'skymap' in message['comment']: #XXX Make sure that whenever skymaps are uploaded they always log 'skymap' in the comment
-						logging.info('Labeling {0} with EM_READY'.format(graceid))
-						r = g.writeLabel(graceid, 'EM_READY')
-						break
-					else: # This means that no skymap was loaded so we need to wait for the map before the EM_READY label is set.
-						pass
-			else:
-				pass
+			try:
+				signofftxt = g.files(graceid, filename)
+				fails = re.findall(r'Fail', signofftxt.read())
+				if len(fails) > 0:
+					logging.info('Event rejected by human signoff. Applying DQV label to event {0}'.format(graceid))
+					r = g.writeLog(graceid, 'Candidate event failed human signoff checks.', None, None, 'em_follow')
+					r = g.writeLabel(graceid, 'DQV')
+					exit()
+				else:
+					log_dicts = g.logs(graceid).json()['log']
+					for message in log_dicts:
+						if 'Candidate event passed iDQ checks' in message['comment']:
+							for message in log_dicts:
+								if 'skymap' in message['comment']: #XXX Make sure that whenever skymaps are uploaded they always log 'skymap' in the comment
+									logging.info('Labeling {0} with EM_READY'.format(graceid))
+									r = g.writeLabel(graceid, 'EM_READY')
+									break
+								else:
+									pass
+						else: # This means that no skymap was loaded so we need to wait for the map before the EM_READY label is set
+							pass
+			except Exception, e:
+				logging.error('Could not open human signoff file for %s' % graceid)
 
 #--------------------------------------------------------------------------------------
 # Handle unknown alert type
 #--------------------------------------------------------------------------------------
 else:
 	# GraceDB gave us a strange alert type.
-	logging.error('Alert type %s unrecognized. Quitting'.format(alert_type))
+	logging.error('Alert type {0} unrecognized. Quitting'.format(alert_type))
 	exit()
 
 #--------------------------------------------------------------------------------------
