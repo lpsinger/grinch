@@ -282,7 +282,7 @@ elif alert_type=='update':
 
 		# Fetch the event log list from the GraceDB server
 		log_dicts = g.logs(graceid).json()['log']
-		for message in log_dicts:
+		for message in reversed(log_dicts):
 			if 'VOEvent of type update' in message['comment']:
 				skymapname = re.findall(r'(\S+).fits', skymap_filename)[0]
 				skymap_image_filename = skymapname + '.png'
