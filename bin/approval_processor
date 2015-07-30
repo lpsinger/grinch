@@ -293,6 +293,7 @@ elif alert_type=='update':
 				# It must already be labeled EM_READY
 				logging.info('Labeling {0} with PE_READY'.format(graceid))
 				r = g.writeLabel(graceid, 'PE_READY')
+				break
 			elif 'Candidate event passed iDQ checks.' in message['comment']:
 				if humanscimons=='yes':
 					if checkSignoffs(graceid)=='Failed human signoff checks.':
