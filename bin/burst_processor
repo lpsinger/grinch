@@ -110,7 +110,7 @@ Queue
 universe            = local
 
 executable          = %(script)s
-arguments           = " --graceid=%(uid)s --direction=backward --sky-map=%(directory)s/%(fits)s "
+arguments           = " -g %(uid)s -t gw -w -60 600 -s %(directory)s/%(fits)s "
 getenv              = True
 notification        = never
 
@@ -173,7 +173,7 @@ contents = """\
 universe            = local
 
 executable          = %(script)s
-arguments           = " --graceid=%(uid)s --direction=backward "
+arguments           = " -g %(uid)s -t gw -w -60 600 "
 getenv              = True
 notification        = never
 
