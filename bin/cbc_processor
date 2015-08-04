@@ -74,24 +74,24 @@ Queue
 	with open('plot_allsky.sub', 'w') as f:
 		f.write(contents%{'fits':fitsfile, 'plot':plotfile, 'directory':wdir, 'uid':streamdata['uid']})
 
-	# Write plot_inj.sub.
-	contents   = """\
-universe            = local
-
-executable          = /usr/bin/env
-arguments           = " unblind_inj_search --graceid %(uid)s --sky-map %(directory)s/%(fits)s"
-getenv              = True
-notification        = never
-
-error               = %(directory)s/plot_inj_%(uid)s.err
-output              = %(directory)s/plot_inj_%(uid)s.out
-
-+LVAlertListen      = %(uid)s_plot_inj
-
-Queue
-"""
-	with open('plot_inj.sub', 'w') as f:
-		f.write(contents%{'fits':fitsfile, 'directory':wdir, 'uid': streamdata['uid']})
+#	# Write plot_inj.sub.
+#	contents   = """\
+#universe            = local
+#
+#executable          = /usr/bin/env
+#arguments           = " unblind_inj_search --graceid %(uid)s --sky-map %(directory)s/%(fits)s"
+#getenv              = True
+#notification        = never
+#
+#error               = %(directory)s/plot_inj_%(uid)s.err
+#output              = %(directory)s/plot_inj_%(uid)s.out
+#
+#+LVAlertListen      = %(uid)s_plot_inj
+#
+#Queue
+#"""
+#	with open('plot_inj.sub', 'w') as f:
+#		f.write(contents%{'fits':fitsfile, 'directory':wdir, 'uid': streamdata['uid']})
 
 	# Write coinc_search.sub.
 	contents = """\
