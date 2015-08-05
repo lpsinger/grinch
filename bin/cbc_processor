@@ -63,6 +63,8 @@ executable          = /usr/bin/env
 arguments           = " bayestar_plot_allsky -o %(directory)s/%(plot)s --colormap=OrRd %(directory)s/%(fits)s "
 getenv              = True
 notification        = never
+accounting_group = ligo.prod.o1.cbc.pe.bayestar
+accounting_group_user = alexander.urban
 
 error               = %(directory)s/allsky_%(uid)s.err
 output              = %(directory)s/allsky_%(uid)s.out
@@ -101,6 +103,8 @@ executable          = %(script)s
 arguments           = " -g %(uid)s -t gw -w -1 5 -s %(directory)s/%(fits)s "
 getenv              = True
 notification        = never
+accounting_group = ligo.prod.o1.cbc.grb.raven
+accounting_group_user = alexander.urban
 
 output              = %(directory)s/coinc_search_%(uid)s.out
 error               = %(directory)s/coinc_search_%(uid)s.error
@@ -119,11 +123,7 @@ JOB PLOTALLSKY plot_allsky.sub
 SCRIPT PRE PLOTALLSKY %(gracedbcommand)s download %(uid)s %(fits)s
 SCRIPT POST PLOTALLSKY %(gracedbcommand)s --tag-name=sky_loc upload %(uid)s %(plot)s
 
-JOB PLOTINJ plot_inj.sub
-
 JOB COINCSEARCH coinc_search.sub
-
-PARENT PLOTALLSKY CHILD PLOTINJ COINCSEARCH
 """
 	with tempfile.NamedTemporaryFile(mode='w', suffix='.dag', prefix='fits_followup_', dir='.', delete=False) as dagfile:
 		dagfilename = dagfile.name
@@ -142,7 +142,7 @@ PARENT PLOTALLSKY CHILD PLOTINJ COINCSEARCH
 
 # Elsewise, end the processor.
 else:
-	 exit()
+	exit()
 
 # Extract information about the event.
 coincfile = 'coinc.xml'
@@ -220,6 +220,8 @@ request_memory      = 1400 MB
 arguments           = " bayestar_localize_lvalert %(uid)s "
 getenv              = True
 notification        = never
+accounting_group = ligo.prod.o1.cbc.pe.bayestar
+accounting_group_user = alexander.urban
 
 error               = %(directory)s/localize_%(uid)s.err
 output              = %(directory)s/localize_%(uid)s.out
@@ -231,24 +233,24 @@ Queue
 with open('localize.sub', 'w') as f:
 	f.write(contents%{'directory': wdir, 'uid': streamdata['uid']})
 
-# Write find_inj.sub.
-contents   = """\
-universe            = local
-
-executable          = /usr/bin/env
-arguments           = " unblind_inj_search --graceid %(uid)s --label 1"
-getenv              = True
-notification        = never
-
-error               = %(directory)s/find_inj_%(uid)s.err
-output              = %(directory)s/find_inj_%(uid)s.out
-
-+LVAlertListen      = %(uid)s_find_inj
-
-Queue
-"""
-with open('find_inj.sub', 'w') as f:
-	f.write(contents%{'directory':wdir, 'uid': streamdata['uid']})
+## Write find_inj.sub.
+#contents   = """\
+#universe            = local
+#
+#executable          = /usr/bin/env
+#arguments           = " unblind_inj_search --graceid %(uid)s --label 1"
+#getenv              = True
+#notification        = never
+#
+#error               = %(directory)s/find_inj_%(uid)s.err
+#output              = %(directory)s/find_inj_%(uid)s.out
+#
+#+LVAlertListen      = %(uid)s_find_inj
+#
+#Queue
+#"""
+#with open('find_inj.sub', 'w') as f:
+#	f.write(contents%{'directory':wdir, 'uid': streamdata['uid']})
 
 # Write find_data.sub.
 contents   = """\
@@ -277,8 +279,6 @@ with open('find_data.sub', 'w') as f:
 # Write cbc_runner.dag.
 contents = """\
 JOB LOCALIZE localize.sub
-
-JOB INJLABEL find_inj.sub
 
 JOB FINDDATA find_data.sub
 """

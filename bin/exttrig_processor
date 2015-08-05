@@ -65,6 +65,8 @@ executable          = %(script)s
 arguments           = " -g %(uid)s -t exttrig -w -5 1 -w -600 60 "
 getenv              = True
 notification        = never
+accounting_group = ligo.prod.o1.cbc.grb.raven
+accounting_group_user = alexander.urban
 
 output              = %(directory)s/coinc_search_%(uid)s.out
 error               = %(directory)s/coinc_search_%(uid)s.error
@@ -74,7 +76,7 @@ error               = %(directory)s/coinc_search_%(uid)s.error
 Queue
 """
 with open('coinc_search.sub', 'w') as f:
-	f.write(contents%{'script': coinc_search, 'directory': wdir, 'uid': streamdata['uid'], 'voevent': voevent})
+	f.write(contents%{'script': coinc_search, 'directory': wdir, 'uid': streamdata['uid']})
 
 
 #################################
@@ -83,7 +85,6 @@ with open('coinc_search.sub', 'w') as f:
 
 contents = """\
 JOB COINCSEARCH coinc_search.sub
-SCRIPT PRE COINCSEARCH /usr/bin/gracedb download %(uid)s %(voevent)s
 """
 with open('exttrig_runner.dag', 'w') as f:
 	f.write(contents%{'uid':streamdata['uid'],'voevent':voevent})

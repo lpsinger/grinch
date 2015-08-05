@@ -40,6 +40,8 @@ executable          = %s/opt/bin/lvalertlisten
 getenv              = True
 notification        = never
 environment         = DISPLAY=localhost:10.0
+accounting_group = ligo.prod.o1.cbc.bns_spin.gstlalonline
+accounting_group_user = alexander.urban
 
 ## add attribute""" % home + r"""
 ## condor_q -format "%s " Owner -format "%s " ClusterId -format "%s\n" lvalert_listen

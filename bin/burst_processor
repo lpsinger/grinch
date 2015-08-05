@@ -75,6 +75,8 @@ executable          = /usr/bin/env
 arguments           = " bayestar_plot_allsky -o %(directory)s/%(plot)s --colormap=OrRd %(directory)s/%(fits)s "
 getenv              = True
 notification        = never
+accounting_group = ligo.prod.o1.burst.allsky.cwbonline
+accounting_group_user = alexander.urban
 
 error               = %(directory)s/allsky_%(uid)s.err
 output              = %(directory)s/allsky_%(uid)s.out
@@ -113,6 +115,8 @@ executable          = %(script)s
 arguments           = " -g %(uid)s -t gw -w -60 600 -s %(directory)s/%(fits)s "
 getenv              = True
 notification        = never
+accounting_group = ligo.prod.o1.burst.snews.raven
+accounting_group_user = alexander.urban
 
 output              = %(directory)s/coinc_search_%(uid)s.out
 error               = %(directory)s/coinc_search_%(uid)s.error
@@ -130,11 +134,7 @@ JOB PLOTALLSKY plot_allsky.sub
 SCRIPT PRE PLOTALLSKY %(gracedbcommand)s download %(uid)s %(fits)s
 SCRIPT POST PLOTALLSKY %(gracedbcommand)s --tag-name=sky_loc upload %(uid)s %(plot)s
 
-JOB PLOTINJ plot_inj.sub
-
 JOB COINCSEARCH coinc_search_with_sky_map.sub
-
-PARENT PLOTALLSKY CHILD PLOTINJ COINCSEARCH
 """
     with tempfile.NamedTemporaryFile(mode='w', suffix='.dag', prefix='fits_followup_', dir='.', delete=False) as dagfile:
         dagfilename = dagfile.name
@@ -176,6 +176,8 @@ executable          = %(script)s
 arguments           = " -g %(uid)s -t gw -w -60 600 "
 getenv              = True
 notification        = never
+accounting_group = ligo.prod.o1.burst.snews.raven
+accounting_group_user = alexander.urban
 
 output              = %(directory)s/coinc_search_%(uid)s.out
 error               = %(directory)s/coinc_search_%(uid)s.error
@@ -214,8 +216,6 @@ with open('coinc_search.sub', 'w') as f:
 # Write burst_runner.dag.
 contents = """\
 JOB COINCSEARCH coinc_search.sub
-
-JOB INJLABEL find_inj.sub
 """
 with open('burst_runner.dag', 'w') as f:
     f.write(contents % {'gracedbcommand': gracedbcommand, 'uid': streamdata['uid']})

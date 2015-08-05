@@ -48,6 +48,8 @@ executable          = %s/opt/bin/pygcn_listen
 getenv              = True
 notification        = never
 environment         = DISPLAY=localhost:10.0
+accounting_group = ligo.prod.o1.cbc.grb.raven
+accounting_group_user = alexander.urban
 
 ## add attribute""" % home + r"""
 ## condor_q -format "%s " Owner -format "%s " ClusterId -format "%s\n" gcn_listener
