@@ -440,20 +440,22 @@ elif alert_type=='update':
 					r = g.writeLabel(graceid, 'DQV')
 					exit()
 				else:
-					log_dicts = g.logs(graceid).json()['log']
-					for message in log_dicts:
-						if 'Candidate event passed iDQ checks' in message['comment']:
-							for message in log_dicts:
-								if 'skymap' in message['comment']: #XXX Make sure that whenever skymaps are uploaded they always log 'skymap' in the comment
-									logging.info('Labeling {0} with EM_READY'.format(graceid))
-									r = g.writeLabel(graceid, 'EM_READY')
-									break
-								else:
-									pass
-						else: # This means that no skymap was loaded so we need to wait for the map before the EM_READY label is set
-							pass
+					pass
 			except Exception, e:
 				logging.error('Could not open human signoff file for %s' % graceid)
+				exit()
+			log_dicts = g.logs(graceid).json()['log']
+			for message in log_dicts:
+				if 'Candidate event passed iDQ checks' in message['comment']:
+					for msg in log_dicts:
+						if 'skymap' in msg['comment']: #XXX Make sure that whenever skymaps are uploaded they always log 'skymap' in the comment
+							logging.info('Labeling {0} with EM_READY'.format(graceid))
+							r = g.writeLabel(graceid, 'EM_READY')
+							break
+						else:
+							pass
+				else: # This means that no skymap was loaded so we need to wait for the map before the EM_READY label is set
+					pass
 
 #--------------------------------------------------------------------------------------
 # Handle unknown alert type
