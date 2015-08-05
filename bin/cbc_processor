@@ -215,7 +215,7 @@ contents   = """\
 universe            = local
 
 executable          = /usr/bin/env
-environment         = OMP_NUM_THREADS=1
+environment         = OMP_NUM_THREADS=32
 request_memory      = 1400 MB
 arguments           = " bayestar_localize_lvalert %(uid)s "
 getenv              = True
