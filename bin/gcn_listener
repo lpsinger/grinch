@@ -31,10 +31,10 @@ except OSError:
         os.mkdir(home + '/working')
     except OSError:
         pass
-    os.mkdir(home + 'working/gcn_listener')
-    os.mkdir(home + 'working/gcn_listener/log')
-    os.mkdir(home + 'working/gcn_listener/cache')
-    os.mkdir(home + 'working/gcn_listener/gcn_logs')
+    os.mkdir(home + '/working/gcn_listener')
+    os.mkdir(home + '/working/gcn_listener/log')
+    os.mkdir(home + '/working/gcn_listener/cache')
+    os.mkdir(home + '/working/gcn_listener/gcn_logs')
     pass
 
 # If run with argument 'start,' write and submit condor .sub file.
