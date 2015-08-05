@@ -252,24 +252,24 @@ with open('localize.sub', 'w') as f:
 #with open('find_inj.sub', 'w') as f:
 #	f.write(contents%{'directory':wdir, 'uid': streamdata['uid']})
 
-# Write find_data.sub.
-contents   = """\
-universe            = local
-
-executable          = /usr/bin/env
-arguments           = " find_data --padding 20 -g %(uid)s -f H1=H1_ER_C00_L1 -f L1=L1_ER_C00_L1 -f V1=V1Online -s ldr.ligo.caltech.edu:443 --verbose "
-getenv              = True
-notification        = never
-
-error               = %(directory)s/find_data_%(uid)s.err
-output              = %(directory)s/find_data_%(uid)s.out
-
-+LVAlertListen      = %(uid)s_find_data
-
-Queue
-"""
-with open('find_data.sub', 'w') as f:
-	f.write(contents%{'directory': wdir, 'uid': streamdata['uid']})
+## Write find_data.sub.
+#contents   = """\
+#universe            = local
+#
+#executable          = /usr/bin/env
+#arguments           = " find_data --padding 20 -g %(uid)s -f H1=H1_ER_C00_L1 -f L1=L1_ER_C00_L1 -f V1=V1Online -s ldr.ligo.caltech.edu:443 --verbose "
+#getenv              = True
+#notification        = never
+#
+#error               = %(directory)s/find_data_%(uid)s.err
+#output              = %(directory)s/find_data_%(uid)s.out
+#
+#+LVAlertListen      = %(uid)s_find_data
+#
+#Queue
+#"""
+#with open('find_data.sub', 'w') as f:
+#	f.write(contents%{'directory': wdir, 'uid': streamdata['uid']})
 
 
 #################################
@@ -279,8 +279,6 @@ with open('find_data.sub', 'w') as f:
 # Write cbc_runner.dag.
 contents = """\
 JOB LOCALIZE localize.sub
-
-JOB FINDDATA find_data.sub
 """
 with open('cbc_runner.dag', 'w') as f:
 	f.write(contents % {'gracedbcommand': gracedbcommand, 'uid': streamdata['uid']})
