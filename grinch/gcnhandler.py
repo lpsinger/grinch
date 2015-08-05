@@ -236,12 +236,9 @@ def archive(payload, root=None, test=False):
 
     # If it has also been flagged as one to send to GraceDB, send it to GraceDB.
     if send == 1:
-        from lal.gpstime import tconvert
-        from math import floor
         eventType = 'External'
-        isotime = VOEventLib.Vutil.getWhereWhen(v)['time'] 
-        gpstime = int( floor(tconvert(isotime)) )
-        event = list( gracedb.events('%s %s..%s' % (eventType, gpstime, gpstime + 1)) )
+        trigID = VOEventLib.Vutil.findParam(v, '', 'TrigID').get_value()
+        event = list( gracedb.events('%s grbevent.trigger_id = "%s"' % (eventType, trigID)) )
         if event:
             gid = event[0]['graceid']
             if not test:
