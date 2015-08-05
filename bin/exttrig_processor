@@ -62,7 +62,7 @@ contents   = """\
 universe            = local
 
 executable          = %(script)s
-arguments           = " --graceid=%(uid)s --direction=forward --xml=%(voevent)s "
+arguments           = " -g %(uid)s -t exttrig -w -5 1 -w -600 60 "
 getenv              = True
 notification        = never
 

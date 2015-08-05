@@ -208,11 +208,14 @@ if alert_type == 'label':
 elif alert_type == 'new':
 	logging.info('Got new event {0}'.format(graceid))
 	# Get event information from streamdata
-	event_dict = streamdata['object'] # This used to be-- event_dict = g.events(graceid).next()
+	event_dict = streamdata['object']
 	far = event_dict['far']
 	pipeline = event_dict['pipeline']
-	search = event_dict['search']
 	labels = event_dict['labels']
+	if 'search' in event_dict.keys():
+		search = event_dict['search']
+	else:
+		search = ''
 	# Calculate the FAR threshold for this event
 	farthresh = get_farthresh(pipeline, search)
 
@@ -232,12 +235,7 @@ elif alert_type == 'new':
 # Handle uploaded files
 #--------------------------------------------------------------------------------------
 elif alert_type=='update':
-	# No need to continue processing if no file is present
-	# This is the case for lvalert_listen alerts about new log messages for instance
-	if len(filename)==0:
-		exit()
-
-	# Since we will also need information about the event itself, fetch the event dict
+	# Since we will need information about the event itself, fetch the event dict
 	try:
 		event_dict = g.events(graceid).next()
 	except Exception, e:
@@ -246,9 +244,15 @@ elif alert_type=='update':
 
 	far = event_dict['far']
 	pipeline = event_dict['pipeline']
-	group = event_dict['group']
-        search = event_dict['search']
+
+	try:
+		search = event_dict['search']
+	except Exception, e:
+		logging.error('Event dict for %s does not contain search.' % graceid)
+		search = ''
+
 	labels = event_dict['labels']
+	group = event_dict['group']
 	detectors = str(event_dict['instruments']).split(',')
 	farthresh = get_farthresh(pipeline, search)
 
@@ -267,7 +271,6 @@ elif alert_type=='update':
 	if (filename.endswith('.fits.gz') or filename.endswith('.fits')):
 		# First, get the submitter name 
 		skymap_filename = filename
-		#skymap_type = alert_dict['issuer']['username']
 		skymap_type = group + search
 		r = g.writeLog(graceid, 'Last skymap submitted was {0} type {1}.'.format(skymap_filename, skymap_type), None, None, None)
 
@@ -279,12 +282,18 @@ elif alert_type=='update':
 
 		# Fetch the event log list from the GraceDB server
 		log_dicts = g.logs(graceid).json()['log']
-		for message in log_dicts:
+		for message in reversed(log_dicts):
+			if 'VOEvent of type update' in message['comment']:
+				skymapname = re.findall(r'(\S+).fits', skymap_filename)[0]
+				skymap_image_filename = skymapname + '.png'
+				process_alert(g, graceid, 'update', '%s' % skymap_filename, '%s' % skymap_type, '%s' % skymap_image_filename)
+				break
 			if 'VOEvent of type initial' in message['comment']:
 				# Set label 'PE_READY' since the initial_localization alert was already created and/or sent out
 				# It must already be labeled EM_READY
 				logging.info('Labeling {0} with PE_READY'.format(graceid))
 				r = g.writeLabel(graceid, 'PE_READY')
+				break
 			elif 'Candidate event passed iDQ checks.' in message['comment']:
 				if humanscimons=='yes':
 					if checkSignoffs(graceid)=='Failed human signoff checks.':
@@ -309,98 +318,107 @@ elif alert_type=='update':
 				# Thus we will apply the proper label when the iDQ/human signoff check finishes
 				logging.info('No action taken on skymap for {0}'.format(graceid))
 
-	# If the uploaded file is an iDQ file, start the iDQ check process
-	if (filename.endswith('.txt') and 'idq' in filename):
-		logging.info('Got iDQ file {0} for event {1}'.format(filename, graceid))		
 
-		# Set up the idqvalue and joint_FAP_values dictonaries
-		# These will store the minfap values & computed joint_FAP values from all of the detector sites for each pipeline
-		idqvalues = {}
-		joint_FAP_values={}
-		timeseriesinfo = re.findall(r'-(.*?)-(.*?).txt', filename)
-		mingpstime = timeseriesinfo[0][0]
-		duration = timeseriesinfo[0][1]
-		for pipeline in idq_pipelines:
-			pipeline_values = []
-			for detector in detectors:
-				minfapfilename = '{0}_idq_{1}_summary_{2}_test-{3}-{4}.txt'.format(detector, pipeline, graceid, mingpstime, duration)
-				try:
-					idqfiletxt = g.files(graceid, minfapfilename)
-					min_fap = re.findall(r'min_fap : (.*?)\n',idqfiletxt.read())
+	# Log comments have no files attached but could still contain iDQ information
+	if len(filename)==0:
+		comment = streamdata['object']['comment']
+		if not re.match('minimum glitch-FAP', comment):
+			exit()
+		else:
+			idqvalues = {}
+			joint_FAP_values = {}
+			for pipeline in idq_pipelines:
+				pipeline_values = []
+				log_dicts = g.logs(graceid).json()['log']
+				commentslist = open('/tmp/idqmessages_%s.tmp' % graceid, 'w')
+				for message in log_dicts:
+					if re.match('minimum glitch-FAP', message['comment']):
+						commentslist.write(message['comment'])
+						commentslist.write('\n')
+				commentslist.close()
+
+				# Now we get the min-FAP values and sort according to which idq_pipeline
+				commentslist = open('/tmp/idqmessages_%s.tmp' % graceid)
+				for line in commentslist:
+					idqinfo = re.findall('minimum glitch-FAP for (.*?) at (.*?) with', line)
+					pipeline = idqinfo[0][0]
+					detector = idqinfo[0][1]
+					min_fap = re.findall('is (\S+)\n', line)
 					min_fap = float(min_fap[0])
 					detectorstring = '{0}.{1}'.format(pipeline, detector)
 					idqvalues[detectorstring] = min_fap
 					logging.info('Got the min_fap for {0} {1} using {2} is {3}'.format(detector, graceid, pipeline, min_fap))
-				except:
-					logging.info('Could not get minfap from {0} for {1} yet.'.format(detector, pipeline))
-			# Now, even if you did not get all the minfap values for a specific pipeline, calculate the joint min-FAP thus far for each pipeline
-			for key in idqvalues.keys():
-				if pipeline in key:
-					pipeline_values.append(idqvalues[key])
-			joint_FAP_values[pipeline] = functools.reduce(operator.mul, pipeline_values, 1)
-		if (len(idqvalues) < (len(idq_pipelines)*len(detectors))):
-			logging.info('Have not gotten all the minfap values for {0} yet'.format(graceid))
-			if (min(idqvalues.values() and joint_FAP_values.values()) < idqthresh):
-				r = g.writeLog(graceid, 'Finished running iDQ checks. Candidate event rejected because incomplete joint min-FAP value already less than iDQ threshold.', tagname = 'em_follow')
-				logging.info('iDQ check failed. Applying DQV label to event {0}'.format(graceid))
-				r = g.writeLabel(graceid, 'DQV')
-				exit()
-
-		elif (len(idqvalues) > (len(idq_pipelines)*len(detectors))):
-			logging.info('Too many minfap values in idqvalues dictionary for {0}'.format(graceid))
-		else:
-			logging.info('Ready to run idq_checks for {0}'.format(graceid))
-			# First make sure that we haven't already run the checks -- we don't want to over-send alerts
-			# Check log to see if we've said 'Finished running iDQ checks.'
-			log_dicts = g.logs(graceid).json()['log']
-			for message in log_dicts:
-				if 'Finished running iDQ checks.' in message['comment']:
+				commentslist.close()
+				
+				# Now, even if you did not get all the minfap values for a specific pipeline, calculate the joint min-FAP thus far for each pipeline
+				for key in idqvalues.keys():
+					if pipeline in key:
+						pipeline_values.append(idqvalues[key])
+				joint_FAP_values[pipeline] = functools.reduce(operator.mul, pipeline_values, 1)
+			if (len(idqvalues) < (len(idq_pipelines)*len(detectors))):
+				logging.info('Have not gotten all the minfap values for {0} yet'.format(graceid))
+				if (min(idqvalues.values() and joint_FAP_values.values()) < idqthresh):
+					r = g.writeLog(graceid, 'Finished running iDQ checks. Candidate event rejected because incomplete joint min-FAP value already less than iDQ threshold.', tagname = 'em_follow')
+					logging.info('iDQ check failed. Applying DQV label to event {0}'.format(graceid))
+					r = g.writeLabel(graceid, 'DQV')
 					exit()
 
-			# Now that iDQ checks are finished, we want to know whether the event passed the iDQ checks or not.
-			# If they don't pass the checks, we set the label 'DQV'
-			# If they do pass the checks, we write a log message saying that they did
-			# 'glitch-FAP' is the probability that the classifier thinks there was a glitch and *there was not a glitch*
-			# 'glitch-FAP'-> 0 means high confidence there is a glitch
-			# 'glitch-FAP'-> 1 means low confidence there is a glitch
-			# What we want is something like the minimum of the products of FAPs from different sites computed for each classifier
-			# Calculate joint_FAP values for all the iDQ pipelines
-			for pipeline in idq_pipelines:
-				joint_FAP = 1
-				for detector in detectors:
-					detectorstring = '{0}.{1}'.format(pipeline, detector)
-					joint_FAP = joint_FAP*idqvalues[detectorstring]
-				joint_FAP_values[pipeline] = joint_FAP
-				logging.info('Got joint_FAP = {0} for event {1} iDQ pipeline {2}'.format(joint_FAP, graceid, pipeline))
-			if min(joint_FAP_values.values()) > idqthresh:
-				logging.info('Event {0} passed iDQ check.'.format(graceid))
-				r = g.writeLog(graceid, "Finished running iDQ checks. Candidate event passed iDQ checks.", None, None, "em_follow")
-				if humanscimons=='yes': 
-					if checkSignoffs(graceid)=='Failed human signoff checks.':
-						r = g.writeLog(graceid, "Finished running human signoff checks. Candidate event failed human signoff checks.", None, 								None, "em_follow")
-						r = g.writeLabel(graceid, 'DQV')
-						exit()
-					elif checkSignoffs(graceid)=='Incomplete human signoff checks.':
-						exit()
-					elif checkSignoffs(graceid)=='Passed human signoff checks.':
-						r = g.writeLog(graceid, "Finished running human signoff checks. Candidate event passed human signoff checks.", None, 								None, "em_follow")
-						pass
-				elif humanscimons!='yes':
-					pass
-				# Check log to see if there is a skymap file or not... If so, set label 'EM_READY'
-				for message in log_dicts:
-					#XXX Make sure that whenever skymaps are uploaded they always log 'skymap' in the comment
-					if 'skymap' in message['comment']: 
-						logging.info('Applying EM_READY label to event {0}'.format(graceid))
-						r = g.writeLabel(graceid, 'EM_READY')
-						break
+			elif (len(idqvalues) > (len(idq_pipelines)*len(detectors))):
+				logging.info('Too many minfap values in idqvalues dictionary for {0}'.format(graceid))
 			else:
-				r = g.writeLog(graceid, 'Finished running iDQ checks. Candidate event rejected due to low iDQ FAP value of {0}'.format(joint_FAP), 						tagname = 'em_follow')
-				logging.info('iDQ check failed. Applying DQV label to event {0}'.format(graceid))
-				r = g.writeLabel(graceid, 'DQV')
+				logging.info('Ready to run idq_checks for {0}'.format(graceid))
+				# First make sure that we haven't already run the checks -- we don't want to over-send alerts
+				# Check log to see if we've said 'Finished running iDQ checks.'
+				log_dicts = g.logs(graceid).json()['log']
+				for message in log_dicts:
+					if 'Finished running iDQ checks.' in message['comment']:
+						exit()
+
+				# Now that iDQ checks are finished, we want to know whether the event passed the iDQ checks or not.
+				# If they don't pass the checks, we set the label 'DQV'
+				# If they do pass the checks, we write a log message saying that they did
+				# 'glitch-FAP' is the probability that the classifier thinks there was a glitch and *there was not a glitch*
+				# 'glitch-FAP' -> 0 means high confidence there is a glitch
+				# 'glitch-FAP' -> 1 means low confidence there is a glitch
+				# What we want is something like the minimum of the products of FAPS from different sites computed for each classifier
+				# Calculate the joint_FAP values for all the iDQ pipelines
+				for pipeline in idq_pipelines:
+					joint_FAP = 1
+					for detector in detectors:
+						detectorstring = '{0}.{1}'.format(pipeline, detector)
+						joint_FAP = joint_FAP*idqvalues[detectorstring]
+					joint_FAP_values[pipeline] = joint_FAP
+					logging.info('Got joint_FAP = {0} for event {1} iDQ pipeline {2}'.format(joint_FAP, graceid, pipeline))
+				if min(joint_FAP_values.values()) > idqthresh:
+					logging.info('Event {0} passed iDQ check.'.format(graceid))
+					r = g.writeLog(graceid, 'Finished running iDQ checks. Candidate event passed iDQ checks.', None, None, 'em_follow')
+					if humanscimons=='yes':
+						if checkSignoffs(graceid)=='Failed human signoff checks.':
+							r = g.writeLog(graceid, 'Finished running human signoff checks. Candidate event failed human signoff checks.', None, None, 'em_follow')
+							r = g.writeLabel(graceid, 'DQV')
+							exit()
+						elif checkSignoffs(graceid)=='Incomplete human signoff checks.':
+							exit()
+						elif checkSignoffs(graceid)=='Passed human signoff checks.':
+							r = g.writeLog(graceid, 'Finished running human signoff checks. Candidate event passed human signoff checks.', None, None, 'em_follow')
+							pass
+					elif humanscimons!='yes':
+						pass
+					# Check log to see if there is a skymap file or not... If so, set label 'EM_READY'
+					for message in log_dicts:
+						#XXX Make sure that whenever skymaps are uploaded they always log 'skymap' in the comment
+						if 'skymap' in message['comment']:
+							logging.info('Applying EM_READY label to event {0}'.format(graceid))
+							r = g.writeLabel(graceid, 'EM_READY')
+							break
+				else:
+					r = g.writeLog(graceid, 'Finished running iDQ checks. Candidate event rejected due to low iDQ FAP value of {0}'.format(joint_FAP), tagname = 'em_follow')
+					logging.info('iDQ check failed. Applying DQV label to event {0}'.format(graceid))
+					r = g.writeLabel(graceid, 'DQV')
+		os.remove('/tmp/idqmessages_%s.tmp' % graceid)
 
 	# If the uploaded file is a human signoff file, start the human signoff check process if necessary
-	if alert_type =='update' and (filename.endswith('.txt') and ('signoff' in filename)):
+	if (filename.endswith('.txt') and ('signoff' in filename)):
 		if humanscimons=='yes':
 			if checkSignoffs(graceid)=='Failed human signoff checks.':
 				r = g.writeLog(graceid, "Finished running human signoff checks. Candidate event failed human signoff checks.", None, None, "em_follow")
@@ -413,26 +431,38 @@ elif alert_type=='update':
 				r = g.writeLog(graceid, "Finished running human signoff checks. Candidate event passed human signoff checks.", None, None, "em_follow")
 				pass
 		elif humanscimons!='yes':
-			pass
-		log_dicts = g.logs(graceid).json()['log']
-		for message in log_dicts:
-			if 'Candidate event passed iDQ checks.' in message['comment']:
-				for message in log_dicts:
-					if 'skymap' in message['comment']: #XXX Make sure that whenever skymaps are uploaded they always log 'skymap' in the comment
-						logging.info('Labeling {0} with EM_READY'.format(graceid))
-						r = g.writeLabel(graceid, 'EM_READY')
-						break
-					else: # This means that no skymap was loaded so we need to wait for the map before the EM_READY label is set.
-						pass
-			else:
-				pass
+			try:
+				signofftxt = g.files(graceid, filename)
+				fails = re.findall(r'Fail', signofftxt.read())
+				if len(fails) > 0:
+					logging.info('Event rejected by human signoff. Applying DQV label to event {0}'.format(graceid))
+					r = g.writeLog(graceid, 'Candidate event failed human signoff checks.', None, None, 'em_follow')
+					r = g.writeLabel(graceid, 'DQV')
+					exit()
+				else:
+					pass
+			except Exception, e:
+				logging.error('Could not open human signoff file for %s' % graceid)
+				exit()
+			log_dicts = g.logs(graceid).json()['log']
+			for message in log_dicts:
+				if 'Candidate event passed iDQ checks' in message['comment']:
+					for msg in log_dicts:
+						if 'skymap' in msg['comment']: #XXX Make sure that whenever skymaps are uploaded they always log 'skymap' in the comment
+							logging.info('Labeling {0} with EM_READY'.format(graceid))
+							r = g.writeLabel(graceid, 'EM_READY')
+							break
+						else:
+							pass
+				else: # This means that no skymap was loaded so we need to wait for the map before the EM_READY label is set
+					pass
 
 #--------------------------------------------------------------------------------------
 # Handle unknown alert type
 #--------------------------------------------------------------------------------------
 else:
 	# GraceDB gave us a strange alert type.
-	logging.error('Alert type %s unrecognized. Quitting'.format(alert_type))
+	logging.error('Alert type {0} unrecognized. Quitting'.format(alert_type))
 	exit()
 
 #--------------------------------------------------------------------------------------
