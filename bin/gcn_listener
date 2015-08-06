@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 
 """
 Script to manage starting, stopping, and monitoring of the 
@@ -35,6 +35,7 @@ except OSError:
     os.mkdir(home + '/working/gcn_listener/log')
     os.mkdir(home + '/working/gcn_listener/cache')
     os.mkdir(home + '/working/gcn_listener/gcn_logs')
+    os.chdir(rundir)
     pass
 
 # If run with argument 'start,' write and submit condor .sub file.
@@ -55,7 +56,7 @@ accounting_group_user = alexander.urban
 ## condor_q -format "%s " Owner -format "%s " ClusterId -format "%s\n" gcn_listener
 +GCNListen      = "gdb_processor gcn_listener"
 
-log                 = log/gcn.$(Cluster).log 
+log                 = gcn_logs/gcn.$(Cluster).log 
 output              = log/gcn.$(Cluster).out
 error               = log/gcn.$(Cluster).error
 
