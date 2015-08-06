@@ -56,8 +56,8 @@ accounting_group_user = alexander.urban
 ## condor_q -format "%s " Owner -format "%s " ClusterId -format "%s\n" gcn_listener
 +GCNListen      = "gdb_processor gcn_listener"
 
-log                 = gcn_logs/gcn.$(Cluster).log 
-output              = log/gcn.$(Cluster).out
+log                 = log/gcn.$(Cluster).log 
+output              = gcn_logs/gcn.$(Cluster).out
 error               = log/gcn.$(Cluster).error
 
 Queue
@@ -72,7 +72,7 @@ Queue
 # If run with argument 'status', print a short summary of the job to screen.
 elif args.command == 'status':
     user = os.getenv("USER")
-    condorargs = ['condor_q', '-sub', user]
+    condorargs = ['condor_q', user]
     os.execlp('condor_q', *condorargs)
     sys.exit()
 
