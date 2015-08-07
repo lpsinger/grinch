@@ -13,13 +13,15 @@ import logging
 
 from grinch.approval_utils import get_farthresh, process_alert, checkSignoffs 
 from grinch.approval_utils import checkLabels, checkIdqStatus, getIdqAndJointFapValues
+from grinch.workflow_helper import home
 
 #--------------------------------------------------------------------------------------
 # Fetch parameters
 #--------------------------------------------------------------------------------------
 # Import FAR threshold, iDQ threshold from config file
 config = ConfigParser.SafeConfigParser()
-config.read('approval_processor_config.ini')
+etc = home + '/opt/etc/'
+config.read(etc + 'approval_processor_config.ini')
 idqthresh = config.getfloat('default', 'idqthresh')
 idq_pipelines = config.get('default', 'idq_pipelines')
 idq_pipelines = idq_pipelines.replace(' ','') # remove any spaces
