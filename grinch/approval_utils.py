@@ -40,10 +40,10 @@ def process_alert(client, logger, graceid, voevent_type, skymap_filename=None,
 
 	if proc.returncode == 0:
 		message = "%s VOEvent sent to GCN for testing purposes." % voevent_type
-		r = client.writeLog(graceid, 'Successfully sent VOEvent of type %s' % voevent_type, tagname='em_follow')
+		r = client.writeLog(graceid, 'Successfully sent VOEvent of type %s.' % voevent_type, tagname='em_follow')
 	else:
 		message = "Error sending %s VOEvent! %s" % (voevent_type, error)
-		r = client.writeLog(graceid, 'Could not send VOEvent of type %s' % voevent_type, tagname='em_follow')
+		r = client.writeLog(graceid, 'Could not send VOEvent of type %s.' % voevent_type, tagname='em_follow')
 	logger.debug(message)
 	os.remove('/tmp/voevent_%s.tmp' % graceid)
 
@@ -65,21 +65,21 @@ def checkSignoffs(client, logger, graceid, detectors):
 		try:
 			signofftxt = client.files(graceid, filename)
 			fails = re.findall(r'Fail',signofftxt.read())
-			logger.info('Got the human scimon file for {0} from {1}'.format(graceid, detector))
+			logger.info('Got the human scimon file for {0} from {1}.'.format(graceid, detector))
 			if len(fails) > 0:
 				signoffdict[detector] = 'Fail'
 			else:
 				signoffdict[detector] = 'Pass'
 		except Exception, e:
-			logger.error('Could not get human scimon file for {0} from {1}:{2}'.format(graceid,detector, str(e)))
+			logger.error('Could not get human scimon file for {0} from {1}:{2}.'.format(graceid,detector, str(e)))
 	if (len(signoffdict) < len(detectors)):
-		logger.info('Have not gotten all the human signoffs yet but not yet DQV')
+		logger.info('Have not gotten all the human signoffs yet but not yet DQV.')
 		return 'Unknown'
 	elif (len(signoffdict) > len(detectors)):
 		logger.info('Too many human signoffs in signoff dictionary.')
 		return 'Unknown'
 	else:
-		logger.info('Ready to run human signoff check for {0}'.format(graceid))
+		logger.info('Ready to run human signoff check for {0}.'.format(graceid))
 		if ('Fail' in signoffdict.values()):
 			return 'Fail'
 		else:
@@ -131,7 +131,7 @@ def getIdqAndJointFapValues(idq_pipelines, client, logger, graceid):
 			min_fap = float(min_fap[0])
 			detectorstring = '{0}.{1}'.format(pipeline, detector)
 			idqvalues[detectorstring] = min_fap
-			logger.info('Got the min_fap for {0} {1} using {2} is {3}'.format(detector, graceid, pipeline, min_fap))
+			logger.info('Got the min_fap for {0} {1} using {2} is {3}.'.format(detector, graceid, pipeline, min_fap))
 		commentslist.close()
 
 		# Now, even if you did not get all the minfap values for a specific pipeline, 
@@ -142,4 +142,5 @@ def getIdqAndJointFapValues(idq_pipelines, client, logger, graceid):
 		joint_FAP_values[pipeline] = functools.reduce(operator.mul, pipeline_values, 1)
 
 		return idqvalues, joint_FAP_values
+	os.remove('/tmp/idqmessages_%s.tmp' % graceid)
 
