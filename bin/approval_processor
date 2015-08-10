@@ -204,7 +204,7 @@ elif alert_type=='update':
 			if latest_voevent_type == 'UP': 
 				skymapname = re.findall(r'(\S+).fits', skymap_filename)[0]
 				skymap_image_filename = skymapname + '.png'
-				process_alert(g, graceid, 'update', skymap_filename, skymap_type, skymap_image_filename)
+				process_alert(g, logger, graceid, 'update', skymap_filename, skymap_type, skymap_image_filename)
 			elif latest_voevent_type == 'IN':
 				# Set label 'PE_READY' since the initial_localization alert was already created and/or sent out
 				# It must already be labeled EM_READY
