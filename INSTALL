@@ -22,6 +22,9 @@ Prerequisites
   for installation instructions. LALSuite must be configured with the
   --enable-swig-python option.
 
+* Condor high-throughput job scheduler
+  See https://research.cs.wisc.edu/htcondor/ for more information.
+
 
 Installing GRiNCH
 -----------------
@@ -32,8 +35,7 @@ credentials via:
     git clone albert.einstein@ligo-vcs.phys.uwm.edu:/usr/local/git/grinch.git
     cd grinch
     python setup.py build
-    python setup.py install --user
-    python setup.py test
+    python setup.py install --prefix=$HOME/opt
 
-To install system-wide, replace the 'setup.py install' command with
-    sudo python setup.py install
+Note: Aspects of the code currently assume the installdir is $HOME/opt, and
+will break if this is not the case.

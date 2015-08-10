@@ -6,6 +6,9 @@ More information can be found at the website:
 To install GRINCH locally:
    python setup.py install --prefix=/path/to/install/directory
 
+NOTE: Aspects of the code currently assume the installdir is $HOME/opt, and
+will break if this is not the case.
+
 To run the GRINCH unit tests:
    python setup.py test
  (This functionality is to come.)
