@@ -214,7 +214,7 @@ elif alert_type=='update':
 				# XXX Note: this assumes that there has been at least a Preliminary VOEvent.
 				# We want to apply the EM_READY label as long as the event passes iDQ and 	
 				# human scimon checks (if necessary)
-				if not checkIdqStatus(g)=='Pass':
+				if not checkIdqStatus(g, graceid)=='Pass':
 					logger.info('No action taken on skymap for {0} due to iDQ status'.format(graceid))
 					exit()
 
