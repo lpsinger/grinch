@@ -6,12 +6,13 @@
 
 # Imports.
 import logging
-
+import ConfigParser
 import VOEventLib.VOEvent
 import VOEventLib.Vutil
 
 import os, json
 from ligo.gracedb.rest import GraceDb
+from grinch.workflow_helper import home
 
 
 # Create instance of gracedb REST API.
@@ -20,7 +21,29 @@ gracedb = GraceDb()
 # Create instance of the logging module, with the appropriate logger.
 logger = logging.getLogger('grinch.gcnhandler.archive')
 
+# Read gcn_config.ini.
+cp = ConfigParser.ConfigParser()
+etc = home + '/opt/etc/'
+cp.read( etc + 'gcn_config.ini' )
 
+# Set file path to event cache.
+cache = cp.get('working', 'event_cache')
+
+
+# Define event streams (only listening to Swift, Fermi, and SNEWS for now.
+#streams = {'ivo://nasa.gsfc.gcn/AGILE': 'AGILE',
+#           'ivo://nasa.gsfc.gcn/Fermi': 'Fermi',
+#           'ivo://nasa.gsfc.gcn/INTEGRAL': 'INTEGRAL',
+#           'ivo://nasa.gsfc.gcn/MAXI': 'MAXI',
+#           'ivo://nasa.gsfc.gcn/SWIFT': 'SWIFT',
+#           'ivo://voevent.phys.soton.ac.uk/voevent': '4PISKY',
+#}
+streams = { 'ivo://nasa.gsfc.gcn/Fermi': 'Fermi',
+           'ivo://nasa.gsfc.gcn/SWIFT': 'SWIFT',
+           'ivo://nasa.gsfc.gcn/SNEWS': 'SNEWS' }
+
+
+# Function definitions.
 def sendit(eventFile, group, pipeline, search="GRB"):
     """ Function for sending events to GraceDB. """
     r = gracedb.createEvent(group, pipeline, eventFile, search).json()
@@ -33,20 +56,6 @@ def replaceit(graceid, eventFile):
     gracedb.replaceEvent(graceid, eventFile)
     logger.info( "VOEvent file for %s has been updated; Link is https://gracedb.ligo.org/events/%s " % (graceid, graceid) )
 
-
-CACHE = "/home/gracedb.processor/working/gcn_listener/cache"
-
-#streams = {'ivo://nasa.gsfc.gcn/AGILE': 'AGILE',
-#           'ivo://nasa.gsfc.gcn/Fermi': 'Fermi',
-#           'ivo://nasa.gsfc.gcn/INTEGRAL': 'INTEGRAL',
-#           'ivo://nasa.gsfc.gcn/MAXI': 'MAXI',
-#           'ivo://nasa.gsfc.gcn/SWIFT': 'SWIFT',
-#           'ivo://voevent.phys.soton.ac.uk/voevent': '4PISKY',
-#}
-
-streams = { 'ivo://nasa.gsfc.gcn/Fermi': 'Fermi',
-           'ivo://nasa.gsfc.gcn/SWIFT': 'SWIFT',
-           'ivo://nasa.gsfc.gcn/SNEWS': 'SNEWS' }
 
 Fermi_Likely = {
     0  :'An error has occurred',
@@ -173,7 +182,7 @@ def archive(payload, root=None, test=False):
 
     # Create a unique label for this event's portfolio.
     pfname = id[6:].replace('/','_')
-    pfdir = "%s/%s/%s" % (CACHE, role, pfname)
+    pfdir = "%s/%s/%s" % (cache, role, pfname)
     logger.debug( "The name for this event's portfolio (derived from its IVORN) is: %s" % pfname )
 
     # Determine whether this is a portfolio we already have.
@@ -183,7 +192,7 @@ def archive(payload, root=None, test=False):
             citedivorn = c.get_valueOf_()
             logger.info( "Cites %s" % citedivorn )
             qfname = citedivorn[6:].replace('/','_')
-            qfdir = "%s/%s/%s" % (CACHE, role, qfname)
+            qfdir = "%s/%s/%s" % (cache, role, qfname)
             if os.path.exists(qfdir):
                 logger.info( "Found portfolio %s" % qfdir )
                 pfdir = qfdir

@@ -6,9 +6,13 @@ real-time GCN listener service.
 """
 __author__ = "Alex Urban <alexander.urban@ligo.org>"
 
+# Imports.
+import ConfigParser
 import argparse
 import sys
 import os
+
+from grinch.workflow_helper import home
 
 
 # Define and parse command-line arguments.
@@ -17,24 +21,21 @@ parser.add_argument('command', choices=['start', 'stop', 'status'],
     help='Launch, kill or check the status of GCN listener tasks')
 args = parser.parse_args()
 
-# Store the name of the home directory as a global variable.
-home = os.getenv("HOME")
-rundir = home + '/working/gcn_listener'
+# Read gcn_config.ini.
+cp = ConfigParser.ConfigParser()
+etc = home + '/opt/etc/'
+cp.read( etc + 'gcn_config.ini' )
+
+# Set file path to run directory.
+rundir = cp.get('working', 'rundir')
 
 # Switch to the working directory.
 try: 
     os.chdir(rundir)
 except OSError:
-    print 'ERROR: Required working directory %s does not exist.' % rundir
-    print 'Building this directory now.'
-    try:
-        os.mkdir(home + '/working')
-    except OSError:
-        pass
-    os.mkdir(home + '/working/gcn_listener')
-    os.mkdir(home + '/working/gcn_listener/log')
-    os.mkdir(home + '/working/gcn_listener/cache')
-    os.mkdir(home + '/working/gcn_listener/gcn_logs')
+    sys.stderr.write( 'ERROR: Required working directory %s does not exist.' % rundir )
+    sys.stderr.write( 'Building this directory now.' )
+    os.mkdir(rundir)
     os.chdir(rundir)
     pass
 
