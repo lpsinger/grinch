@@ -47,5 +47,5 @@ setup(
         'bin/find_data'
     ],
     data_files=[('etc',['etc/cbc_config.ini', 'etc/burst_config.ini', 'etc/exttrig_config.ini',
-        'etc/lvalertconfig.ini'])]
+        'etc/lvalertconfig.ini', 'etc/gcn_config.ini'])]
 )
