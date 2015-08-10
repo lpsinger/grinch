@@ -1,5 +1,7 @@
 import subprocess
 import re
+import operator
+import functools
 
 #--------------------------------------------------------------------------------------
 # Utilities
