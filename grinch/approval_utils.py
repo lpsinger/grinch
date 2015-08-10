@@ -100,7 +100,7 @@ def checkLabels(hardware_inj, labels):
 	# If the length of the intersection list is greater than 0, then our event is either DQV or INJ (if hardware_inj == 'no')
 	return len(intersectionlist)
 
-def checkIdqStatus(client):
+def checkIdqStatus(client, graceid):
 	log_dicts = client.logs(graceid).json()['log']
 	for log_dict in log_dicts:
 		comment = log_dict['comment']
