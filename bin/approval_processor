@@ -6,8 +6,6 @@ from ligo.gracedb.rest import GraceDb, HTTPError
 import re
 import ConfigParser
 from lal import gpstime
-import operator
-import functools
 
 import logging
 
@@ -233,7 +231,7 @@ elif alert_type=='update':
 		if not re.match('minimum glitch-FAP', comment):
 			exit()
 		else:
-			idqvalues, joint_FAP_values = getIdqAndJointFapValues(idq_pipelines, client, logger, graceid)
+			idqvalues, joint_FAP_values = getIdqAndJointFapValues(idq_pipelines, g, logger, graceid)
 
 			if (len(idqvalues) < (len(idq_pipelines)*len(detectors))):
 				logger.info('Have not gotten all the minfap values for {0} yet.'.format(graceid))
