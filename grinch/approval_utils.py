@@ -2,6 +2,7 @@ import subprocess
 import re
 import operator
 import functools
+import os
 
 #--------------------------------------------------------------------------------------
 # Utilities
