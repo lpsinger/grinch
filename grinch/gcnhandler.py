@@ -163,26 +163,20 @@ def archive(payload, root=None, test=False):
         logger.info( 'SNEWS Alert (may be a test)' )
 
     # Create a unique label for this event's portfolio.
+    date, time = VOEventLib.Vutil.getWhereWhen(v)['time'].split('T')
+    trigID = VOEventLib.Vutil.findParam(v, '', 'TrigID').get_value()
     pfname = id[6:].replace('/','_')
-    pfdir = "%s/%s/%s" % (cache, role, pfname)
+    pfdir = "%s/%s/%s_%s_%s_%s" % (cache, role, eventObservatory, date, time, trigID)
     logger.debug( "The name for this event's portfolio (derived from its IVORN) is: %s" % pfname )
 
     # Determine whether this is a portfolio we already have.
-    cc = v.get_Citations()
-    if cc and cc.get_EventIVORN():
-        for c in cc.get_EventIVORN():
-            citedivorn = c.get_valueOf_()
-            logger.info( "Cites %s" % citedivorn )
-            qfname = citedivorn[6:].replace('/','_')
-            qfdir = "%s/%s/%s" % (cache, role, qfname)
-            if os.path.exists(qfdir):
-                logger.info( "Found portfolio %s" % qfdir )
-                pfdir = qfdir
-                keep = 1
-                break
-            else:
-                logger.debug( "No existing event portfolio found; now assuming this event is new." )
+    if os.path.exists(pfdir):
+        logger.info( "Found portfolio %s" % pfdir )
+        keep = 1
+    else:
+        logger.debug( "No existing event portfolio found; now assuming this event is new." )
 
+    # Ignore if keep != 1.
     if keep == 0:
         logger.debug( "Ignoring event %s because is not flagged for saving on-disk." % pfname )
         return
@@ -190,7 +184,6 @@ def archive(payload, root=None, test=False):
         logger.debug( "Event %s is flagged for saving on-disk." % pfname )
 
     # Determine whether this event has a designation.
-    # FIXME: What if it doesn't?
     hasDesignation = False
     if v.Why.Inference[0].get_Name() and send == 1:
         desig = v.Why.Inference[0].get_Name()[0]
@@ -228,7 +221,6 @@ def archive(payload, root=None, test=False):
     # If it has also been flagged as one to send to GraceDB, send it to GraceDB.
     if send == 1:
         eventType = 'External'
-        trigID = VOEventLib.Vutil.findParam(v, '', 'TrigID').get_value()
         event = list( gracedb.events('%s grbevent.trigger_id = "%s"' % (eventType, trigID)) )
         if event:
             gid = event[0]['graceid']
