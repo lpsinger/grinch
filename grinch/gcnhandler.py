@@ -55,24 +55,6 @@ def replaceit(graceid, eventFile):
     """ Function for replacing event files with updated information in GraceDB. """
     gracedb.replaceEvent(graceid, eventFile)
     logger.info( "VOEvent file for %s has been updated; Link is https://gracedb.ligo.org/events/%s " % (graceid, graceid) )
-
-
-Fermi_Likely = {
-    0  :'An error has occurred',
-    1  :'UNRELIABLE_LOCATION: Location not trusted',
-    2  :'PARTICLES: Local particles, equal rates in opposite detectors',
-    3  :'BELOW_HORIZON: Distant particles, assumed to come from the horizon',
-    4  :'GRB: Burst with good localization',
-    5  :'GENERIC_SGR: Soft Gamma Repeater (except 1806-20)',
-    6  :'GENERIC_TRANSIENT: Astrophysical transient of unknown class',
-    7  :'DISTANT_PARTICLES: Particles at a distance',
-    8  :'SOLAR_FLARE: This is a Solar Flare event',
-    9  :'CYG_X1: Thi: This trigger came from SGR 1806-20',
-    11 :'GROJ_0422_32: This trigger came from GRO J0422-32',
-    12 :'unrec_value: Unrecognized value',
-    19 :'TGF: Terrestrial Gamma Flash',
-}
-
          
 def archive(payload, root=None, test=False):
     """
