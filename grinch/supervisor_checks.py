@@ -267,7 +267,7 @@ def local_rates( gdb, gdb_id, verbose=False, window=5.0, rate_thr=5.0, event_typ
     ### query for neighbors in (t-window, t+window), excluding this event
     if verbose:
         print "\tretrieving neighbors within [%.6f-%.6f, %.6f+%6f]"%(event_time, window, event_time, window)
-    gdb_entries = [ entry for entry in gdb.events( "%d..%d"%(np.floor(event_time-window), np.ceil(event_time+window)) ) if entry['graceid'] != gdb_id ]
+    gdb_entries = [ entry for entry in gdb.events( "%d .. %d"%(np.floor(event_time-window), np.ceil(event_time+window)) ) if entry['graceid'] != gdb_id ]
 
     ### count numbers of events
     if verbose:
