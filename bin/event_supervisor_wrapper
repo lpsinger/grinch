@@ -1,0 +1,83 @@
+#!/usr/bin/python
+
+usage = "gdb_event_supervisor_wrapper.py [--options] "
+description = \
+"""
+a simple wrapper that builds and submits jobs to condor based on sys.stdin (assuemd to be an lvalert)
+"""
+
+#=================================================
+
+import os
+import sys
+import json
+
+from optparse import OptionParser
+
+#=================================================
+
+parser = OptionParser(usage=usage, description=description)
+
+parser.add_option("-v", "--verbose", default=False, action="store_true")
+
+parser.add_option("-t", "--dagtag", default="", type="string", help="a tag that is added to the dag filename")
+parser.add_option("-l", "--logdir", default=".", type="string", help="directory into which dags and condor log files will be written")
+parser.add_option("-s", "--subfile", default="gdb_event_supervisor.sub", type="string", help="the sub file that will launch gdb_event_supervisor.py")
+
+parser.add_option("-c", "--config", default="config.ini", type="string", help="the config file for gdb_event_supervisor.py")
+
+parser.add_option('-G', '--gracedb_url', default="https://gracedb.ligo.org/api/", type="string")
+parser.add_option('-a', '--annotate-gracedb', default=False, action="store_true", help="write log messages describing checks into GraceDb")
+
+
+parser.add_option("", "--dont-submit", default=False, action="store_true", help="don't sumbit the dag after it has been written")
+
+opts, args = parser.parse_args()
+
+if opts.dagtag:
+    opts.dagtag = "_%s"%opts.dagtag
+
+if not os.path.exists(opts.logdir):
+    os.makedirs(opts.logdir)
+
+#=================================================
+
+### parse the alert
+alert_message = sys.stdin.read()
+if opts.verbose:
+    print "alert received :\n%s"%alert_message
+
+alert = json.loads(alert_message)
+if alert["alert_type"] != "new":
+    if opts.verbose:
+        print "alert_type!=\"new\", skipping"
+    sys.exit(0) ### not a new alert
+
+gdb_id = alert['uid']
+if opts.verbose:
+    print "New event detectected : %s"%gdb_id
+
+#=================================================
+
+### write the dag
+dagfilename = "%s/%s%s.dag"%(opts.logdir, gdb_id, opts.dagtag)
+if opts.verbose:
+    print "writing dag : %s"%dagfilename
+
+file_obj = open(dagfilename, "w")
+print >> file_obj, "JOB %s %s"%(gdb_id, opts.subfile)
+print >> file_obj, "RETRY %s 0"%(gdb_id)
+VARS = "VARS %s graceid=\"%s\" config=\"%s\" logdir=\"%s\" gracedb_url=\"%s\""%(gdb_id, gdb_id, opts.config, opts.logdir, opts.gracedb_url)
+if opts.annotate_gracedb:
+    VARS += " annotate_gracedb=\"--annotate-gracedb\""
+else:
+    VARS += " annotate_gracedb=\"\""
+print >> file_obj, VARS
+file_obj.close()
+
+#=================================================
+
+### submit the dag
+if not opts.dont_submit:
+    os.system("condor_submit_dag %s"%dagfilename)
+

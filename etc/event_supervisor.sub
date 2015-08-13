@@ -1,0 +1,14 @@
+universe = vanilla
+executable = gdb_event_supervisor.py
+getenv = True
+log = $(logdir)/gdb_event_supervisor_$(graceid).log
+output = $(logdir)/gdb_event_supervisor_$(graceid).out
+error = $(logdir)/gdb_event_supervisor_$(graceid).err
+notification = never
+arguments = " --verbose --graceid $(graceid) --gracedb_url $(gracedb_url) $(annotate_gracedb) $(config) "
+
+accounting_group = ligo.dev.o1.burst.paramest.lib
+accounting_group_user = reed.essick
+
+queue 1
+
