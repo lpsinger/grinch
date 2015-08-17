@@ -5,8 +5,33 @@ description = """ a module for performing checks of GraceDB triggered processes.
 import numpy as np
 
 #=================================================
+# utilities
+#=================================================
+
+def datestring_converter( datestring ):
+    """
+    converts a lalapps_tconvert return string into the correct form for GraceDB queries
+    """
+    monthD = dict( zip("Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(), range(12)) )
+    wkday, month, day, timestamp, timezone, yr = datestring.split()
+    return "%s-%s-%s %s"%(yr, __fix_int(monthD[month]), __fix_int(day), timestamp) ### leave off timezone
+#    return "%s-%s-%s %s %s"%(yr, __fix_int(monthD[month]), __fix_int(day), timestamp, timezone)
+
+def __fix_int( num ):
+    if num < 10:
+        return "0%d"%num
+    else:
+        return "%s"%num
+
+#=================================================
 # set up schedule of checks
 #=================================================
+
+def get_dt( string ):
+    """
+    converts dt string from config file into a list of floats
+    """
+    return [float(l) for l in string.split()]
 
 def config_to_schedule( config, event_type, verbose=False ):
     """
@@ -32,19 +57,20 @@ def config_to_schedule( config, event_type, verbose=False ):
     if checks.has_key("far"):
         if verbose:
             print "\tcheck far"
-        dt = config.getfloat("far", "dt") 
         kwargs = {"minFAR":config.getfloat("far","minFAR"), "maxFAR":config.getfloat("far","maxFAR"), "verbose":verbose}
-
-        schedule.append( (dt, far_check, kwargs, checks['far'].split(), "far") )
+        for dt in get_dt( config.get("far", "dt") ):
+            schedule.append( (dt, far_check, kwargs, checks['far'].split(), "far") )
 
     #=== local properties of event streams
     if checks.has_key("local_rates"):
         if verbose:
-            print "\tcheck local_rates"
-        dt = config.getfloat("local_rates", "dt")
-        kwargs = {"rate_thr":config.getfloat("local_rates","rate") , "window":config.getfloat("local_rates","window"), "verbose":verbose}
-
-        schedule.append( (dt, local_rates, kwargs, checks["local_rates"].split(), "local_rates") )
+            print "\tcheck local_rates (event time)"
+            print "\tcheck local_rates (creation time)"
+        event_kwargs = {"rate_thr":config.getfloat("local_rates","rate") , "window":config.getfloat("local_rates","window"), "verbose":verbose, "timestamp":"event_time"}
+        creation_kwargs = {"rate_thr":config.getfloat("local_rates","rate") , "window":config.getfloat("local_rates","window"), "verbose":verbose, "timestamp":"creation_time"}
+        for dt in get_dt( config.get("local_rates", "dt") ):
+            schedule.append( (dt, local_rates, event_kwargs, checks["local_rates"].split(), "local_rates at event_time") )
+            schedule.append( (dt, local_rates, creation_kwargs, checks["local_rates"].split(), "local_rates at creation_time") )
 
     #=== event creation
     if checks.has_key('eventcreation'):
@@ -52,173 +78,169 @@ def config_to_schedule( config, event_type, verbose=False ):
         if pipeline == "cwb":
             if verbose:
                 print "\tcheck cWB event creation"
-            dt = config.getfloat("eventcreation", "dt")
             kwargs = {'verbose':verbose}
-
-            schedule.append( (dt, cwb_eventcreation, kwargs, checks['eventcreation'].split(), "cwb_eventcreation") )
+            for dt in get_dt( config.get("eventcreation", "dt") ):
+                schedule.append( (dt, cwb_eventcreation, kwargs, checks['eventcreation'].split(), "cwb_eventcreation") )
 
         elif pipeline == "olib":
             if verbose:
                 print "\tcheck oLIB event creation"
-            dt = config.getfloat("eventcreation", "dt")
             kwargs = {'verbose':verbose}
-
-            schedule.append( (dt, olib_eventcreation, kwargs, checks['eventcreation'].split(), "olib_eventcreation") )
+            for dt in get_dt( config.get("eventcreation", "dt") ):
+                schedule.append( (dt, olib_eventcreation, kwargs, checks['eventcreation'].split(), "olib_eventcreation") )
 
         elif pipeline == "gstlal":
             if verbose:
                 print "\tcheck gstlal event creation"
-            dt = config.getfloat("eventcreation", "dt")
             kwargs = {'verbose':verbose}
-
-            schedule.append( (dt, gstlal_eventcreation, kwargs, checks['eventcreation'].split(), "gstlal_eventcreation") )
+            for dt in get_dt( config.get("eventcreation", "dt") ):
+                schedule.append( (dt, gstlal_eventcreation, kwargs, checks['eventcreation'].split(), "gstlal_eventcreation") )
 
         elif pipeline == "mbtaonline":
             if verbose:
                 print "\tcheck MBTA event creation"
-            dt = config.getfloat("eventcreation", "dt")
             kwargs = {'verbose':verbose}
-
-            schedule.append( (dt, mbta_eventcreation, kwargs, checks['eventcreation'].split(), "mbta_eventcreation") )
+            for dt in get_dt( config.get("eventcreation", "dt") ):
+                schedule.append( (dt, mbta_eventcreation, kwargs, checks['eventcreation'].split(), "mbta_eventcreation") )
 
     #=== idq
     if checks.has_key("idq_start"):
         if verbose:
             print "\tcheck idq_start"
-        dt = config.getfloat("idq", "start")
         kwargs = {"ifos":config.get("idq","ifos").split(), 'verbose':verbose}
-
-        schedule.append( (dt, idq_start, kwargs, checks['idq_start'].split(), "idq_start") )
+        for dt in get_dt( config.get("idq", "start") ):
+            schedule.append( (dt, idq_start, kwargs, checks['idq_start'].split(), "idq_start") )
 
     if checks.has_key("idq_finish"):
         if verbose:
             print "\tcheck idq_finish"
-        dt = config.getfloat("idq", "finish")
         kwargs = {"ifos":config.get("idq","ifos").split(), 'verbose':verbose}
-
-        schedule.append( (dt, idq_finish, kwargs, checks['idq_finish'].split(), "idq_finish") )
+        for dt in get_dt( config.get("idq", "finish") ):
+            schedule.append( (dt, idq_finish, kwargs, checks['idq_finish'].split(), "idq_finish") )
 
     #=== lib
     if checks.has_key("lib_start"):
         if verbose:
             print "\tcheck lib_start"
-        dt = config.getfloat("lib", "start")
         kwargs = {'verbose':verbose}
-
-        schedule.append( (dt, lib_start, kwargs, checks['lib_start'].split(), "lib_start") )        
+        for dt in get_dt( config.get("lib", "start") ):
+            schedule.append( (dt, lib_start, kwargs, checks['lib_start'].split(), "lib_start") )        
 
     if checks.has_key("lib_finish"):
         if verbose:
             print "\tcheck lib_finish"
-        dt = config.getfloat("lib", "finish")
         kwargs = {'verbose':verbose}
-
-        schedule.append( (dt, lib_finish, kwargs, checks['lib_finish'].split(), "lib_finish") )
+        for dt in get_dt( config.get("lib", "finish") ):
+            schedule.append( (dt, lib_finish, kwargs, checks['lib_finish'].split(), "lib_finish") )
 
     #=== bayestar
     if checks.has_key("bayestar_start"):
         if verbose:
             print "\tcheck bayestar_start"
-        dt = config.getfloat("bayestar", "start")
         kwargs = {'verbose':verbose}
-
-        schedule.append( (dt, bayestar_start, kwargs, checks['bayestar_start'].split(), "bayestar_start") )
+        for dt in get_dt( config.get("bayestar", "start") ):
+            schedule.append( (dt, bayestar_start, kwargs, checks['bayestar_start'].split(), "bayestar_start") )
 
     if checks.has_key("bayestar_finish"):
         if verbose:
             print "\tcheck bayestar_finish"
-        dt = config.getfloat("bayestart", "finish")
         kwargs = {'verbose':verbose}
-
-        schedule.append( (dt, bayestar_finish, kwargs, checks['bayestar_finish'].split(), "bayestar_finish") )
+        for dt in get_dt( config.get("bayestart", "finish") ):
+            schedule.append( (dt, bayestar_finish, kwargs, checks['bayestar_finish'].split(), "bayestar_finish") )
 
     #=== bayeswave
     if checks.has_key("bayeswave_start"):
         if verbose:
             print "\tcheck bayeswave_start"
-        dt = config.getfloat("bayeswave", "start")
         kwargs = {'verbose':verbose}
-
-        schedule.append( (dt, bayeswave_start, kwargs, checks['bayeswave_start'].split(), "bayeswave_start") )
+        for dt in get_dt( config.get("bayeswave", "start") ):
+            schedule.append( (dt, bayeswave_start, kwargs, checks['bayeswave_start'].split(), "bayeswave_start") )
 
     if checks.has_key("bayeswave_finish"):
         if verbose:
             print "\tcheck bayeswave_finish"
-        dt = config.getfloat("bayeswave", "finish")
         kwargs = {'verbose':verbose}
-
-        schedule.append( (dt, bayeswave_finish, kwargs, checks['bayeswave_finish'].split(), "bayeswave_finish") )
+        for dt in get_dt( config.get("bayeswave", "finish") ):
+            schedule.append( (dt, bayeswave_finish, kwargs, checks['bayeswave_finish'].split(), "bayeswave_finish") )
 
     #=== lalinference
     if checks.has_key("lalinference_start"):
         if verbose:
             print "\tcheck lalinference_start"
-        dt = config.getfloat("lalinference", "start")
         kwargs = {'verbose':verbose}
-
-        schedule.append( (dt, lalinference_start, kwargs, checks['lalinference_start'].split(), "lalinference_start") )
+        for dt in get_dt( config.get("lalinference", "start") ):
+            schedule.append( (dt, lalinference_start, kwargs, checks['lalinference_start'].split(), "lalinference_start") )
 
     if checks.has_key("lalinference_finish"):
         if verbose:
             print "\tcheck lalinference_finish"
-        dt = config.getfloat("lalinference", "finish")
         kwargs = {'verbose':verbose}
-
-        schedule.append( (dt, lalinference_finish, kwargs, checks['lalinference_finish'].split(), "lalinference_finish") )
+        for dt in get_dt( config.get("lalinference", "finish") ):
+            schedule.append( (dt, lalinference_finish, kwargs, checks['lalinference_finish'].split(), "lalinference_finish") )
 
     #=== externaltriggers
     if checks.has_key("externaltriggers_search"):
         if verbose:
             print "\tcheck externaltriggers_search"
-        dt = config.getfloat("externaltriggers_search", "dt")
         kwargs = {'verbose':verbose}
-
-        schedule.append( (dt, externaltriggers_search, kwargs, checks['externaltriggers_search'].split(), "externaltriggers_search") )
+        for dt in get_dt( config.get("externaltriggers_search", "dt") ):
+            schedule.append( (dt, externaltriggers_search, kwargs, checks['externaltriggers_search'].split(), "externaltriggers_search") )
 
     #=== unblindinjections
     if checks.has_key("unblindinjections_search"):
         if verbose:
             print "\tcheck unblindinjections_search"
-        dt = config.getfloat("unblindinjections_search", "dt")
         kwargs = {'verbose':verbose}
-
-        schedule.append( (dt, unblindinjections_search, kwargs, checks['unblindinjections_search'].split(), "unblindinjections_search") )
+        for dt in get_dt( config.get("unblindinjections_search", "dt") ):
+            schedule.append( (dt, unblindinjections_search, kwargs, checks['unblindinjections_search'].split(), "unblindinjections_search") )
 
     #=== plot_skymaps
     if checks.has_key("plot_skymaps"):
         if verbose:
             print "\tcheck plot_skymaps"
-        dt = config.getfloat("plot_skymaps", "dt")
         kwargs = {'verbose':verbose}
-
-        schedule.append( (dt, plot_skymaps, kwargs, checks['plot_skymaps'].split(), "plot_skymaps") )
+        for dt in get_dt( config.get("plot_skymaps", "dt") ):
+            schedule.append( (dt, plot_skymaps, kwargs, checks['plot_skymaps'].split(), "plot_skymaps") )
 
     #=== json_skymaps
     if checks.has_key("json_skymaps"):
         if verbose:
             print "\tcheck json_skymaps"
-        dt = config.getfloat("json_skymaps", "dt")
         kwargs = {'verbose':verbose}
-
-        schedule.append( (dt, json_skymaps, kwargs, checks['json_skymaps'].split(), "json_skymaps") )
+        for dt in get_dt( config.get("json_skymaps", "dt") ):
+            schedule.append( (dt, json_skymaps, kwargs, checks['json_skymaps'].split(), "json_skymaps") )
 
     #=== emready_label
     if checks.has_key("emready_label"):
         if verbose:
             print "\tcheck emready_label"
-        dt = config.getfloat("emready_label", "dt")
         kwargs = {'verbose':verbose}
-
-        schedule.append( (dt, emready_label, kwargs, checks['emready_label'].split(), "emready_label") )
+        for dt in get_dt( config.get("emready_label", "dt") ):
+            schedule.append( (dt, emready_label, kwargs, checks['emready_label'].split(), "emready_label") )
 
     #=== peready_label
     if checks.has_key("peready_label"):
         if verbose:
             print "\tcheck peready_label"
-        dt = config.getfloat("peready_label", "dt")
         kwargs = {'verbose':verbose, 'pe_pipelines':config.get('peready_label', 'pe_pipelines').split()}
+        for dt in get_dt( config.get("peready_label", "dt") ):
+            schedule.append( (dt, peready_label, kwargs, checks['peready_label'].split(), "peready_label") )
 
-        schedule.append( (dt, peready_label, kwargs, checks['peready_label'].split(), "peready_label") )
+    #=== dqveto_label
+    if checks.has_key("dqveto_label"):
+        if verbose:
+            print "\tcheck dqveto_label"
+        kwargs = {'verbose':verbose}
+        for dt in get_dt( config.get("dqveto_label", "dt") ):
+            schedule.append( (dt, dqveto_label, kwargs, checks['dqveto_label'].split(), "dqveto_label") )
+
+    #=== voevent_creation
+    if checks.has_key("voevent_creation"):
+        if verbose:
+            print "\tcheck voevent_creation"
+        kwargs = {'verbose':verbose}
+        for dt in get_dt( config.get("voevent_creation", "dt") ):
+            schedule.append( (dt, voevent_creation, kwargs, checks['voevent_creation'].split(), "voevent_creation") )
 
 
     ### order according to dt, smallest to largest
@@ -230,11 +252,14 @@ def config_to_schedule( config, event_type, verbose=False ):
 # methods that check the local properties of the stream of events submitted to GraceDB
 #=================================================
 
-def local_rates( gdb, gdb_id, verbose=False, window=5.0, rate_thr=5.0, event_type=None ):
+def local_rates( gdb, gdb_id, verbose=False, window=5.0, rate_thr=5.0, event_type=None, timestamp="event_time" ):
     """
     checks that the local rate of events (around the event gpstime) does not exceed the threshold (rate_thr) over the window
     performs this check for ALL event types and for this event type in particular
         both checks must pass for no action to be required
+
+    time_stamp = "event_time" -> use the gps time associated with an event
+    time_stamp = "creation_time" -> use the time associated with the event creation
     """
     if verbose:
         print "%s : local_rates"%(gdb_id)
@@ -246,11 +271,6 @@ def local_rates( gdb, gdb_id, verbose=False, window=5.0, rate_thr=5.0, event_typ
     if verbose:
         print "\tretrieving information about this event:"
     gdb_entry = gdb.event( gdb_id ).json()
-
-    ### get event time
-    event_time = float(gdb_entry['gpstime'])
-    if verbose:
-        print "\t\tgpstime : %.6f"%(event_time)
 
     ### get event type
     group = gdb_entry['group']
@@ -264,10 +284,32 @@ def local_rates( gdb, gdb_id, verbose=False, window=5.0, rate_thr=5.0, event_typ
     if verbose:
         print "\t\tevent_type : %s"%(event_type)
 
-    ### query for neighbors in (t-window, t+window), excluding this event
+    ### get event time
     if verbose:
-        print "\tretrieving neighbors within [%.6f-%.6f, %.6f+%6f]"%(event_time, window, event_time, window)
-    gdb_entries = [ entry for entry in gdb.events( "%d .. %d"%(np.floor(event_time-window), np.ceil(event_time+window)) ) if entry['graceid'] != gdb_id ]
+        print "\t\ttimestamp : %s"%(timestamp)
+    if timestamp=="event_time":
+        event_time = float(gdb_entry['gpstime'])
+        if verbose:
+            print "\t\tgpstime : %.6f"%(event_time)
+        ### query for neighbors in (t-window, t+window), excluding this event
+        if verbose:
+            print "\tretrieving neighbors within [%.6f-%.6f, %.6f+%6f]"%(event_time, window, event_time, window)
+        gdb_entries = [ entry for entry in gdb.events( "%d .. %d"%(np.floor(event_time-window), np.ceil(event_time+window)) ) if entry['graceid'] != gdb_id ]
+
+    elif timestamp=="creation_time":
+        import subprocess as sp
+
+        event_time = float(sp.Popen(["lalapps_tconvert", gdb_entry['created']], stdout=sp.PIPE).communicate()[0])
+        if verbose:
+            print "\t\tcreated : %s -> %.6f"%(gdb_entry['created'], event_time)
+        ### query for neighbors in (t-window, t+window), excluding this event
+        winstart = datestring_converter( sp.Popen(["lalapps_tconvert", "%d"%np.floor(event_time-window)], stdout=sp.PIPE).communicate()[0].strip() )
+        winstop  = datestring_converter( sp.Popen(["lalapps_tconvert", "%d"%np.ceil(event_time+window)], stdout=sp.PIPE).communicate()[0].strip() )
+        if verbose:
+            print "\tretrieving neighbors within [%s, %s]"%(winstart, winstop)
+        gdb_entries = [ entry for entry in gdb.events( "created: %s .. %s"%(winstart, winstop) ) if entry['graceid'] != gdb_id ]
+    else:
+        raise ValueError("timestamp=%s not understood"%timestamp)
 
     ### count numbers of events
     if verbose:
@@ -289,12 +331,22 @@ def local_rates( gdb, gdb_id, verbose=False, window=5.0, rate_thr=5.0, event_typ
     count_thr = 2*window*rate_thr
     if (nevents_type) > count_thr:
         if verbose:
-            print "\tevent rate higher than %.3f observed within [%.6f-%.6f, %.6f+%.6f] for event type : %s\n\taction_required : True"%(rate_thr, event_time, window, event_time, window, event_type)
+            if timestamp=="event_time":
+                print "\tevent rate higher than %.3f observed within [%.6f-%.6f, %.6f+%.6f] for event type : %s\n\taction_required : True"%(rate_thr, event_time, window, event_time, window, event_type)
+            elif timestamp=="creation_time":
+                print "\tevent creation rate higher than %.3f within [%s, %s] for event type : %s\n\taction_required : True"%(rate_thr, winstart, winstop, event_type)
+            else:
+                raise ValueError("timestamp=%s not understood"%timestamp)
         return True
 
     elif (nevents) > count_thr: 
         if verbose:
-            print "\tevent rate higher than %.3f observed within [%.6f-%.6f, %.6f+%.6f] for all event types\n\taction_required : True"%(rate_thr, event_time, window, event_time, window)
+            if timestamp=="event_time":
+                print "\tevent rate higher than %.3f observed within [%.6f-%.6f, %.6f+%.6f] for all event types\n\taction_required : True"%(rate_thr, event_time, window, event_time, window)
+            elif timestamp=="creation_time":
+                print "\tevent creation rate higher than %.3f within [%s, %s] for all event types\n\taction_required : True"%(rate_thr, winstart, winstop)
+            else:
+                raise ValueError("timestamp=%s not understood"%timestamp)
         return True
 
     if verbose:
@@ -820,6 +872,9 @@ def json_skymaps( gdb, gdb_id, verbose=False ):
 def emready_label( gdb, gdb_id, verbose=False ):
     """
     checks whether the event has been labeled emready and if there is at least one FITS file attached to the event
+
+    MISSING LOGIC: iDQ check, FAR check
+
     """
     if verbose:
         print "%s : emready_label\n\tretrieving event files"%(gdb_id)
@@ -854,11 +909,16 @@ def emready_label( gdb, gdb_id, verbose=False ):
     if verbose:
         print "\taction required : ", action_required
 
+    print "WARNING: missing logic"
+
     return action_required
 
 def peready_label( gdb, gdb_id, verbose=False, pe_pipelines="lib bayeswave lalinference".split() ):
     """
     checks whether the event has been labeled peready and if the associated follow-up jobs have completed
+
+    MISSING LOGIC: iDQ check, FAR check
+
     """
     if verbose:
         print "%s : peready_label"%(gdb_id)
@@ -911,5 +971,35 @@ def peready_label( gdb, gdb_id, verbose=False, pe_pipelines="lib bayeswave lalin
     if verbose:
         print "\taction required : ", action_required
 
+    print "WARNING: missing logic"
+
     return action_required
 
+def dqveto_label( gdb, gdb_id, verbose=False ):
+    """
+
+    LOGIC: either iDQ vetoes the event or human sign-off says "FAIL"
+
+    """
+
+    print "WARNING: WRITE ME"
+
+    return False
+
+def voevent_creation( gdb, gdb_id, verbose=False ):
+    """
+
+    checks to make sure VOEvents are created as expected 
+        if event is created, make sure we've created a preliminary VOEvent (need FAR thresholds?)
+        if event is labeled EM_READY, make sure we've created an initial VOEvent
+        if event is labeled PE_READY, make sure we've created an updated VOEvent
+
+    instead, just trigger off of FITS files?
+        count the number of fits files and check for associated VOEvent xml files.
+        check both the number and the types?
+        possible exception with "retractions" => num(FITS) != num(VOEvent xml)
+    """
+
+    print "WARNING: WRITE ME"
+
+    return False

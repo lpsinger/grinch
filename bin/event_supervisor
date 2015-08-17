@@ -122,20 +122,32 @@ for dt, foo, kwargs, email, description in schedule:
             print "\nwaiting %.3f seconds before performing : %s\n"%(wait, description)
         time.sleep( wait )
 
-    if foo( gracedb, gdb_id, **kwargs ): ### perform this check. (foo -> True) means the check failed!
+    try:
+        action_required = foo( gracedb, gdb_id, **kwargs ) ### perform this check. (foo -> True) means the check failed!
+        if action_required: ### perform this check. (foo -> True) means the check failed!
+            if email:
+                os.system( "echo \"action required for GraceDB event : %s\n%s\" | mail -s \"action required for GraceDB event : %s\" %s"%(gdb_id, description, gdb_id, " ".join(email)) )
+                if opts.annotate_gracedb:
+                    log = "event_supervisor checked : %s. Action required! email sent to %s"%(description, ", ".join(email))
+                    gracedb.writeLog( gdb_id, log )
+            else:
+                print "WARNING: check requires action but no email recipients specified! No warning messages will be sent!"
+                if opts.annotate_gracedb:
+                    log = "event_supervisor checked : %s. Action required! but no email specified"%(description)
+                    gracedb.writeLog( gdb_id, log )
+        elif opts.annotate_gracedb:
+            log = "event_supervisor checked : %s. No action required."%(description)
+            gracedb.writeLog( gdb_id, log )
+    except Exception as e:
+        print "check FAILED : %s -> %s"%(description, type(e))
         if email:
-            os.system( "echo \"action required for GraceDB event : %s\n%s\" | mail -s \"action required for GraceDB event : %s\" %s"%(gdb_id, description, gdb_id, " ".join(email)) )
-            if opts.annotate_gracedb:
-                log = "event_supervisor checked : %s. Action required! email sent to %s"%(description, ", ".join(email))
-                gracedb.writeLog( gdb_id, log )
+            os.system( "echo \"check faile for GraceDB event : %s\n%s\" | mail -s \"checked failed for GraceDB event : %s\" %s"%(gdb_id, description, gdb_id, " ".join(email)) )
         else:
-            print "WARNING: check failed but no email recipients specified! No warning messages will be sent!"
-            if opts.annotate_gracedb:
-                log = "event_supervisor checked : %s. Action required! but no email specified"%(description)
-                gracedb.writeLog( gdb_id, log )
-    elif opts.annotate_gracedb:
-        log = "event_supervisor checked : %s. No action required."%(description)
-        gracedb.writeLog( gdb_id, log )
+            print "WARNING: check failed but no email recipients specified! No warning message will be sent!"
+
+        if opts.annotate_gracedb:
+            log = "event_supervisor attempted to check : %s, but FAILED!"%(description)
+            gracedb.writeLog( gdb_id, log )
 
 if opts.annotate_gracedb:
     log = "event_supervisor completed all scheduled checks"

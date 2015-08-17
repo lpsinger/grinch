@@ -1,9 +1,9 @@
-universe = vanilla
-executable = gdb_event_supervisor.py
+universe = local
+executable = /home/gracedb.processor/users/ressick/opt/bin/event_supervisor
 getenv = True
-log = $(logdir)/gdb_event_supervisor_$(graceid).log
-output = $(logdir)/gdb_event_supervisor_$(graceid).out
-error = $(logdir)/gdb_event_supervisor_$(graceid).err
+log = $(logdir)/event_supervisor_$(graceid).log
+output = $(logdir)/event_supervisor_$(graceid).out
+error = $(logdir)/event_supervisor_$(graceid).err
 notification = never
 arguments = " --verbose --graceid $(graceid) --gracedb_url $(gracedb_url) $(annotate_gracedb) $(config) "
 
