@@ -303,11 +303,23 @@ def local_rates( gdb, gdb_id, verbose=False, window=5.0, rate_thr=5.0, event_typ
         if verbose:
             print "\t\tcreated : %s -> %.6f"%(gdb_entry['created'], event_time)
         ### query for neighbors in (t-window, t+window), excluding this event
-        winstart = datestring_converter( sp.Popen(["lalapps_tconvert", "%d"%np.floor(event_time-window)], stdout=sp.PIPE).communicate()[0].strip() )
-        winstop  = datestring_converter( sp.Popen(["lalapps_tconvert", "%d"%np.ceil(event_time+window)], stdout=sp.PIPE).communicate()[0].strip() )
+#        winstart = datestring_converter( sp.Popen(["lalapps_tconvert", "%d"%np.floor(event_time-window)], stdout=sp.PIPE).communicate()[0].strip() )
+#        winstop  = datestring_converter( sp.Popen(["lalapps_tconvert", "%d"%np.ceil(event_time+window)], stdout=sp.PIPE).communicate()[0].strip() )
+#        if verbose:
+#            print "\tretrieving neighbors within [%s, %s]"%(winstart, winstop)
+
+        #===========================================================================================
+        #
+        print "WARNING: you are using a hack to correct for peculiarities in querying GraceDB with creation time. We convert GMT -> CST by hand by subtracting 5 hours from the gps time and then converting using lalapps_tconvert. This gives us a time in UTC which we pretend is in CST for the query (string formatted through datestring_converter()"
+        winstart = datestring_converter( sp.Popen(["lalapps_tconvert", "%d"%np.floor(event_time-window - 5*3600 )], stdout=sp.PIPE).communicate()[0].strip() )
+        winstop   = datestring_converter( sp.Popen(["lalapps_tconvert", "%d"%np.ceil(event_time+window - 5*3600 )], stdout=sp.PIPE).communicate()[0].strip() )
         if verbose:
-            print "\tretrieving neighbors within [%s, %s]"%(winstart, winstop)
+            print "\tretrieving neighbors within [%s CST, %s CST]"%(winstart, winstop)
+        #
+        #===========================================================================================
+
         gdb_entries = [ entry for entry in gdb.events( "created: %s .. %s"%(winstart, winstop) ) if entry['graceid'] != gdb_id ]
+
     else:
         raise ValueError("timestamp=%s not understood"%timestamp)
 
