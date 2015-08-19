@@ -118,6 +118,20 @@ def config_to_schedule( config, event_type, verbose=False ):
         for dt in get_dt( config.get("idq", "finish") ):
             schedule.append( (dt, idq_finish, kwargs, checks['idq_finish'].split(), "idq_finish") )
 
+    if checks.has_key("idq_timeseries"):
+        if verbose:
+            print "\tcheck idq_timeseries"
+        kwargs = {"ifos":config.get("idq","ifos").split(), 'verbose':verbose}
+        for dt in get_dt( config.get("idq", "timeseries") ):
+            schedule.append( (dt, idq_timeseries, kwargs, checks['idq_timeseries'].split(), "idq_timeseries") )
+
+    if checks.has_key("idq_tables"):
+        if verbose:
+            print "\tcheck idq_tables"
+        kwargs = {"ifos":config.get("idq","ifos").split(), 'verbose':verbose}
+        for dt in get_dt( config.get("idq", "tables") ):
+            schedule.append( (dt, idq_timeseries, kwargs, checks['idq_tables'].split(), "idq_tables") )
+
     #=== lib
     if checks.has_key("lib_start"):
         if verbose:
@@ -145,7 +159,7 @@ def config_to_schedule( config, event_type, verbose=False ):
         if verbose:
             print "\tcheck bayestar_finish"
         kwargs = {'verbose':verbose}
-        for dt in get_dt( config.get("bayestart", "finish") ):
+        for dt in get_dt( config.get("bayestar", "finish") ):
             schedule.append( (dt, bayestar_finish, kwargs, checks['bayestar_finish'].split(), "bayestar_finish") )
 
     #=== bayeswave
@@ -560,7 +574,6 @@ def idq_finish( gdb, gdb_id, ifos=['H','L'], verbose=False ):
     """
     check that iDQ processes finished at each of the specified ifos
     """
-
     if verbose:
         print "%s : idq_finish\n\tretrieving log messages"%(gdb_id)
     logs = gdb.logs( gdb_id ).json()['log']
@@ -586,6 +599,111 @@ def idq_finish( gdb, gdb_id, ifos=['H','L'], verbose=False ):
         print "\taction required : ", action_required
 
     return sum(result) > 0
+
+def idq_timeseries( gdb, gdb_id, ifos=['H', 'L'], verbose=False, minfap_statement=True ):
+    """
+    check that iDQ timeseries jobs completed at each site
+    checks for the presences of "idq_fap.gwf" files in GDB
+    Also checks for absence of FAILED statements 
+    """
+    if verbose:
+        print "%s : idq_timeseries\n\tretrieving files"%(gdb_id)
+    files = gdb.files( gdb_id ).json().keys() ### we only care about filenames
+
+    if verbose:
+        print "\tchecking filenames"
+    result = [1]*len(ifos)
+    for filename in files:
+        if filename.endswith(".gwf") and ("_idq_" in filename) and ("_fap_" in filename):
+            for ind, ifo in enumerate(ifos):
+                if result[ind] and (ifo == filename[0]):
+                    result = 0
+
+    if verbose:
+        action_required = False
+        for r, ifo in zip(result, ifos):
+            if r:
+                print "\tWARNING: no idq_fap.gwf found for ifo : %s"%ifo
+                action_required = True
+            else:
+                print "\tidq_fap.gwf found for ifo : %s"%ifo
+        print "\tretrieving log messages"
+    logs = gdb.logs( gdb_id ).json()['log']
+
+    if verbose:
+        print "\tparsing log"    
+    log_result = [0]*len(ifos)
+    for log in logs:
+        comment = log['comment']
+        if ("FAILED: iDQ glitch-rank timeseries for" in comment):
+            for ind, ifo in enumerate(ifos):
+                if (1 - log_result[ind]) and (ifo in comment):
+                    log_result[ind] = 1
+                       
+    if verbose:
+        action_required = False
+        for r, ifo in zip(log_result, ifos):
+            if r:
+                print "\tWARNING: idq timeseries FAILED message found for ifo : %s"%ifo
+                action_required = True
+            else:
+                print "\tno idq timeseries FAILED message found for ifo : %s"%ifo
+        print "\taction required : ", action_required
+
+    return sum(result) + sum(log_result) > 0
+
+
+def idq_tables( gdb, gdb_id, ifos=['H', 'L'], verbose=False ):
+    """
+    checks that iDQ tables jobs completed at each site
+    checks for the presences of "idq_fap.gwf" files in GDB
+    Also checks for absence of FAILED statements 
+    """
+    if verbose:
+        print "%s : idq_tables\n\tretrieving files"%(gdb_id)
+    files = gdb.files( gdb_id ).json().keys() ### we only care about filenames
+
+    if verbose:
+        print "\tchecking filenames"
+    result = [1]*len(ifos)
+    for filename in files:
+        if filename.endswith(".xml.gz") and ("_idq_" in filename):
+            for ind, ifo in enumerate(ifos):
+                if result[ind] and (ifo == filename[0]):
+                    result = 0
+
+    if verbose:
+        action_required = False
+        for r, ifo in zip(result, ifos):
+            if r:
+                print "\tWARNING: no idq.xml.gz found for ifo : %s"%ifo
+                action_required = True
+            else:
+                print "\tidq.xml.gz found for ifo : %s"%ifo
+        print "\tretrieving log messages"   
+    logs = gdb.logs( gdb_id ).json()['log']  
+
+    if verbose:
+        print "\tparsing log"    
+    log_result = [0]*len(ifos)
+    for log in logs:
+        comment = log['comment']
+        if ("FAILED: iDQ glitch tables for" in comment):
+            for ind, ifo in enumerate(ifos):
+                if (1 - log_result[ind]) and (ifo in comment):
+                    log_result[ind] = 1
+
+    if verbose:
+        action_required = False
+        for r, ifo in zip(log_result, ifos):
+            if r:
+                print "\tWARNING: idq glitch tables FAILED message found for ifo : %s"%ifo
+                action_required = True
+            else:
+                print "\tno idq glitch tables FAILED message found for ifo : %s"%ifo
+        print "\taction required : ", action_required
+
+    return sum(result) + sum(log_result) > 0
 
 #=================================================
 # methods that check whether lib processes were triggered and completed
