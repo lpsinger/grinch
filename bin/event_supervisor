@@ -116,7 +116,7 @@ to = time.mktime(time.strptime(gdb_entry['created'], '%Y-%m-%d %H:%M:%S %Z')) ##
 
 for dt, foo, kwargs, email, description in schedule:
     ### check current time stamp
-    wait = dt - (time.time()-to)
+    wait = dt - (time.mktime(time.gmtime())-to) ### we go through gmtime() and mktime() because time.time() was producing weird results
     if wait > 0:
         if opts.verbose:
             print "\nwaiting %.3f seconds before performing : %s\n"%(wait, description)
