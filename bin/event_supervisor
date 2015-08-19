@@ -141,7 +141,7 @@ for dt, foo, kwargs, email, description in schedule:
     except Exception as e:
         print "check FAILED : %s -> %s"%(description, type(e))
         if email:
-            os.system( "echo \"check faile for GraceDB event : %s\n%s\" | mail -s \"checked failed for GraceDB event : %s\" %s"%(gdb_id, description, gdb_id, " ".join(email)) )
+            os.system( "echo \"check failed for GraceDB event : %s\n%s\" | mail -s \"checked failed for GraceDB event : %s\" %s"%(gdb_id, description, gdb_id, " ".join(email)) )
         else:
             print "WARNING: check failed but no email recipients specified! No warning message will be sent!"
 
