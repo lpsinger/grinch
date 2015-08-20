@@ -621,6 +621,7 @@ def idq_timeseries( gdb, gdb_id, ifos=['H', 'L'], verbose=False, minfap_statemen
         print "\tchecking filenames"
     result = [1]*len(ifos)
     for filename in files:
+        # H1_idq_ovl_fap_T176444-1124114448-16.gwf
         if filename.endswith(".gwf") and ("_idq_" in filename) and ("_fap_" in filename):
             for ind, ifo in enumerate(ifos):
                 if result[ind] and (ifo in filename):
@@ -673,9 +674,10 @@ def idq_tables( gdb, gdb_id, ifos=['H', 'L'], verbose=False ):
         print "\tchecking filenames"
     result = [1]*len(ifos)
     for filename in files:
+        #  H1_idq_ovl_T176i444-1124114453-10.xml.gz
         if filename.endswith(".xml.gz") and ("_idq_" in filename):
             for ind, ifo in enumerate(ifos):
-                if result[ind] and (ifo == filename[0]):
+                if result[ind] and (ifo in filename):
                     result[ind] = 0
 
     if verbose:
