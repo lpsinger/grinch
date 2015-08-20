@@ -12,7 +12,7 @@ def datestring_converter( datestring ):
     """
     converts a lalapps_tconvert return string into the correct form for GraceDB queries
     """
-    monthD = dict( zip("Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(), range(12)) )
+    monthD = dict( zip("Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(), range(1,13)) )
     wkday, month, day, timestamp, timezone, yr = datestring.split()
     return "%s-%s-%s %s"%(yr, __fix_int(monthD[month]), __fix_int(day), timestamp) ### leave off timezone
 #    return "%s-%s-%s %s %s"%(yr, __fix_int(monthD[month]), __fix_int(day), timestamp, timezone)
@@ -130,7 +130,7 @@ def config_to_schedule( config, event_type, verbose=False ):
             print "\tcheck idq_tables"
         kwargs = {"ifos":config.get("idq","ifos").split(), 'verbose':verbose}
         for dt in get_dt( config.get("idq", "tables") ):
-            schedule.append( (dt, idq_timeseries, kwargs, checks['idq_tables'].split(), "idq_tables") )
+            schedule.append( (dt, idq_tables, kwargs, checks['idq_tables'].split(), "idq_tables") )
 
     #=== lib
     if checks.has_key("lib_start"):
@@ -310,6 +310,9 @@ def local_rates( gdb, gdb_id, verbose=False, window=5.0, rate_thr=5.0, event_typ
             print "\tretrieving neighbors within [%.6f-%.6f, %.6f+%6f]"%(event_time, window, event_time, window)
         gdb_entries = [ entry for entry in gdb.events( "%d .. %d"%(np.floor(event_time-window), np.ceil(event_time+window)) ) if entry['graceid'] != gdb_id ]
 
+#        print "WARNING: you're using a hack that checks for Test events (grinch/supervisor_checks.py line 314, 340 in local_rates)!\nDO NOT use this in production"
+#        gdb_entries = [entry for entry in gdb.events( "group: Test gpstime: %d .. %d"%(np.floor(event_time-window), np.ceil(event_time+window)) ) if entry['graceid'] != gdb_id ]
+
     elif timestamp=="creation_time":
         import subprocess as sp
 
@@ -333,6 +336,9 @@ def local_rates( gdb, gdb_id, verbose=False, window=5.0, rate_thr=5.0, event_typ
         #===========================================================================================
 
         gdb_entries = [ entry for entry in gdb.events( "created: %s .. %s"%(winstart, winstop) ) if entry['graceid'] != gdb_id ]
+        
+#        print "WARNING: you're using a hack that checks for Test events (grinch/supervisor_checks.py line 314, 340 in local_rates)!\nDO NOT use this in production"
+#        gdb_entries = [ entry for entry in gdb.events( "group: Test created: %s .. %s"%(winstart, winstop) ) if entry['graceid'] != gdb_id ]
 
     else:
         raise ValueError("timestamp=%s not understood"%timestamp)
@@ -348,7 +354,8 @@ def local_rates( gdb, gdb_id, verbose=False, window=5.0, rate_thr=5.0, event_typ
             e_type = "%s_%s_%s"%(entry['group'], entry['pipeline'], entry['search'])
         else:
             e_type = "%s_%s"%(entry['group'], entry['pipeline'])
-        event_type += (e_type == event_type) ### increment if true
+
+        nevents_type += (e_type == event_type) ### increment if true
 
     if verbose:
         print "\t\t%d %s\n\t\t%d total"%(nevents_type, event_type, nevents)
@@ -616,15 +623,13 @@ def idq_timeseries( gdb, gdb_id, ifos=['H', 'L'], verbose=False, minfap_statemen
     for filename in files:
         if filename.endswith(".gwf") and ("_idq_" in filename) and ("_fap_" in filename):
             for ind, ifo in enumerate(ifos):
-                if result[ind] and (ifo == filename[0]):
-                    result = 0
+                if result[ind] and (ifo in filename):
+                    result[ind] = 0
 
     if verbose:
-        action_required = False
         for r, ifo in zip(result, ifos):
             if r:
                 print "\tWARNING: no idq_fap.gwf found for ifo : %s"%ifo
-                action_required = True
             else:
                 print "\tidq_fap.gwf found for ifo : %s"%ifo
         print "\tretrieving log messages"
@@ -641,16 +646,17 @@ def idq_timeseries( gdb, gdb_id, ifos=['H', 'L'], verbose=False, minfap_statemen
                     log_result[ind] = 1
                        
     if verbose:
-        action_required = False
         for r, ifo in zip(log_result, ifos):
             if r:
                 print "\tWARNING: idq timeseries FAILED message found for ifo : %s"%ifo
-                action_required = True
             else:
                 print "\tno idq timeseries FAILED message found for ifo : %s"%ifo
+
+    action_required = sum(result) + sum(log_result) > 0
+    if verbose:
         print "\taction required : ", action_required
 
-    return sum(result) + sum(log_result) > 0
+    return action_required
 
 
 def idq_tables( gdb, gdb_id, ifos=['H', 'L'], verbose=False ):
@@ -670,14 +676,12 @@ def idq_tables( gdb, gdb_id, ifos=['H', 'L'], verbose=False ):
         if filename.endswith(".xml.gz") and ("_idq_" in filename):
             for ind, ifo in enumerate(ifos):
                 if result[ind] and (ifo == filename[0]):
-                    result = 0
+                    result[ind] = 0
 
     if verbose:
-        action_required = False
         for r, ifo in zip(result, ifos):
             if r:
                 print "\tWARNING: no idq.xml.gz found for ifo : %s"%ifo
-                action_required = True
             else:
                 print "\tidq.xml.gz found for ifo : %s"%ifo
         print "\tretrieving log messages"   
@@ -694,16 +698,17 @@ def idq_tables( gdb, gdb_id, ifos=['H', 'L'], verbose=False ):
                     log_result[ind] = 1
 
     if verbose:
-        action_required = False
         for r, ifo in zip(log_result, ifos):
             if r:
                 print "\tWARNING: idq glitch tables FAILED message found for ifo : %s"%ifo
-                action_required = True
             else:
                 print "\tno idq glitch tables FAILED message found for ifo : %s"%ifo
-        print "\taction required : ", action_required
 
-    return sum(result) + sum(log_result) > 0
+    action_required = sum(result) + sum(log_result) > 0
+    if verbose:
+        print "\taction_required : ", action_required
+
+    return action_required
 
 #=================================================
 # methods that check whether lib processes were triggered and completed
