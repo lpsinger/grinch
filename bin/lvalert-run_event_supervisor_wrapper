@@ -1,3 +1,2 @@
 #!/bin/bash
-/home/gracedb.processor/opt/bin/event_supervisor_wrapper -v -l /home/gracedb.processor/working/event_supervisor-log -s /home/gracedb.processor/opt/etc/event_supervisor.sub -G https://gracedb.ligo.org/api/ -c /home/gracedb.processor/opt/etc//supervisor_config.ini --annotate-gracedb 
-
+/home/gracedb.processor/opt/bin/event_supervisor_wrapper -v -l /home/gracedb.processor/working/event_supervisor-log -s /home/gracedb.processor/opt/etc/event_supervisor.sub -G https://gracedb.ligo.org/api/ -c /home/gracedb.processor/opt/etc/event_supervisor_config.ini --annotate-gracedb 

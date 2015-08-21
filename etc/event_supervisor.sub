@@ -1,5 +1,5 @@
 universe = local
-executable = /home/gracedb.processor/users/ressick/opt/bin/event_supervisor
+executable = /home/gracedb.processor/opt/bin/event_supervisor
 getenv = True
 log = $(logdir)/event_supervisor_$(graceid).log
 output = $(logdir)/event_supervisor_$(graceid).out
@@ -7,7 +7,7 @@ error = $(logdir)/event_supervisor_$(graceid).err
 notification = never
 arguments = " --verbose --graceid $(graceid) --gracedb_url $(gracedb_url) $(annotate_gracedb) $(config) "
 
-accounting_group = ligo.dev.o1.burst.paramest.lib
+accounting_group = ligo.prod.o1.cbc.grb.raven
 accounting_group_user = reed.essick
 
 queue 1
