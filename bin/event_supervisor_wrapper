@@ -12,6 +12,8 @@ import os
 import sys
 import json
 
+from grinch.supervisor_checks import report
+
 from optparse import OptionParser
 
 #=================================================
@@ -45,24 +47,25 @@ if not os.path.exists(opts.logdir):
 ### parse the alert
 alert_message = sys.stdin.read()
 if opts.verbose:
-    print "alert received :\n%s"%alert_message
+    report( "alert received :" )
+    report( alert_message )
 
 alert = json.loads(alert_message)
 if alert["alert_type"] != "new":
     if opts.verbose:
-        print "alert_type!=\"new\", skipping"
+        report( "alert_type!=\"new\", skipping" )
     sys.exit(0) ### not a new alert
 
 gdb_id = alert['uid']
 if opts.verbose:
-    print "New event detectected : %s"%gdb_id
+    report( "New event detectected : %s"%gdb_id )
 
 #=================================================
 
 ### write the dag
 dagfilename = "%s/%s%s.dag"%(opts.logdir, gdb_id, opts.dagtag)
 if opts.verbose:
-    print "writing dag : %s"%dagfilename
+    report( "writing dag : %s"%dagfilename )
 
 file_obj = open(dagfilename, "w")
 print >> file_obj, "JOB %s %s"%(gdb_id, opts.subfile)
