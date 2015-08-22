@@ -288,7 +288,7 @@ elif alert_type=='update':
 				logger.info('{0} -- {1} -- Have not gotten all the minfap values yet.'.format(st, graceid))
 				if (min(idqvalues.values() and joint_FAP_values.values()) < idqthresh):
 					r = g.writeLog(graceid, 'Finished running iDQ checks. Candidate event rejected because incomplete joint min-FAP value already less than iDQ threshold. iDQ threshold is {0}.'.format(idqthresh), tagname = 'em_follow')
-					logger.info('{0} -- {1} -- iDQ check failed. Applying DQV label.'.format(st, graceid))
+					logger.info('{0} -- {1} -- iDQ check failed. Labeling with DQV.'.format(st, graceid))
 					r = g.writeLabel(graceid, 'DQV')
 					exit()
 
@@ -329,12 +329,12 @@ elif alert_type=='update':
 					for message in log_dicts:
 						#XXX Make sure that whenever skymaps are uploaded they always log 'skymap' in the comment
 						if 'skymap' in message['comment']:
-							logger.info('{0} -- {1} -- Applying EM_READY label.'.format(st, graceid))
+							logger.info('{0} -- {1} -- Labeling with EM_READY.'.format(st, graceid))
 							r = g.writeLabel(graceid, 'EM_READY')
 							break
 				else:
 					r = g.writeLog(graceid, 'Finished running iDQ checks. Candidate event rejected due to low iDQ FAP value of {0}. iDQ threshold is {1}.'.format(joint_FAP, idqthresh), tagname = 'em_follow')
-					logger.info('{0} -- {1} -- iDQ check failed. Applying DQV label.'.format(st, graceid))
+					logger.info('{0} -- {1} -- iDQ check failed. Labeling with DQV.'.format(st, graceid))
 					r = g.writeLabel(graceid, 'DQV')
 
 #--------------------------------------------------------------------------------------
@@ -384,7 +384,7 @@ elif alert_type=='signoff':
 		if status=='NO':
 			msg = 'Candidate event failed human signoff checks.'
         		r = client.writeLog(graceid, msg, tagname='em_follow')
-        		logger.info('{0} -- {1} -- Labeling with DQV'.format(st, graceid))
+        		logger.info('{0} -- {1} -- Labeling with DQV.'.format(st, graceid))
         		r = client.writeLabel(graceid, 'DQV')
        			exit()
 		else:
