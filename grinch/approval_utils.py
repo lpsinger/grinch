@@ -3,6 +3,12 @@ import re
 import operator
 import functools
 import os
+import random
+import time
+import datetime
+
+ts = time.time()
+st = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
 
 #--------------------------------------------------------------------------------------
 # Utilities
@@ -20,7 +26,7 @@ def get_farthresh(config, pipeline, search):
 
 def process_alert(client, logger, graceid, voevent_type, skymap_filename=None, 
 	skymap_type=None, skymap_image_filename=None):
-	logger.info("Processing %s VOEvent for MDC event %s .... " % (voevent_type, graceid))
+	logger.info("{0} -- {1} -- Processing {2} VOEvent.".format(st, graceid, voevent_type))
 
 	# Create the VOEvent.
 	voevent = None
@@ -28,27 +34,28 @@ def process_alert(client, logger, graceid, voevent_type, skymap_filename=None,
 		r = client.createVOEvent(graceid, voevent_type, skymap_filename=skymap_filename, 
 			skymap_type=skymap_type, skymap_image_filename=skymap_image_filename)
 		voevent = r.json()['text']
-	except HTTPError, e:
-		logger.info("Caught HTTPError: %s" % str(e))
+	except Exception, e:
+		logger.info("{0} -- {1} -- Caught HTTPError: {2}".format(st, graceid, str(e)))
+	number = str(random.random())
 	if voevent:
-		tmpfile = open('/tmp/voevent_%s.tmp' % graceid,"w")
+		tmpfile = open('/tmp/voevent_{0}_{1}.tmp'.format(graceid, number),"w")
 		tmpfile.write(voevent)
 		tmpfile.close()
 		# Send it out with comet!
-		cmd = "comet-sendvo -p 5340 -f /tmp/voevent_%s.tmp" % graceid
+		cmd = 'comet-sendvo -p 5340 -f /tmp/voevent_{0}.tmp'.format(graceid)
 		proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 		output, error = proc.communicate(voevent)
-		logger.debug("output = %s" % output)
-		logger.debug("error = %s" % error)
+		logger.debug('{0} -- {1} -- output = {2}.'.format(st, graceid, output))
+		logger.debug('{0} -- {1} -- error = {2}.'.format(st, graceid, error))
 
 	if proc.returncode == 0:
-		message = "%s VOEvent sent to GCN for testing purposes." % voevent_type
-		r = client.writeLog(graceid, 'Successfully sent VOEvent of type %s.' % voevent_type, tagname='em_follow')
+		message = '{0} VOEvent sent to GCN for testing purposes.'.format(voevent_type)
+		r = client.writeLog(graceid, 'Successfully sent VOEvent of type {0}.'.format(voevent_type), tagname='em_follow')
 	else:
-		message = "Error sending %s VOEvent! %s" % (voevent_type, error)
-		r = client.writeLog(graceid, 'Could not send VOEvent of type %s.' % voevent_type, tagname='em_follow')
-	logger.debug(message)
-	os.remove('/tmp/voevent_%s.tmp' % graceid)
+		message = 'Error sending {0} VOEvent! {1}.'.format(voevent_type, error)
+		r = client.writeLog(graceid, 'Could not send VOEvent of type {0}.'.format(voevent_type), tagname='em_follow')
+	logger.debug('{0} -- {1} -- message = {2}.'.format(st, graceid, message))
+	os.remove('/tmp/voevent_{0}_{1}.tmp'.format(graceid, number))
 
 # Define a function that checks for the human scimon signoffs
 def checkSignoffs(client, logger, graceid, detectors):
@@ -56,7 +63,7 @@ def checkSignoffs(client, logger, graceid, detectors):
 	signoffdict = {}
 	for message in log_dicts:
 		if 'Finished running human signoff checks.' in message['comment']:
-			passorfail = re.findall(r'Candidate event (.*?)ed human signoff checks.', message['comment'])
+			passorfail = re.findall(r'Candidate event (.*)ed human signoff checks.', message['comment'])
 			if passorfail[0]=='pass':
 				return 'Pass'
 			elif passorfail[0]=='fail':
@@ -64,25 +71,27 @@ def checkSignoffs(client, logger, graceid, detectors):
 		else:
 			pass 
 	for detector in detectors:
-		filename = 'signoff_from_{0}.txt'.format(detector)
+		signofflabel = '{0}OPS'.format(detector)
+		filename = 'signoff_from_{0}_{1}.txt'.format(detector, graceid)
 		try:
 			signofftxt = client.files(graceid, filename)
-			fails = re.findall(r'Fail',signofftxt.read())
-			logger.info('Got the human scimon file for {0} from {1}.'.format(graceid, detector))
+			fails = re.findall(r'Fail', signofftxt.read())
+			logger.info('{0} -- {1} -- Got the human scimon file from {2}.'.format(st, graceid, detector))
 			if len(fails) > 0:
 				signoffdict[detector] = 'Fail'
+				return 'Fail'
 			else:
 				signoffdict[detector] = 'Pass'
 		except Exception, e:
-			logger.error('Could not get human scimon file for {0} from {1}:{2}.'.format(graceid,detector, str(e)))
+			logger.error('{0} -- {1} -- Could not get human scimon file from {2}:{3}.'.format(st, graceid, detector, str(e)))
 	if (len(signoffdict) < len(detectors)):
-		logger.info('Have not gotten all the human signoffs yet but not yet DQV.')
+		logger.info('{0} -- {1} -- Have not gotten all the human signoffs yet but not yet DQV.'.format(st, graceid))
 		return 'Unknown'
 	elif (len(signoffdict) > len(detectors)):
-		logger.info('Too many human signoffs in signoff dictionary.')
+		logger.info('{0} -- {1} -- Too many human signoffs in signoff dictionary.'.format(st, graceid))
 		return 'Unknown'
 	else:
-		logger.info('Ready to run human signoff check for {0}.'.format(graceid))
+		logger.info('{0} -- {1} -- Ready to run human signoff check.'.format(st, graceid))
 		if ('Fail' in signoffdict.values()):
 			return 'Fail'
 		else:
@@ -117,7 +126,7 @@ def getIdqAndJointFapValues(idq_pipelines, client, logger, graceid):
 	for pipeline in idq_pipelines:
 		pipeline_values = []
 		log_dicts = client.logs(graceid).json()['log']
-		commentslist = open('/tmp/idqmessages_%s.tmp' % graceid, 'w')
+		commentslist = open('/tmp/idqmessages_{0}.tmp'.format(graceid), 'w')
 		for message in log_dicts:
 			if re.match('minimum glitch-FAP', message['comment']):
 				commentslist.write(message['comment'])
@@ -125,16 +134,16 @@ def getIdqAndJointFapValues(idq_pipelines, client, logger, graceid):
 		commentslist.close()
 
 		# Now we get the min-FAP values and sort according to which idq_pipeline
-		commentslist = open('/tmp/idqmessages_%s.tmp' % graceid)
+		commentslist = open('/tmp/idqmessages_{0}.tmp'.format(graceid))
 		for line in commentslist:
-			idqinfo = re.findall('minimum glitch-FAP for (.*?) at (.*?) with', line)
+			idqinfo = re.findall('minimum glitch-FAP for (.*) at (.*) with', line)
 			pipeline = idqinfo[0][0]
 			detector = idqinfo[0][1]
 			min_fap = re.findall('is (\S+)\n', line)
 			min_fap = float(min_fap[0])
 			detectorstring = '{0}.{1}'.format(pipeline, detector)
 			idqvalues[detectorstring] = min_fap
-			logger.info('Got the min_fap for {0} {1} using {2} is {3}.'.format(detector, graceid, pipeline, min_fap))
+			logger.info('{0} -- {2} -- Got the min_fap for {1} using {3} is {4}.'.format(st, detector, graceid, pipeline, min_fap))
 		commentslist.close()
 
 		# Now, even if you did not get all the minfap values for a specific pipeline, 
@@ -145,5 +154,5 @@ def getIdqAndJointFapValues(idq_pipelines, client, logger, graceid):
 		joint_FAP_values[pipeline] = functools.reduce(operator.mul, pipeline_values, 1)
 
 		return idqvalues, joint_FAP_values
-	os.remove('/tmp/idqmessages_%s.tmp' % graceid)
+	os.remove('/tmp/idqmessages_{0}.tmp'.format(graceid))
 
