@@ -1,10 +1,13 @@
 #!/usr/bin/env python
+import os
 import json
 from sys import stdin
 from ligo.gracedb.rest import GraceDb, HTTPError
 import re
 import ConfigParser
 from lal import gpstime
+import time
+import datetime
 
 import logging
 
@@ -15,10 +18,11 @@ from grinch.workflow_helper import home
 #--------------------------------------------------------------------------------------
 # Fetch parameters
 #--------------------------------------------------------------------------------------
-# Import FAR threshold, iDQ threshold from config file
+# Import FAR threshold, iDQ threshold, etc from config file
 config = ConfigParser.SafeConfigParser()
 etc = home + '/opt/etc/'
 config.read(etc + 'approval_processor_config.ini')
+use_idq = config.get('default', 'use_idq')
 idqthresh = config.getfloat('default', 'idqthresh')
 idq_pipelines = config.get('default', 'idq_pipelines')
 idq_pipelines = idq_pipelines.replace(' ','') # remove any spaces
@@ -26,44 +30,37 @@ idq_pipelines = idq_pipelines.split(',') # a list of iDQ pipelines
 hardware_inj = config.get('default', 'hardware_inj')
 humanscimons = config.get('default', 'humanscimons')
 
+# Import list of skymap submitters to ignore
+skymap_ignore_list = config.get('default', 'skymap_ignore_list')
+
 # Set up logging
 logger = logging.getLogger('approval_processor')
 logging_filehandler = logging.FileHandler(config.get('default', 'approval_processor_logfile'))
 logging_filehandler.setLevel(logging.INFO)
 logger.setLevel(logging.INFO)
 logger.addHandler(logging_filehandler)
+ts = time.time()
+st = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
 
 # A common set of tasks related to human signoffs
 def passesHumanSignoffsOrExit(client, logger, graceid, detectors):
-    signoffResult = checkSignoffs(client, logger, graceid, detectors)
-    if signoffResult=='Fail':
-        msg = 'Finished running human signoff checks. Candidate event failed human signoff checks.'
-        r = client.writeLog(graceid, msg, tagname='em_follow')
-        logger.info('Labeling {0} with DQV'.format(graceid))
-        r = client.writeLabel(graceid, 'DQV')
-        exit()
-    elif signoffResult=='Pass':
-        msg = 'Finished running human signoff checks. Candidate event passed human signoff checks.'
-        r = client.writeLog(graceid, msg, tagname='em_follow')
-    else:
-        logger.info('No action taken due to scimon status.'.format(graceid))
-        exit()
+   	signoffResult = checkSignoffs(client, logger, graceid, detectors)
+   	if signoffResult=='Fail':
+        	msg = 'Finished running human signoff checks. Candidate event failed human signoff checks.'
+        	r = client.writeLog(graceid, msg, tagname='em_follow')
+        	logger.info('{0} -- {1} -- Labeling with DQV.'.format(st, graceid))
+        	r = client.writeLabel(graceid, 'DQV')
+        	exit()
+	elif signoffResult=='Pass':
+        	msg = 'Finished running human signoff checks. Candidate event passed human signoff checks.'
+        	r = client.writeLog(graceid, msg, tagname='em_follow')
+	else:
+        	logger.info('{0} -- {1} -- No action taken due to scimon status.'.format(st, graceid))
+        	exit()
 
 #--------------------------------------------------------------------------------------
 # Begin processing
 #--------------------------------------------------------------------------------------
-# Instantiate the GraceDB client
-# For testing purposes, this is pointed towards simdb.
-# If we leave out the argument, it will default to https://gracedb.ligo.org/api/
-try:
-	#g = GraceDb('https://simdb.phys.uwm.edu/api/')
-	g = GraceDb()
-except Exception, e:
-	logger.error('Connection to GraceDB failed: {0}.'.format(str(e)))
-	exit()
-
-begintime = gpstime.gps_time_now()
-
 # Create a dictionary from the LVAlert message contents and extract its info
 streamdata = str(stdin.read())
 streamdata = json.loads(streamdata) #json.loads turns string into dictionary
@@ -73,41 +70,84 @@ graceid = streamdata['uid']
 description = streamdata['description']
 filename = streamdata['file']
 
+# Instantiate the GraceDB client
+# For testing purposes, this is pointed towards simdb.
+# If we leave out the argument, it will default to https://gracedb.ligo.org/api/
+try:
+	#g = GraceDb('https://moe.phys.uwm.edu/branson/api/')
+	g = GraceDb()
+except Exception, e:
+	logger.error('{0} -- {1} -- Connection to GraceDB failed: {2}.'.format(st, graceid, str(e)))
+	exit()
+
+begintime = gpstime.gps_time_now()
+
 # XXX For ER7 if the graceid starts with 'M' for MDCs or 'S' for Simulation, we want to ignore the event.
 if re.match('M', graceid) or re.match('S', graceid):
-	logger.error('Event {0} was mock data challenge or simulation. Quitting'.format(graceid))
+	logger.error('{0} -- {1} -- Mock data challenge or simulation. Quitting.'.format(st, graceid))
 	exit()
 
 #--------------------------------------------------------------------------------------
 # Handle labeling events
 #--------------------------------------------------------------------------------------
 if alert_type == 'label':
+	# Since we will need information about the event itself, fetch the event dict
+	try:
+		event_dict = g.events(graceid).next()
+	except Exception, e:
+		logger.error('{0} -- {1} -- Connection to GraceDB failed: {2}.'.format(st, graceid, str(e)))
+		exit()
+
+	far = event_dict['far']
+	pipeline = event_dict['pipeline']
+	if 'search' in event_dict.keys():
+		search = event_dict['search']
+	else:
+		search = ''
+	labels = event_dict['labels']
+	group = event_dict['group']
+	detectors = str(event_dict['instruments']).split(',')
+	farthresh = get_farthresh(config, pipeline, search)
+
+	# First check FAR
+	if far >= farthresh:
+		logger.info('{0} -- {1} -- Ignoring update due to high FAR.'.format(st, graceid))
+		exit()
+
 	if description == 'PE_READY':
-		logger.info('Submitting Update VOEvent to GCN for event {0}.'.format(graceid))
+		logger.info('{0} -- {1} -- Submitting update VOEvent to GCN.'.format(st, graceid))
+		# Fetch the event log list from the GraceDB server
+		log_dicts = g.logs(graceid).json()['log']
+		for message in reversed(log_dicts): # reversed pulls the most recent skymap to reference in the VOEvent
+			if 'Last skymap submitted was' in message['comment']:
+				skymapinfo = re.findall(r'Last skymap submitted was (.*) type (.*) by (.*).', message['comment'])
+				skymap_filename = skymapinfo[0][0]
+				skymapname = re.findall(r'(\S+).fits', skymap_filename)[0]
+				skymap_type = skymapname + '-' + skymapinfo[0][1]
+				skymap_image_filename = skymapname + '.png'
+				submitter = skymapinfo[0][2]
+				if submitter in skymap_ignore_list:
+					pass
+				else:
+					process_alert(g, logger, graceid, 'update', skymap_filename, skymap_type, skymap_image_filename)
+					break
+	elif description == 'EM_READY':
+		logger.info('{0} -- {1} -- Submitting initial VOEvent to GCN.'.format(st, graceid))
 		# Fetch the event log list from the GraceDB server
 		log_dicts = g.logs(graceid).json()['log']
 		for message in reversed(log_dicts):
 			if 'Last skymap submitted was' in message['comment']:
-				skymapinfo = re.findall(r'Last skymap submitted was (\S+) type (\S+).', message['comment'])
+				skymapinfo = re.findall(r'Last skymap submitted was (.*) type (.*) by (.*).', message['comment'])
 				skymap_filename = skymapinfo[0][0]
 				skymapname = re.findall(r'(\S+).fits', skymap_filename)[0]
 				skymap_type = skymapname + '-' + skymapinfo[0][1]
 				skymap_image_filename = skymapname + '.png'
-				process_alert(g, logger, graceid, 'update', skymap_filename, skymap_type, skymap_image_filename)
-				break
-	elif description == 'EM_READY':
-		logger.info('Submitting Initial VOEvent to GCN for event {0}.'.format(graceid))
-		# Fetch the event log list from the GraceDB server
-		log_dicts = g.logs(graceid).json()['log']
-		for message in log_dicts:
-			if 'Last skymap submitted was' in message['comment']:
-				skymapinfo = re.findall(r'Last skymap submitted was (\S+) type (\S+).', message['comment'])
-				skymap_filename = skymapinfo[0][0]
-				skymapname = re.findall(r'(\S+).fits', skymap_filename)[0]
-				skymap_type = skymapname + '-' + skymapinfo[0][1]
-				skymap_image_filename = skymapname + '.png'
-				process_alert(g, logger, graceid, 'initial', skymap_filename, skymap_type, skymap_image_filename)
-				break
+				submitter = skymapinfo[0][2]
+				if submitter in skymap_ignore_list:
+					pass
+				else:
+					process_alert(g, logger, graceid, 'initial', skymap_filename, skymap_type, skymap_image_filename)
+					break
 	elif (checkLabels(hardware_inj, description.split()) > 0):
         # Check: Have we already sent out alerts on this event?
 		voevent_dicts = g.voevents(graceid).json()['voevents']
@@ -125,7 +165,7 @@ if alert_type == 'label':
 # Handle new candidate event
 #--------------------------------------------------------------------------------------
 elif alert_type == 'new':
-	logger.info('Got new event {0}.'.format(graceid))
+	logger.info('{0} -- {1} -- Got new event.'.format(st, graceid))
 	# Get event information from streamdata
 	event_dict = streamdata['object']
 	far = event_dict['far']
@@ -141,14 +181,18 @@ elif alert_type == 'new':
 	# If FAR is above threshold, or if event is labeled INJ or DQV, do not create alert
 	# Also log message saying why no alert was created
 	if far >= farthresh:
-		logger.info('Rejected {0} due to large FAR.'.format(graceid))
+		logger.info('{0} -- {1} -- Rejected due to large FAR.'.format(st, graceid))
 		r = g.writeLog(graceid, 'Candidate event rejected due to large FAR.', tagname = 'em_follow')
 	elif checkLabels(hardware_inj, labels.keys()) > 0:
-		logger.info('Ignoring new event {0} due to INJ or DQV.'.format(graceid))
+		logger.info('{0} -- {1} -- Ignoring new event due to INJ or DQV.'.format(st, graceid))
 		r = g.writeLog(graceid, 'Candidate event rejected due to INJ or DQV label.', tagname = 'em_follow')
 	else:
-		logger.info('Submitting Preliminary VOEvent to GCN for event {0}.'.format(graceid))
+		logger.info('{0} -- {1} -- Submitting preliminary VOEvent to GCN.'.format(st, graceid))
 		process_alert(g, logger, graceid, 'preliminary')
+#		detectors = str(event_dict['instruments']).split(',')
+#		for detector in detectors:
+#			logger.info('{0} -- {1} -- Labeling with {2}OPS.'.format(st, graceid, detector))
+#			r = g.writeLabel(graceid, '{0}OPS'.format(detector))
 
 #--------------------------------------------------------------------------------------
 # Handle uploaded files
@@ -158,7 +202,7 @@ elif alert_type=='update':
 	try:
 		event_dict = g.events(graceid).next()
 	except Exception, e:
-		logger.error('Could not fetch event information: {0}.'.format(str(e)))
+		logger.error('{0} -- {1} -- Connection to GraceDB failed: {2}.'.format(st, graceid, str(e)))
 		exit()
 
 	far = event_dict['far']
@@ -174,7 +218,7 @@ elif alert_type=='update':
 
 	# First check FAR and labels
 	if (far >= farthresh or (checkLabels(hardware_inj, labels.keys()) > 0)):
-		logger.info('Ignoring update for {0} due to INJ, DQV, or high FAR.'.format(graceid))
+		logger.info('{0} -- {1} -- Ignoring update due to INJ, DQV, or high FAR.'.format(st, graceid))
 		exit()
 
 	# Check whether the file in question is a skymap
@@ -188,13 +232,20 @@ elif alert_type=='update':
 		# First, get the submitter name 
 		skymap_filename = filename
 		skymap_type = group + search
-		r = g.writeLog(graceid, 'Last skymap submitted was {0} type {1}.'.format(skymap_filename, skymap_type))
+		display_name = streamdata['object']['issuer']['display_name']
+		msg = 'Last skymap submitted was {0} type {1} by {2}.'.format(skymap_filename, skymap_type, display_name)
+		r = g.writeLog(graceid, msg.replace('  ',' '))
 
+		if display_name in skymap_ignore_list:
+			exit()
+		else:
+			pass
+		
 		# If new skymaps are loaded, check if the event has passed iDQ checks by reading the log and labeling the event as either 'EM_READY' or 'PE_READY'
 		#'EM_READY' is the label set if there have been no previous skymaps
 		# 'PE_READY' is the label set if we've already sent out an Initial Localization VOEvent
 		
-		logger.info('Got skymap {0} for event {1}.'.format(filename, graceid))
+		logger.info('{0} -- {1} -- Got skymap {2}.'.format(st, graceid, filename))
 
 		voevent_dicts = g.voevents(graceid).json()['voevents']
 		if len(voevent_dicts):
@@ -207,21 +258,22 @@ elif alert_type=='update':
 			elif latest_voevent_type == 'IN':
 				# Set label 'PE_READY' since the initial_localization alert was already created and/or sent out
 				# It must already be labeled EM_READY
-				logger.info('Labeling {0} with PE_READY.'.format(graceid))
+				logger.info('{0} -- {1} -- Labeling with PE_READY.'.format(st, graceid))
 				r = g.writeLabel(graceid, 'PE_READY')
 			elif latest_voevent_type == 'PR':
 				# XXX Note: this assumes that there has been at least a Preliminary VOEvent.
 				# We want to apply the EM_READY label as long as the event passes iDQ and 	
 				# human scimon checks (if necessary)
-				if not checkIdqStatus(g, graceid)=='Pass':
-					logger.info('No action taken on skymap for {0} due to iDQ status'.format(graceid))
-					exit()
+				if use_idq=='yes':
+					if not checkIdqStatus(g, graceid)=='Pass':
+						logger.info('{0} -- {1} -- No action taken on skymap due to iDQ status'.format(st, graceid))
+						exit()
 
 				if humanscimons=='yes':
 					passesHumanSignoffsOrExit(g, logger, graceid, detectors)
 
 				# If we're still here, we are ready to apply the EM_READY label
-				logger.info('Labeling {0} with EM_READY.'.format(graceid))
+				logger.info('{0} -- {1} -- Labeling with EM_READY.'.format(st, graceid))
 				r = g.writeLabel(graceid, 'EM_READY')
 
 	# Log comments have no files attached but could still contain iDQ information
@@ -229,21 +281,21 @@ elif alert_type=='update':
 		comment = streamdata['object']['comment']
 		if not re.match('minimum glitch-FAP', comment):
 			exit()
-		else:
+		elif use_idq=='yes':
 			idqvalues, joint_FAP_values = getIdqAndJointFapValues(idq_pipelines, g, logger, graceid)
 
 			if (len(idqvalues) < (len(idq_pipelines)*len(detectors))):
-				logger.info('Have not gotten all the minfap values for {0} yet.'.format(graceid))
+				logger.info('{0} -- {1} -- Have not gotten all the minfap values yet.'.format(st, graceid))
 				if (min(idqvalues.values() and joint_FAP_values.values()) < idqthresh):
-					r = g.writeLog(graceid, 'Finished running iDQ checks. Candidate event rejected because incomplete joint min-FAP value already less than iDQ threshold.', tagname = 'em_follow')
-					logger.info('iDQ check failed. Applying DQV label to event {0}.'.format(graceid))
+					r = g.writeLog(graceid, 'Finished running iDQ checks. Candidate event rejected because incomplete joint min-FAP value already less than iDQ threshold. iDQ threshold is {0}.'.format(idqthresh), tagname = 'em_follow')
+					logger.info('{0} -- {1} -- iDQ check failed. Applying DQV label.'.format(st, graceid))
 					r = g.writeLabel(graceid, 'DQV')
 					exit()
 
 			elif (len(idqvalues) > (len(idq_pipelines)*len(detectors))):
-				logger.info('Too many minfap values in idqvalues dictionary for {0}.'.format(graceid))
+				logger.info('{0} -- {1} -- Too many minfap values in idqvalues dictionary.'.format(st, graceid))
 			else:
-				logger.info('Ready to run idq_checks for {0}.'.format(graceid))
+				logger.info('{0} -- {1} -- Ready to run idq_checks.'.format(st, graceid))
 				# First make sure that we haven't already run the checks -- we don't want to over-send alerts
 				# Check log to see if we've said 'Finished running iDQ checks.'
 				log_dicts = g.logs(graceid).json()['log']
@@ -265,10 +317,10 @@ elif alert_type=='update':
 						detectorstring = '{0}.{1}'.format(pipeline, detector)
 						joint_FAP = joint_FAP*idqvalues[detectorstring]
 					joint_FAP_values[pipeline] = joint_FAP
-					logger.info('Got joint_FAP = {0} for event {1} iDQ pipeline {2}.'.format(joint_FAP, graceid, pipeline))
+					logger.info('{0} -- {2} -- Got joint_FAP = {1} for iDQ pipeline {3}.'.format(st, joint_FAP, graceid, pipeline))
 
 				if min(joint_FAP_values.values()) > idqthresh:
-					logger.info('Event {0} passed iDQ check.'.format(graceid))
+					logger.info('{0} -- {1} -- Passed iDQ check.'.format(st, graceid))
 					r = g.writeLog(graceid, 'Finished running iDQ checks. Candidate event passed iDQ checks.', tagname='em_follow')
 					if humanscimons=='yes':
 						passesHumanSignoffsOrExit(g, logger, graceid, detectors)
@@ -277,51 +329,91 @@ elif alert_type=='update':
 					for message in log_dicts:
 						#XXX Make sure that whenever skymaps are uploaded they always log 'skymap' in the comment
 						if 'skymap' in message['comment']:
-							logger.info('Applying EM_READY label to event {0}.'.format(graceid))
+							logger.info('{0} -- {1} -- Applying EM_READY label.'.format(st, graceid))
 							r = g.writeLabel(graceid, 'EM_READY')
 							break
 				else:
-					r = g.writeLog(graceid, 'Finished running iDQ checks. Candidate event rejected due to low iDQ FAP value of {0}.'.format(joint_FAP), tagname = 'em_follow')
-					logger.info('iDQ check failed. Applying DQV label to event {0}.'.format(graceid))
+					r = g.writeLog(graceid, 'Finished running iDQ checks. Candidate event rejected due to low iDQ FAP value of {0}. iDQ threshold is {1}.'.format(joint_FAP, idqthresh), tagname = 'em_follow')
+					logger.info('{0} -- {1} -- iDQ check failed. Applying DQV label.'.format(st, graceid))
 					r = g.writeLabel(graceid, 'DQV')
 
-	# If the uploaded file is a human signoff file, start the human signoff check process if necessary
-	if (filename.endswith('.txt') and ('signoff' in filename)):
-		if humanscimons=='yes':
-			passesHumanSignoffOrExit(g, logger, graceid, detectors)
-		elif humanscimons!='yes':
-			try:
-				signofftxt = g.files(graceid, filename)
-				fails = re.findall(r'Fail', signofftxt.read())
-				if len(fails) > 0:
-					logger.info('Event rejected by human signoff. Applying DQV label to event {0}.'.format(graceid))
-					r = g.writeLog(graceid, 'Candidate event failed human signoff checks.', tagname='em_follow')
-					r = g.writeLabel(graceid, 'DQV')
-					exit()
-				else:
-					pass
-			except Exception, e:
-				logger.error('Could not open human signoff file for %s.' % graceid)
-				exit()
-		log_dicts = g.logs(graceid).json()['log']
-		for message in log_dicts:
-			if 'Candidate event passed iDQ checks' in message['comment']:
-				for msg in log_dicts:
-					if 'skymap' in msg['comment']: #XXX Make sure that whenever skymaps are uploaded they always log 'skymap' in the comment
-						logger.info('Labeling {0} with EM_READY.'.format(graceid))
+#--------------------------------------------------------------------------------------
+# Handle human scimon signoffs
+#--------------------------------------------------------------------------------------
+elif alert_type=='signoff':
+	# Since we will need information about the event itself, fetch the event dict
+	try:
+		event_dict = g.events(graceid).next()
+	except Exception, e:
+		logger.error('{0} -- {1} -- Connection to GraceDB failed: {2}.'.format(st, graceid, str(e)))
+		exit()
+
+	far = event_dict['far']
+	pipeline = event_dict['pipeline']
+	if 'search' in event_dict.keys():
+		search = event_dict['search']
+	else:
+		search = ''
+	labels = event_dict['labels']
+	farthresh = get_farthresh(config, pipeline, search)
+
+	# First check FAR and labels
+	if (far >= farthresh or (checkLabels(hardware_inj, labels.keys()) > 0)):
+		logger.info('{0} -- {1} -- Ignoring update due to INJ, DQV, or high FAR.'.format(st, graceid))
+		exit()
+
+	signoff_object = streamdata['object']
+	instrument = signoff_object['instrument']
+	# Get the status, 'OK' means 'okay' and 'NO' means 'not okay'
+	status = signoff_object['status']
+	# Record the response from the detector site
+	signoff_file = open('/tmp/signoff_from_{0}_{1}.txt'.format(instrument, graceid), 'w')
+	if status=='NO':
+		signoff_file.write('Fail')
+	elif status=='OK':
+		signoff_file.write('Pass')
+	signoff_file.close()
+	r = g.writeFile(graceid, '/tmp/signoff_from_{0}_{1}.txt'.format(instrument, graceid))
+	os.remove('/tmp/signoff_from_{0}_{1}.txt'.format(instrument, graceid))
+
+	if humanscimons=='yes':
+		# Since we need to check the response from all detector sites, get the list of detectors for event
+		detectors = str(event_dict['instruments']).split(',')
+		passesHumanSignoffsOrExit(g, logger, graceid, detectors)
+	elif humanscimons!='yes':
+		if status=='NO':
+			msg = 'Candidate event failed human signoff checks.'
+        		r = client.writeLog(graceid, msg, tagname='em_follow')
+        		logger.info('{0} -- {1} -- Labeling with DQV'.format(st, graceid))
+        		r = client.writeLabel(graceid, 'DQV')
+       			exit()
+		else:
+			pass
+
+	log_dicts = g.logs(graceid).json()['log']
+	for message in log_dicts:
+		if 'skymap' in message['comment']: #XXX Make sure that whenever skymaps are uploaded they always log 'skymap' in the comment
+			for msg in log_dicts:
+				if use_idq=='yes':
+					if 'Candidate event passed iDQ checks' in msg['comment']: 
+						logger.info('{0} -- {1} -- Labeling with EM_READY.'.format(st, graceid))
 						r = g.writeLabel(graceid, 'EM_READY')
 						break
 					else:
 						pass
-			else: # This means that no skymap was loaded so we need to wait for the map before the EM_READY label is set
-				pass
+				else:
+					logger.info('{0} -- {1} -- Labeling with EM_READY.'.format(st, graceid))
+					r = g.writeLabel(graceid, 'EM_READY')
+					break
+		else: # This means that no skymap was loaded so we need to wait for the map before the EM_READY label is set
+			pass
 
 #--------------------------------------------------------------------------------------
 # Handle unknown alert type
 #--------------------------------------------------------------------------------------
 else:
 	# GraceDB gave us a strange alert type.
-	logger.error('Alert type {0} unrecognized. Quitting'.format(alert_type))
+	logger.error('{0} -- Alert type {1} unrecognized. Quitting'.format(st, alert_type))
 	exit()
 
 #--------------------------------------------------------------------------------------
@@ -329,4 +421,4 @@ else:
 #--------------------------------------------------------------------------------------
 endtime = gpstime.gps_time_now()
 processtime = endtime - begintime
-logger.info('Process time: {0} s'.format(processtime))
+#logger.info('{0} -- {1} -- Process time: {2} s.'.format(st, graceid, processtime))
