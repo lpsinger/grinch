@@ -875,9 +875,15 @@ def lalinference_start( gdb, gdb_id, verbose=False ):
 
     if verbose:
         report( "\tparsing log" )
-
-    report( "\tWARNING: Currently lalinference does not report that it has started, so there is nothing to check... proceeding assuming everything is kosher" )
-    return False
+    for log in logs:
+        comment = log['comment']
+        if "LALInference online parameter estimation started" in comment:
+            if verbose:
+                report( "\taction required : False" )
+            return False
+    if verbose:
+        report( "\taction required : True" )
+    return True
 
 def lalinference_finish( gdb, gdb_id, verbose=False ):
     """
@@ -892,7 +898,7 @@ def lalinference_finish( gdb, gdb_id, verbose=False ):
         report( "\tparsing log" )
     for log in logs:
         comment = log['comment']
-        if "online parameter estimation" in comment:
+        if "LALInference online parameter estimation finished" in comment:
             if verbose:
                 report( "\taction required : False" )
             return False
