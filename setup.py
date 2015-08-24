@@ -46,8 +46,13 @@ setup(
         'bin/unblind_inj_search',
         'bin/find_data',
         'bin/event_supervisor',
-        'bin/event_supervisor_wrapper'
+        'bin/event_supervisor_wrapper',
+        'bin/lvalert-init_event_supervisor',
+        'bin/lvalert-run_event_supervisor_wrapper'
     ],
     data_files=[('etc',['etc/cbc_config.ini', 'etc/burst_config.ini', 'etc/exttrig_config.ini',
-        'etc/lvalertconfig.ini', 'etc/gcn_config.ini', 'etc/supervisor_config.ini', 'etc/event_supervisor.sub'])]
+        'etc/lvalertconfig.ini', 'etc/gcn_config.ini', 'etc/event_supervisor_config.ini', 'etc/event_supervisor-lvalertconfig.ini', 'etc/event_supervisor.sub'])]
 )
+
+
+
