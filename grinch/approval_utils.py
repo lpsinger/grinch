@@ -42,7 +42,7 @@ def process_alert(client, logger, graceid, voevent_type, skymap_filename=None,
 		tmpfile.write(voevent)
 		tmpfile.close()
 		# Send it out with comet!
-		cmd = 'comet-sendvo -p 5340 -f /tmp/voevent_{0}.tmp'.format(graceid)
+		cmd = 'comet-sendvo -p 5340 -f /tmp/voevent_{0}_{1}.tmp'.format(graceid, number)
 		proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 		output, error = proc.communicate(voevent)
 		logger.debug('{0} -- {1} -- output = {2}.'.format(st, graceid, output))
