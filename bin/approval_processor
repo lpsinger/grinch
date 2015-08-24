@@ -383,9 +383,9 @@ elif alert_type=='signoff':
 	elif humanscimons!='yes':
 		if status=='NO':
 			msg = 'Candidate event failed human signoff checks.'
-        		r = client.writeLog(graceid, msg, tagname='em_follow')
+        		r = g.writeLog(graceid, msg, tagname='em_follow')
         		logger.info('{0} -- {1} -- Labeling with DQV.'.format(st, graceid))
-        		r = client.writeLabel(graceid, 'DQV')
+        		r = g.writeLabel(graceid, 'DQV')
        			exit()
 		else:
 			pass
