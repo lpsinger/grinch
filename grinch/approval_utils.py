@@ -147,7 +147,7 @@ def getIdqAndJointFapValues(idq_pipelines, client, logger, graceid):
 			idqinfo = re.findall('minimum glitch-FAP for (.*) at (.*) with', line)
 			pipeline = idqinfo[0][0]
 			detector = idqinfo[0][1]
-			min_fap = re.findall('is (\S+)\n', line)
+			min_fap = re.findall('is (.*)\n', line)
 			min_fap = float(min_fap[0])
 			detectorstring = '{0}.{1}'.format(pipeline, detector)
 			idqvalues[detectorstring] = min_fap
