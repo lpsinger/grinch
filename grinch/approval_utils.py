@@ -68,7 +68,6 @@ def process_alert(client, logger, graceid, voevent_type, skymap_filename=None,
 # Define a function that checks for the human scimon signoffs
 def checkSignoffs(client, logger, graceid, detectors):
 	log_dicts = client.logs(graceid).json()['log']
-	signoffdict = {}
 	for message in log_dicts:
 		if 'Finished running human signoff checks.' in message['comment']:
 			passorfail = re.findall(r'Candidate event (.*)ed human signoff checks.', message['comment'])
@@ -78,25 +77,23 @@ def checkSignoffs(client, logger, graceid, detectors):
 				return 'Fail'
 		else:
 			pass 
-	for detector in detectors:
-		signofflabel = '{0}OPS'.format(detector)
-		filename = 'signoff_from_{0}_{1}.txt'.format(detector, graceid)
-		try:
-			signofftxt = client.files(graceid, filename)
-			fails = re.findall(r'Fail', signofftxt.read())
-			logger.info('{0} -- {1} -- Got the human scimon file from {2}.'.format(st, graceid, detector))
-			if len(fails) > 0:
-				signoffdict[detector] = 'Fail'
-				return 'Fail'
-			else:
-				signoffdict[detector] = 'Pass'
-		except Exception, e:
-			logger.error('{0} -- {1} -- Could not get human scimon file from {2}:{3}.'.format(st, graceid, detector, str(e)))
+	# Construct the URL for the operator signoff list
+	url = client.templates['operatorsignoff-list-template'].format(graceid=graceid)
+	# Pull down the operator signoff list
+	signoff_list = client.get(url).json()['operator_signoff']
+	# Use the list to construct the signoff results dictionary
+	signoffdict = {}
+	for signoff in signoff_list:
+		signoffdict[signoff['instrument']] = 'Pass' if signoff['status']=='OK' else 'Fail'
+	# Now use the signoffdict to do the check
 	if (len(signoffdict) < len(detectors)):
-		logger.info('{0} -- {1} -- Have not gotten all the human signoffs yet but not yet DQV.'.format(st, graceid))
-		return 'Unknown'
+		if ('Fail' in signoffdict.values()):
+			return 'Fail'
+		else:
+			logger.info('{0} -- {1} -- Have not gotten all the human signoffs yet but not yet DQV.'.format(st, graceid))
+			return 'Unknown'
 	elif (len(signoffdict) > len(detectors)):
-		logger.info('{0} -- {1} -- Too many human signoffs in signoff dictionary.'.format(st, graceid))
+		logger.info('{0} -- {1} -- Too many human signoffs in the signoff dictionary.'.format(st, graceid))
 		return 'Unknown'
 	else:
 		logger.info('{0} -- {1} -- Ready to run human signoff check.'.format(st, graceid))
