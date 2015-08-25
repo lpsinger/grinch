@@ -22,6 +22,14 @@ def get_farthresh(config, pipeline, search):
 	except:
 		return config.getfloat('default', 'default_farthresh')
 
+# A utility to get the iDQ joint min-FAP threshold given pipeline and search.
+# It's probably important to have a default value just in case.
+def get_idqthresh(config, pipeline, search):
+	try:
+		return config.getfloat('default', 'idqthresh[{0}.{1}]'.format(pipeline, search))
+	except:
+		return config.getfloat('default', 'default_idqthresh')
+
 # Define a function for pulling down and sending out the correct VOEvent depending on label type
 
 def process_alert(client, logger, graceid, voevent_type, skymap_filename=None, 
