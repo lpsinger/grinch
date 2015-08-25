@@ -8,6 +8,7 @@ import ConfigParser
 from lal import gpstime
 import time
 import datetime
+import urllib
 
 import logging
 
@@ -188,10 +189,15 @@ elif alert_type == 'new':
 	else:
 		logger.info('{0} -- {1} -- Submitting preliminary VOEvent to GCN.'.format(st, graceid))
 		process_alert(g, logger, graceid, 'preliminary')
-#		detectors = str(event_dict['instruments']).split(',')
-#		for detector in detectors:
-#			logger.info('{0} -- {1} -- Labeling with {2}OPS.'.format(st, graceid, detector))
-#			r = g.writeLabel(graceid, '{0}OPS'.format(detector))
+		detectors = str(event_dict['instruments']).split(',')
+		for detector in detectors:
+			logger.info('{0} -- {1} -- Labeling with {2}OPS.'.format(st, graceid, detector))
+			r = g.writeLabel(graceid, '{0}OPS'.format(detector))
+		# Expose event to LV-EM
+		url_perm_base = g.service_url + urllib.quote('events/{0}/perms/gw-astronomy:LV-EM/'.format(graceid))
+		for perm in ['view', 'change']:
+			url = url_perm_base + perm
+			r = g.put(url)
 
 #--------------------------------------------------------------------------------------
 # Handle uploaded files
@@ -379,15 +385,6 @@ elif alert_type=='signoff':
 	instrument = signoff_object['instrument']
 	# Get the status, 'OK' means 'okay' and 'NO' means 'not okay'
 	status = signoff_object['status']
-	# Record the response from the detector site
-	signoff_file = open('/tmp/signoff_from_{0}_{1}.txt'.format(instrument, graceid), 'w')
-	if status=='NO':
-		signoff_file.write('Fail')
-	elif status=='OK':
-		signoff_file.write('Pass')
-	signoff_file.close()
-	r = g.writeFile(graceid, '/tmp/signoff_from_{0}_{1}.txt'.format(instrument, graceid))
-	os.remove('/tmp/signoff_from_{0}_{1}.txt'.format(instrument, graceid))
 
 	if humanscimons=='yes':
 		# Since we need to check the response from all detector sites, get the list of detectors for event
