@@ -11,7 +11,7 @@ import datetime
 
 import logging
 
-from grinch.approval_utils import get_farthresh, process_alert, checkSignoffs 
+from grinch.approval_utils import get_farthresh, get_idqthresh, process_alert, checkSignoffs 
 from grinch.approval_utils import checkLabels, checkIdqStatus, getIdqAndJointFapValues
 from grinch.workflow_helper import home
 
@@ -22,8 +22,7 @@ from grinch.workflow_helper import home
 config = ConfigParser.SafeConfigParser()
 etc = home + '/opt/etc/'
 config.read(etc + 'approval_processor_config.ini')
-use_idq = config.get('default', 'use_idq')
-idqthresh = config.getfloat('default', 'idqthresh')
+ignore_idq = config.get('default', 'ignore_idq')
 idq_pipelines = config.get('default', 'idq_pipelines')
 idq_pipelines = idq_pipelines.replace(' ','') # remove any spaces
 idq_pipelines = idq_pipelines.split(',') # a list of iDQ pipelines
@@ -221,10 +220,16 @@ elif alert_type=='update':
 		logger.info('{0} -- {1} -- Ignoring update due to INJ, DQV, or high FAR.'.format(st, graceid))
 		exit()
 
+	# Determine the value of use_idq depending on the event group
+	if group in ignore_idq:
+		use_idq = 'no'
+	else:
+		use_idq = 'yes'
+		idqthresh = get_idqthresh(config, pipeline, search)
+
 	# Check whether the file in question is a skymap
 	# We assume that any file with the .fits or .fits.gz extension *and* the 'sky_loc' tag will be a skymap
 	# The tag names should also contain provenance information for the skymap, which could be useful here
-	alert_dict = streamdata['object']
 
 	#XXX Right now, 'sky_loc' tag does not appear under tag_names section of the alert that tips off lvalert_listen.
 	#XXX Eventually change this to-- if (filename.endswith('.fits.gz') or filename.endswith('.fits')) and 'sky_loc' in tag_names:
@@ -317,7 +322,7 @@ elif alert_type=='update':
 						detectorstring = '{0}.{1}'.format(pipeline, detector)
 						joint_FAP = joint_FAP*idqvalues[detectorstring]
 					joint_FAP_values[pipeline] = joint_FAP
-					logger.info('{0} -- {2} -- Got joint_FAP = {1} for iDQ pipeline {3}.'.format(st, joint_FAP, graceid, pipeline))
+					logger.info('{0} -- {1} -- Got joint_FAP = {2} for iDQ pipeline {3}.'.format(st, graceid, joint_FAP, pipeline))
 
 				if min(joint_FAP_values.values()) > idqthresh:
 					logger.info('{0} -- {1} -- Passed iDQ check.'.format(st, graceid))
@@ -355,12 +360,20 @@ elif alert_type=='signoff':
 	else:
 		search = ''
 	labels = event_dict['labels']
+	group = event_dict['group']
 	farthresh = get_farthresh(config, pipeline, search)
 
 	# First check FAR and labels
 	if (far >= farthresh or (checkLabels(hardware_inj, labels.keys()) > 0)):
 		logger.info('{0} -- {1} -- Ignoring update due to INJ, DQV, or high FAR.'.format(st, graceid))
 		exit()
+
+	# Determine the value of use_idq depending on the event group
+	if group in ignore_idq:
+		use_idq = 'no'
+	else:
+		use_idq = 'yes'
+		idqthresh = get_idqthresh(config, pipeline, search)
 
 	signoff_object = streamdata['object']
 	instrument = signoff_object['instrument']
@@ -413,7 +426,7 @@ elif alert_type=='signoff':
 #--------------------------------------------------------------------------------------
 else:
 	# GraceDB gave us a strange alert type.
-	logger.error('{0} -- Alert type {1} unrecognized. Quitting'.format(st, alert_type))
+	logger.error('{0} -- {1} -- Alert type {2} unrecognized. Quitting'.format(st, graceid, alert_type))
 	exit()
 
 #--------------------------------------------------------------------------------------
