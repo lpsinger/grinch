@@ -16,7 +16,11 @@ from grinch.approval_utils import get_farthresh, get_idqthresh, process_alert, c
 from grinch.approval_utils import checkLabels, checkIdqStatus, getIdqAndJointFapValues
 from grinch.workflow_helper import home
 
-#--------------------------------------------------------------------------------------
+# Activate a virtualenv in order to be able to use Comet.
+VIRTUALENV_ACTIVATOR = "/home/gracedb.processor/users/bstephens/cometenv/bin/activate_this.py"
+execfile(VIRTUALENV_ACTIVATOR, dict(__file__=VIRTUALENV_ACTIVATOR))
+
+#-------------------------------------------------------------------------------------
 # Fetch parameters
 #--------------------------------------------------------------------------------------
 # Import FAR threshold, iDQ threshold, etc from config file
