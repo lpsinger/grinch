@@ -141,6 +141,8 @@ def config_to_schedule( config, event_type, verbose=False ):
         if verbose:
             report( "\tcheck lib_start" )
         kwargs = {'verbose':verbose}
+        if config.has_option('lib', 'far'):
+            kwargs.update( {'far':config.getfloat('lib', 'far')} )
         for dt in get_dt( config.get("lib", "start") ):
             schedule.append( (dt, lib_start, kwargs, checks['lib_start'].split(), "lib_start") )        
 
@@ -148,6 +150,8 @@ def config_to_schedule( config, event_type, verbose=False ):
         if verbose:
             report( "\tcheck lib_finish" )
         kwargs = {'verbose':verbose}
+        if config.has_option('lib', 'far'):
+            kwargs.update( {'far':config.getfloat('lib', 'far')} )
         for dt in get_dt( config.get("lib", "finish") ):
             schedule.append( (dt, lib_finish, kwargs, checks['lib_finish'].split(), "lib_finish") )
 
@@ -156,6 +160,8 @@ def config_to_schedule( config, event_type, verbose=False ):
         if verbose:
             report( "\tcheck bayestar_start" )
         kwargs = {'verbose':verbose}
+        if config.has_option('bayestar', 'far'):
+            kwargs.update( {'far':config.getfloat('bayestar', 'far')} )
         for dt in get_dt( config.get("bayestar", "start") ):
             schedule.append( (dt, bayestar_start, kwargs, checks['bayestar_start'].split(), "bayestar_start") )
 
@@ -163,6 +169,8 @@ def config_to_schedule( config, event_type, verbose=False ):
         if verbose:
             report( "\tcheck bayestar_finish" )
         kwargs = {'verbose':verbose}
+        if config.has_option('bayestar', 'far'):
+            kwargs.update( {'far':config.getfloat('bayestar', 'far')} )
         for dt in get_dt( config.get("bayestar", "finish") ):
             schedule.append( (dt, bayestar_finish, kwargs, checks['bayestar_finish'].split(), "bayestar_finish") )
 
@@ -171,6 +179,8 @@ def config_to_schedule( config, event_type, verbose=False ):
         if verbose:
             report( "\tcheck bayeswave_start" )
         kwargs = {'verbose':verbose}
+        if config.has_option('bayeswave', 'far'):
+            kwargs.update( {'far':config.getfloat('bayeswave', 'far')} )
         for dt in get_dt( config.get("bayeswave", "start") ):
             schedule.append( (dt, bayeswave_start, kwargs, checks['bayeswave_start'].split(), "bayeswave_start") )
 
@@ -178,6 +188,8 @@ def config_to_schedule( config, event_type, verbose=False ):
         if verbose:
             report( "\tcheck bayeswave_finish" )
         kwargs = {'verbose':verbose}
+        if config.has_option('bayeswave', 'far'):
+            kwargs.update( {'far':config.getfloat('bayeswave', 'far')} )
         for dt in get_dt( config.get("bayeswave", "finish") ):
             schedule.append( (dt, bayeswave_finish, kwargs, checks['bayeswave_finish'].split(), "bayeswave_finish") )
 
@@ -186,6 +198,8 @@ def config_to_schedule( config, event_type, verbose=False ):
         if verbose:
             report( "\tcheck lalinference_start" )
         kwargs = {'verbose':verbose}
+        if config.has_option('lalinference', 'far'):
+            kwargs.update( {'far':config.getfloat('lalinference', 'far')} )
         for dt in get_dt( config.get("lalinference", "start") ):
             schedule.append( (dt, lalinference_start, kwargs, checks['lalinference_start'].split(), "lalinference_start") )
 
@@ -193,6 +207,8 @@ def config_to_schedule( config, event_type, verbose=False ):
         if verbose:
             report( "\tcheck lalinference_finish" )
         kwargs = {'verbose':verbose}
+        if config.has_option('lalinference', 'far'):
+            kwargs.update( {'far':config.getfloat('lalinference', 'far')} )
         for dt in get_dt( config.get("lalinference", "finish") ):
             schedule.append( (dt, lalinference_finish, kwargs, checks['lalinference_finish'].split(), "lalinference_finish") )
 
@@ -410,7 +426,7 @@ def far_check( gdb, gdb_id, verbose=False, minFAR=0.0, maxFAR=1e-6 ):
     sml_enough = far < maxFAR
     if verbose:
         if big_enough:
-            report( "\tFAR > %.3e"%(minFAR) )
+            report( "\tFAR > %.6e"%(minFAR) )
         else:
             report( "\tFAR <= %.3e"%(minFAR) )
         if sml_enough:
@@ -454,7 +470,7 @@ def cwb_eventcreation( gdb, gdb_id, verbose=False, fits="skyprobcc.fits.gz" ):
 
     return not (fit and pe)
 
-def olib_eventcreation( gdb, gdb_id, verbose=False, FARthr = 0.0 ):
+def olib_eventcreation( gdb, gdb_id, verbose=False ):
     """
     checks that all expected data is present for newly created oLIB (eagle) events.
     This includes:
@@ -476,11 +492,6 @@ def olib_eventcreation( gdb, gdb_id, verbose=False, FARthr = 0.0 ):
 
         if prelim:
             break
-
-    if verbose:
-        report( "\tchecking FAR" )
-        far = far_check( gdb, gdb_id, verbose=False, FARthr=FARthr )
-
 
     if verbose:
         report( "\taction required : %s"%(not (prelim)) )
@@ -724,12 +735,22 @@ def idq_tables( gdb, gdb_id, ifos=['H', 'L'], verbose=False ):
 # methods that check whether lib processes were triggered and completed
 #=================================================
 
-def lib_start( gdb, gdb_id, verbose=False ):
+def lib_start( gdb, gdb_id, far=None, verbose=False ):
     """
     checsk that LIB PE followup processes started (and were tagged correctly?)
     """
     if verbose:
         report( "%s : lib_start"%(gdb_id) )
+
+    if far!=None:
+        if verbose:
+            report( "\tchecking far" )
+        if far_check( gdb, gdb_id, verbose=False, minFAR=0.0, maxFAR=far ):
+            report( "\tFAR > %.6e or not defined, event will be ignored"%(far) )
+            report( "\taction required : False" )
+            return False
+
+    if verbose:
         report( "\tretrieving log messages" )
     logs = gdb.logs( gdb_id ).json()['log']
 
@@ -747,12 +768,22 @@ def lib_start( gdb, gdb_id, verbose=False ):
 
     return True
 
-def lib_finish( gdb, gdb_id, verbose=False ):
+def lib_finish( gdb, gdb_id, far=None, verbose=False ):
     """
     checks that LIB PE followup processes finished (and were tagged correctly?)
     """
     if verbose:
         report( "%s : lib_finish"%(gdb_id) )
+
+    if far!=None:
+        if verbose:
+            report( "\tchecking far" )
+        if far_check( gdb, gdb_id, verbose=False, minFAR=0.0, maxFAR=far ):
+            report( "\tFAR > %.6e or not defined, event will be ignored"%(far) )
+            report( "\taction required : False" )
+            return False
+
+    if verbose:
         report( "\tretrieving log messages" )
     logs = gdb.logs( gdb_id ).json()['log']
 
@@ -772,12 +803,22 @@ def lib_finish( gdb, gdb_id, verbose=False ):
 # methods that check whether bayeswave processes were triggered and completed
 #=================================================
 
-def bayeswave_start( gdb, gdb_id, verbose=False ):
+def bayeswave_start( gdb, gdb_id, far=None, verbose=False ):
     """
     checks that BayesWave PE processes started (and were tagged correctly?)
     """
     if verbose:
         report( "%s : bayeswave_start"%(gdb_id) )
+
+    if far!=None:
+        if verbose:
+            report( "\tchecking far" )
+        if far_check( gdb, gdb_id, verbose=False, minFAR=0.0, maxFAR=far ):
+            report( "\tFAR > %.6e or not defined, event will be ignored"%(far) )
+            report( "\taction required : False" )
+            return False
+
+    if verbose:
         report( "\tretrieving log messages" )
     logs = gdb.logs( gdb_id ).json()['log']
 
@@ -793,12 +834,22 @@ def bayeswave_start( gdb, gdb_id, verbose=False ):
         report( "\taction required : True" )
     return True
 
-def bayeswave_finish( gdb, gdb_id, verbose=False ):
+def bayeswave_finish( gdb, gdb_id, far=None, verbose=False ):
     """
     checks that BayesWave PE processes finished (and were tagged correctly?)
     """
     if verbose:
         report( "%s : bayeswave_finish"%(gdb_id) )
+
+    if far!=None:
+        if verbose:
+            report( "\tchecking far" )
+        if far_check( gdb, gdb_id, verbose=False, minFAR=0.0, maxFAR=far ):
+            report( "\tFAR > %.6e or not defined, event will be ignored"%(far) )
+            report( "\taction required : False" ) 
+            return False
+
+    if verbose:
         report( "\tretrieving log messages" )
     logs = gdb.logs( gdb_id ).json()['log']
 
@@ -818,12 +869,22 @@ def bayeswave_finish( gdb, gdb_id, verbose=False ):
 # methods that check whether bayestar processes were triggered and completed
 #=================================================
 
-def bayestar_start( gdb, gdb_id, verbose=False ):
+def bayestar_start( gdb, gdb_id, far=None, verbose=False ):
     """
     checks that BAYESTAR processes started (and were tagged correctly?)
     """
     if verbose:
         report( "%s : bayestar_start"%(gdb_id) )
+
+    if far!=None:
+        if verbose:
+            report( "\tchecking far" )
+        if far_check( gdb, gdb_id, verbose=False, minFAR=0.0, maxFAR=far ):
+            report( "\tFAR > %.6e or not defined, event will be ignored"%(far) )
+            report( "\taction required : False" )
+            return False
+
+    if verbose:
         report( "\tretrieving log messages" )
     logs = gdb.logs( gdb_id ).json()['log']
 
@@ -839,12 +900,22 @@ def bayestar_start( gdb, gdb_id, verbose=False ):
         report( "\taction required : True" )
     return True
 
-def bayestar_finish( gdb, gdb_id, verbose=False ):
+def bayestar_finish( gdb, gdb_id, far=None, verbose=False ):
     """
     checks that BAYESTAR processes finished (and were tagged correctly?)
     """
     if verbose:
         report( "%s : bayestar_finish"%(gdb_id) )
+
+    if far!=None:
+        if verbose:
+            report( "\tchecking far" )
+        if far_check( gdb, gdb_id, verbose=False, minFAR=0.0, maxFAR=far ):
+            report( "\tFAR > %.6e or not defined, event will be ignored"%(far) )
+            report( "\taction required : False" )
+            return False
+
+    if verbose:
         report( "\tretrieving log messages" )
     logs = gdb.logs( gdb_id ).json()['log']
 
@@ -864,12 +935,22 @@ def bayestar_finish( gdb, gdb_id, verbose=False ):
 # methods that check whether lalinference processes were triggered and completed
 #=================================================
 
-def lalinference_start( gdb, gdb_id, verbose=False ):
+def lalinference_start( gdb, gdb_id, far=None, verbose=False ):
     """
     checks that LALInference PE processes started (and were tagged correctly?)
     """
     if verbose:
         report( "%s : lalinference_start"%(gdb_id) )
+
+    if far!=None:
+        if verbose:
+            report( "\tchecking far" )
+        if far_check( gdb, gdb_id, verbose=False, minFAR=0.0, maxFAR=far ):
+            report( "\tFAR > %.6e or not defined, event will be ignored"%(far) )
+            report( "\taction required : False" )
+            return False
+
+    if verbose:
         report( "\tretrieving log messages" )
     logs = gdb.logs( gdb_id ).json()['log']
 
@@ -885,12 +966,22 @@ def lalinference_start( gdb, gdb_id, verbose=False ):
         report( "\taction required : True" )
     return True
 
-def lalinference_finish( gdb, gdb_id, verbose=False ):
+def lalinference_finish( gdb, gdb_id, far=None, verbose=False ):
     """
     checks that LALInference PE processes finished (and were tagged correctly?)
     """
     if verbose:
         report( "%s : lalinference_finish"%(gdb_id) )
+
+    if far!=None:
+        if verbose:
+            report( "\tchecking far" )
+        if far_check( gdb, gdb_id, verbose=False, minFAR=0.0, maxFAR=far ):
+            report( "\tFAR > %.6e or not defined, event will be ignored"%(far) )
+            report( "\taction required : False" )
+            return False
+
+    if verbose:
         report( "\tretrieving log messages" )
     logs = gdb.logs( gdb_id ).json()['log']
 
