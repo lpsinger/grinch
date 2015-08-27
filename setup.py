@@ -45,13 +45,18 @@ setup(
         'bin/lvalertlisten',
         'bin/unblind_inj_search',
         'bin/find_data',
+        'bin/start_comet',
+        'bin/approval_processor',
+        'bin/lvalert-init_approval_processor',
         'bin/event_supervisor',
         'bin/event_supervisor_wrapper',
         'bin/lvalert-init_event_supervisor',
         'bin/lvalert-run_event_supervisor_wrapper'
     ],
     data_files=[('etc',['etc/cbc_config.ini', 'etc/burst_config.ini', 'etc/exttrig_config.ini',
-        'etc/lvalertconfig.ini', 'etc/gcn_config.ini', 'etc/event_supervisor_config.ini', 'etc/event_supervisor-lvalertconfig.ini', 'etc/event_supervisor.sub'])]
+        'etc/lvalertconfig.ini', 'etc/gcn_config.ini', 'etc/approval_processor_config.ini',
+        'etc/approval_processor_lvalert.ini', 'etc/event_supervisor_config.ini',
+        'etc/event_supervisor-lvalertconfig.ini', 'etc/event_supervisor.sub'])]
 )
 
 
