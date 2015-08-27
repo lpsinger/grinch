@@ -57,6 +57,14 @@ def config_to_schedule( config, event_type, verbose=False ):
     ### construct schedule
     schedule = []
 
+    #=== just let people know
+    if checks.has_key("notify"):
+        if verbose:
+            report( "\tnotify" )
+        kwargs = {"verbose":verbose}
+        dt = 0.0
+        schedule.append( (dt, notify, kwargs, checks['notify'].split(), 'just a notification' ) )
+
     #=== properties of this event
     if checks.has_key("far"):
         if verbose:
@@ -281,6 +289,16 @@ def config_to_schedule( config, event_type, verbose=False ):
     schedule.sort(key=lambda l:l[0])
 
     return schedule
+
+#=================================================
+# methods that don't check things, just notify humans
+#=================================================
+
+def notify( gdb, gdb_id, verbose=False ):
+    """
+    return True
+    """
+    return True
 
 #=================================================
 # methods that check the local properties of the stream of events submitted to GraceDB
