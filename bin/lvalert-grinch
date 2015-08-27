@@ -1,0 +1,6 @@
+#!/bin/sh
+
+echo starting...
+exec lvalert_listen -s lvalert.cgca.uwm.edu --username gdb_processor --password skrite#batz --resource supercalifragilisticexpialidocious --config-file=${HOME}/opt/etc/grinch_lvalert.ini
+echo terminating...
+exit

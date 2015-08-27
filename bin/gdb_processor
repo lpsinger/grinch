@@ -36,7 +36,7 @@ if args.command == 'start':
 
 universe            = local
 
-executable          = %s/opt/bin/lvalertlisten
+executable          = %s/opt/bin/lvalert-grinch
 getenv              = True
 notification        = never
 environment         = DISPLAY=localhost:10.0

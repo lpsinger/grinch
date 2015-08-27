@@ -42,7 +42,7 @@ setup(
         'bin/burst_processor',
         'bin/exttrig_processor',
         'bin/dqtolabel',
-        'bin/lvalertlisten',
+        'bin/lvalert-grinch',
         'bin/unblind_inj_search',
         'bin/find_data',
         'bin/start_comet',
@@ -54,7 +54,7 @@ setup(
         'bin/lvalert-run_event_supervisor_wrapper'
     ],
     data_files=[('etc',['etc/cbc_config.ini', 'etc/burst_config.ini', 'etc/exttrig_config.ini',
-        'etc/lvalertconfig.ini', 'etc/gcn_config.ini', 'etc/approval_processor_config.ini',
+        'etc/grinch_lvalert.ini', 'etc/gcn_config.ini', 'etc/approval_processor_config.ini',
         'etc/approval_processor_lvalert.ini', 'etc/event_supervisor_config.ini',
         'etc/event_supervisor-lvalertconfig.ini', 'etc/event_supervisor.sub'])]
 )
