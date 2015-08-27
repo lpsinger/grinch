@@ -298,6 +298,9 @@ def notify( gdb, gdb_id, verbose=False ):
     """
     return True
     """
+    if verbose:
+        report( "%s : notify"%(gdb_id) )
+        report( "\taction required : True" )
     return True
 
 #=================================================

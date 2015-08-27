@@ -118,6 +118,9 @@ if opts.verbose:
 #to = time.time() ### start time of our checking proceedures
 to = time.mktime(time.strptime(gdb_entry['created'], '%Y-%m-%d %H:%M:%S %Z')) ### parse creation time from GraceDB
 
+
+event_url = "%s/events/view/%s"%(gracedb.service_url[:-4], gdb_id)
+
 for dt, foo, kwargs, email, description in schedule:
     ### check current time stamp
     wait = dt - (time.mktime(time.gmtime())-to) ### we go through gmtime() and mktime() because time.time() was producing weird results
@@ -132,7 +135,7 @@ for dt, foo, kwargs, email, description in schedule:
             if opts.no_email:
                 pass
             elif email:
-                os.system( "echo \"action required for GraceDB event : %s\n%s\" | mail -s \"action required for GraceDB event : %s\" %s"%(gdb_id, description, gdb_id, " ".join(email)) )
+                os.system( "echo \"action required for GraceDB event : %s\n%s\" | mail -s \"action required for GraceDB event : %s\" %s"%(event_url, description, gdb_id, " ".join(email)) )
                 if opts.annotate_gracedb:
                     log = "event_supervisor checked : %s. Action required! email sent to %s"%(description, ", ".join(email))
                     gracedb.writeLog( gdb_id, log )
@@ -149,7 +152,7 @@ for dt, foo, kwargs, email, description in schedule:
         if opts.no_email:
             pass
         elif email:
-            os.system( "echo \"check failed for GraceDB event : %s\n%s\" | mail -s \"checked failed for GraceDB event : %s\" %s"%(gdb_id, description, gdb_id, " ".join(email)) )
+            os.system( "echo \"check failed for GraceDB event : %s\n%s\" | mail -s \"checked failed for GraceDB event : %s\" %s"%(event_url, description, gdb_id, " ".join(email)) )
         else:
             report( "WARNING: check failed but no email recipients specified! No warning message will be sent!" )
 
