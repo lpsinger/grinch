@@ -169,6 +169,26 @@ with open(coincfile, 'w') as local_file:
 #disable_ifos = [ifo for ifo in ifonames if ifo not in ifos]
 #itime        = str( int( float(gpstime) + 0.5 ) )
 
+if cp.has_section('lalinference'):
+	far_threshold = cp.get('lalinference', 'far_threshold')
+	if coinctable[0].combined_far <= eval(far_threshold):
+		lalinference_pipe = cp.get('lalinference', 'lalinference_pipe')
+		lalinference_inifile = cp.get('lalinference', 'inifile')
+		lalinferenceargs = [ lalinference_pipe
+							, '--run-path'
+							, wdir+'/lalinference/'+lalinference_inifile.split('/')[-1].strip('.ini')
+							, '--gid'
+							, streamdata['uid']
+							, '--daglog-path'
+							, '/usr1/'+os.environ['USER']
+							, lalinference_inifile
+							#, '--dax'
+							#, '--grid-site'
+							#, 'local'
+							#, '--pegasus-submit'
+							, '--condor-submit'
+							]
+		os.execlp(lalinference_pipe, *lalinferenceargs)
 
 ##############################
 ## PRODUCE CONDOR SUB FILES ##
