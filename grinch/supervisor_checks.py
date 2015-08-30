@@ -37,7 +37,7 @@ def get_dt( string ):
     """
     return [float(l) for l in string.split()]
 
-def config_to_schedule( config, event_type, verbose=False ):
+def config_to_schedule( config, event_type, verbose=False, freq=None ):
     """
     determines the schedule of checks that should be performed for this event
     the checks should be (timestamp, function, kwargs, email) tuples, where timestamp is the amount of time after NOW we wait until performing the check, function is the specific function that performs the check (should have a uniform input argument? just the gracedb connection?) that returns either True or False depending on whether the check was passed, kwargs are any extra arguments needed for function, and email is a list of people to email if the check fails
@@ -160,7 +160,29 @@ def config_to_schedule( config, event_type, verbose=False ):
         kwargs = {'verbose':verbose}
         if config.has_option('lib', 'far'):
             kwargs.update( {'far':config.getfloat('lib', 'far')} )
-        for dt in get_dt( config.get("lib", "finish") ):
+
+        ### divide based on frequency
+        if config.has_option('lib', 'freq_thr'): ### we split based on freq_thr
+            if freq!=None: ### we know the frequency
+                freq_thr = config.getfloat("lib", "freq_thr")
+                if freq > freq_thr:
+                    if verbose:
+                        report( "\t\tfreq = %.3f Hz > %.3f Hz. Using high frequency scheduling"%(freq, freq_thr) )
+                    waits = get_dt( config.get("lib", "high_freq_finish") )
+                else:
+                    if verbose:
+                        report( "\t\tfreq = %.3f <= %.3f Hz. Using low frequency scheduling"%(freq, freq_thr) )
+                    waits = get_dt( config.get("lib", "low_freq_finish") )
+
+            else: ### we don't know the frquency but we split based on freq_thr
+                if verbose:
+                    report( "\t\tno frequency specified; using all provided scheduling information" )
+                waits = set( get_dt( config.get("lib", "low_freq_finish") ) + get_dt( config.get("lib", "high_freq_finish") ) )
+
+        else: ### we don't split based on freq_thr
+            waits = get_dt( config.get("lib", "finish") )
+
+        for dt in waits:
             schedule.append( (dt, lib_finish, kwargs, checks['lib_finish'].split(), "lib_finish") )
 
     #=== bayestar
@@ -198,7 +220,29 @@ def config_to_schedule( config, event_type, verbose=False ):
         kwargs = {'verbose':verbose}
         if config.has_option('bayeswave', 'far'):
             kwargs.update( {'far':config.getfloat('bayeswave', 'far')} )
-        for dt in get_dt( config.get("bayeswave", "finish") ):
+
+        ### divide based on frequency
+        if config.has_option('bayeswave', 'freq_thr'): ### we split based on freq_thr
+            if freq!=None: ### we know the frequency and we split based on freq_thr
+                freq_thr = config.getfloat("bayeswave", "freq_thr")
+                if freq > freq_thr:
+                    if verbose:
+                        report( "\t\tfreq = %.3f Hz > %.3f Hz. Using high frequency scheduling"%(freq, freq_thr) )
+                    waits = get_dt( config.get("bayeswave", "high_freq_finish") )
+                else:
+                    if verbose:
+                        report( "\t\tfreq = %.3f <= %.3f Hz. Using low frequency scheduling"%(freq, freq_thr) )
+                    waits = get_dt( config.get("bayeswave", "low_freq_finish") )
+        
+            else: ### we don't know the frquency but we split based on freq_thr
+                if verbose:
+                    report( "\t\tno frequency specified; using all provided scheduling information" )
+                waits = set( get_dt( config.get("bayeswave", "low_freq_finish") ) + get_dt( config.get("bayeswave", "high_freq_finish") ) )
+        
+        else: ### we don't split based on freq_thr
+            waits = get_dt( config.get("bayeswave", "finish") )
+
+        for dt in waits:
             schedule.append( (dt, bayeswave_finish, kwargs, checks['bayeswave_finish'].split(), "bayeswave_finish") )
 
     #=== lalinference

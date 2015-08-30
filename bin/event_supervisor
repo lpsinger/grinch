@@ -105,7 +105,10 @@ config = ConfigParser.SafeConfigParser()
 config.read(configfile)
 
 ### set up the schedule of checks
-schedule = checks.config_to_schedule( config, event_type, verbose=opts.verbose )
+kwargs = {'verbose':opts.verbose}
+if gdb_entry['extra_attributes'].has_key('MultiBurst'): ### HARD CODED FOR CWB EVENTS!
+    kwargs.update( {'freq': gdb_entry['extra_attributes']['MultiBurst']['central_freq']} )
+schedule = checks.config_to_schedule( config, event_type, **kwargs )
 
 ### annotate gracedb with list of scheduled checks
 if opts.annotate_gracedb:
