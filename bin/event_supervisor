@@ -138,7 +138,7 @@ for dt, foo, kwargs, email, description in schedule:
             if opts.no_email:
                 pass
             elif email:
-                os.system( "echo \"action required for GraceDB event : %s\n%s\" | mail -s \"action required for GraceDB event : %s\" %s"%(event_url, description, gdb_id, " ".join(email)) )
+                os.system( "echo \"action required for GraceDB event : %s (%s)\n%s\" | mail -s \"action required for GraceDB event : %s (%s)\" %s"%(event_url, event_type, description, gdb_id, event_type, " ".join(email)) )
                 if opts.annotate_gracedb:
                     log = "event_supervisor checked : %s. Action required! email sent to %s"%(description, ", ".join(email))
                     gracedb.writeLog( gdb_id, log )
@@ -155,7 +155,7 @@ for dt, foo, kwargs, email, description in schedule:
         if opts.no_email:
             pass
         elif email:
-            os.system( "echo \"check failed for GraceDB event : %s\n%s\" | mail -s \"checked failed for GraceDB event : %s\" %s"%(event_url, description, gdb_id, " ".join(email)) )
+            os.system( "echo \"check failed for GraceDB event : %s (%s)\n%s\" | mail -s \"checked failed for GraceDB event : %s (%s)\" %s"%(event_url, event_type, description, gdb_id, event_type, " ".join(email)) )
         else:
             report( "WARNING: check failed but no email recipients specified! No warning message will be sent!" )
 
