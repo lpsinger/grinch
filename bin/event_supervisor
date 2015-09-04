@@ -163,6 +163,10 @@ for dt, foo, kwargs, email, description in schedule:
             log = "event_supervisor attempted to check : %s, but FAILED!"%(description)
             gracedb.writeLog( gdb_id, log )
 
+    ### force flushes
+    sys.stdout.flush()
+    sys.stderr.flush()
+
 if opts.annotate_gracedb:
     log = "event_supervisor completed all scheduled checks"
     gracedb.writeLog( gdb_id, log )
