@@ -112,7 +112,7 @@ Queue
 universe            = local
 
 executable          = %(script)s
-arguments           = " -g %(uid)s -t gw -w -60 600 -s %(directory)s/%(fits)s "
+arguments           = " -g %(uid)s -t gw -w -1 5 -w -60 600 -s %(directory)s/%(fits)s "
 getenv              = True
 notification        = never
 accounting_group = ligo.prod.o1.burst.snews.raven
@@ -133,10 +133,10 @@ Queue
 JOB PLOTALLSKY plot_allsky.sub
 SCRIPT POST PLOTALLSKY %(gracedbcommand)s --tag-name=sky_loc upload %(uid)s %(plot)s
 
-JOB COINCSEARCH coinc_search_with_sky_map.sub
-SCRIPT PRE COINCSEARCH %(gracedbcommand)s download %(uid)s %(fits)s
+#JOB COINCSEARCH coinc_search_with_sky_map.sub
+#SCRIPT PRE COINCSEARCH %(gracedbcommand)s download %(uid)s %(fits)s
 
-PARENT COINCSEARCH CHILD PLOTALLSKY
+#PARENT COINCSEARCH CHILD PLOTALLSKY
 """
     with tempfile.NamedTemporaryFile(mode='w', suffix='.dag', prefix='fits_followup_', dir='.', delete=False) as dagfile:
         dagfilename = dagfile.name
@@ -175,7 +175,7 @@ contents = """\
 universe            = local
 
 executable          = %(script)s
-arguments           = " -g %(uid)s -t gw -w -60 600 "
+arguments           = " -g %(uid)s -t gw -w -1 5 -w -60 600 "
 getenv              = True
 notification        = never
 accounting_group = ligo.prod.o1.burst.snews.raven

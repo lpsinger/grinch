@@ -95,12 +95,12 @@ Queue
 #	with open('plot_inj.sub', 'w') as f:
 #		f.write(contents%{'fits':fitsfile, 'directory':wdir, 'uid': streamdata['uid']})
 
-	# Write coinc_search.sub.
+	# Write coinc_search_with_sky_map.sub.
 	contents = """\
 universe            = local
 
 executable          = %(script)s
-arguments           = " -g %(uid)s -t gw -w -1 5 -s %(directory)s/%(fits)s "
+arguments           = " -g %(uid)s -t gw -w -1 5 -w -60 600 -s %(directory)s/%(fits)s "
 getenv              = True
 notification        = never
 accounting_group = ligo.prod.o1.cbc.grb.raven
@@ -113,7 +113,7 @@ error               = %(directory)s/coinc_search_%(uid)s.error
 
 Queue
 """
-	with open('coinc_search.sub', 'w') as f:
+	with open('coinc_search_with_sky_map.sub', 'w') as f:
 		f.write(contents%{'script': coinc_search, 'directory': wdir, 'fits': fitsfile, 'uid': streamdata['uid']})
 
 
@@ -122,10 +122,10 @@ Queue
 JOB PLOTALLSKY plot_allsky.sub
 SCRIPT POST PLOTALLSKY %(gracedbcommand)s --tag-name=sky_loc upload %(uid)s %(plot)s
 
-JOB COINCSEARCH coinc_search.sub
-SCRIPT PRE COINCSEARCH %(gracedbcommand)s download %(uid)s %(fits)s
+#JOB COINCSEARCH coinc_search_with_sky_map.sub
+#SCRIPT PRE COINCSEARCH %(gracedbcommand)s download %(uid)s %(fits)s
 
-PARENT COINCSEARCH CHILD PLOTALLSKY
+#PARENT COINCSEARCH CHILD PLOTALLSKY
 """
 	with tempfile.NamedTemporaryFile(mode='w', suffix='.dag', prefix='fits_followup_', dir='.', delete=False) as dagfile:
 		dagfilename = dagfile.name
@@ -255,6 +255,27 @@ Queue
 with open('localize.sub', 'w') as f:
 	f.write(contents%{'directory': wdir, 'uid': streamdata['uid']})
 
+    # Write coinc_search.sub.
+    contents = """\
+universe            = local
+
+executable          = %(script)s
+arguments           = " -g %(uid)s -t gw -w -1 5 -w -60 600 "
+getenv              = True
+notification        = never
+accounting_group = ligo.prod.o1.cbc.grb.raven
+accounting_group_user = alexander.urban
+
+output              = %(directory)s/coinc_search_%(uid)s.out
+error               = %(directory)s/coinc_search_%(uid)s.error
+
++LVAlertListen      = %(uid)s_coinc_search
+
+Queue
+"""
+    with open('coinc_search.sub', 'w') as f:
+        f.write(contents%{'script': coinc_search, 'directory': wdir, 'uid': streamdata['uid']})
+
 ## Write find_inj.sub.
 #contents   = """\
 #universe            = local
@@ -301,6 +322,8 @@ with open('localize.sub', 'w') as f:
 # Write cbc_runner.dag.
 contents = """\
 JOB LOCALIZE localize.sub
+
+JOB COINCSEARCH coinc_search.sub
 """
 with open('cbc_runner.dag', 'w') as f:
 	f.write(contents % {'gracedbcommand': gracedbcommand, 'uid': streamdata['uid']})
