@@ -16,4 +16,9 @@ To run the GRINCH unit tests:
 Finally, the most current GRINCH development version is always available from the
 git repository:
 
-   git clone albert.einstein@ligo-vcs.phys.uwm.edu:/usr/local/git/grinch.git 
+git clone https://versions.ligo.org/git/grinch.git                       
+
+However, this will require a valid cookie with versions.ligo.org:
+
+   ecp-cookie-init LIGO.ORG https://versions.ligo.org/git albert.einstein
+   git config --global http.cookiefile /tmp/ecpcookie.u`id -u`

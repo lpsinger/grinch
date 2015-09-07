@@ -32,7 +32,7 @@ Installing GRiNCH
 To install from the git repository hosted on LIGO-VCS, use the albert.einstein
 credentials via:
 
-    git clone albert.einstein@ligo-vcs.phys.uwm.edu:/usr/local/git/grinch.git
+    git clone https://versions.ligo.org/git/grinch.git
     cd grinch
     python setup.py build
     python setup.py install --prefix=$HOME/opt
