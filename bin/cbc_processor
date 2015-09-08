@@ -120,6 +120,7 @@ Queue
 	# Write and submit fits_followup.dag.
 	contents = """\
 JOB PLOTALLSKY plot_allsky.sub
+SCRIPT PRE PLOTALLSKY %(gracedbcommand)s download %(uid)s %(fits)s
 SCRIPT POST PLOTALLSKY %(gracedbcommand)s --tag-name=sky_loc upload %(uid)s %(plot)s
 
 #JOB COINCSEARCH coinc_search_with_sky_map.sub
@@ -255,8 +256,8 @@ Queue
 with open('localize.sub', 'w') as f:
 	f.write(contents%{'directory': wdir, 'uid': streamdata['uid']})
 
-    # Write coinc_search.sub.
-    contents = """\
+# Write coinc_search.sub.
+contents = """\
 universe            = local
 
 executable          = %(script)s
@@ -273,8 +274,8 @@ error               = %(directory)s/coinc_search_%(uid)s.error
 
 Queue
 """
-    with open('coinc_search.sub', 'w') as f:
-        f.write(contents%{'script': coinc_search, 'directory': wdir, 'uid': streamdata['uid']})
+with open('coinc_search.sub', 'w') as f:
+    f.write(contents%{'script': coinc_search, 'directory': wdir, 'uid': streamdata['uid']})
 
 ## Write find_inj.sub.
 #contents   = """\

@@ -131,6 +131,7 @@ Queue
     # Write and submit fits_followup.dag.
     contents = """\
 JOB PLOTALLSKY plot_allsky.sub
+SCRIPT PRE PLOTALLSKY %(gracedbcommand)s download %(uid)s %(fits)s
 SCRIPT POST PLOTALLSKY %(gracedbcommand)s --tag-name=sky_loc upload %(uid)s %(plot)s
 
 #JOB COINCSEARCH coinc_search_with_sky_map.sub
