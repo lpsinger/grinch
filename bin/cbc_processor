@@ -4,6 +4,7 @@
 # Imports.
 import os
 import os.path
+import subprocess
 import tempfile
 import urlparse
 import re
@@ -170,26 +171,6 @@ with open(coincfile, 'w') as local_file:
 #disable_ifos = [ifo for ifo in ifonames if ifo not in ifos]
 #itime        = str( int( float(gpstime) + 0.5 ) )
 
-if cp.has_section('lalinference'):
-	far_threshold = cp.get('lalinference', 'far_threshold')
-	if coinctable[0].combined_far <= eval(far_threshold):
-		lalinference_pipe = cp.get('lalinference', 'lalinference_pipe')
-		lalinference_inifile = cp.get('lalinference', 'inifile')
-		lalinferenceargs = [ lalinference_pipe
-							, '--run-path'
-							, wdir+'/lalinference/'+lalinference_inifile.split('/')[-1].strip('.ini')
-							, '--gid'
-							, streamdata['uid']
-							, '--daglog-path'
-							, '/usr1/'+os.environ['USER']
-							, lalinference_inifile
-							#, '--dax'
-							#, '--grid-site'
-							#, 'local'
-							#, '--pegasus-submit'
-							, '--condor-submit'
-							]
-		os.execlp(lalinference_pipe, *lalinferenceargs)
 
 ##############################
 ## PRODUCE CONDOR SUB FILES ##
@@ -338,4 +319,34 @@ os.environ['_CONDOR_DAGMAN_DEFAULT_NODE_LOG'] = logpath
 
 # Submit the processor dag.
 condorargs=['condor_submit_dag','cbc_runner.dag']
-os.execlp('condor_submit_dag', *condorargs)
+#os.execlp('condor_submit_dag', *condorargs)
+subprocess.call(condorargs)
+
+
+if cp.has_section('lalinference'):
+	far_threshold = cp.get('lalinference', 'far_threshold')
+	if coinctable[0].combined_far <= eval(far_threshold):
+		lscsoftrc = cp.get('lalinference', 'lscsoftrc')
+		command = ['bash', '-c', 'source '+lscsoftrc+' && env']
+		proc = subprocess.Popen(command, stdout = subprocess.PIPE)
+		for line in proc.stdout:
+			(key, _, value) = line.partition("=")
+			os.environ[key] = value
+		proc.communicate()
+		lalinference_inifile = cp.get('lalinference', 'inifile')
+		lalinferenceargs = [ 'lalinference_pipe'
+							, '--run-path'
+							, wdir+'/lalinference/'+lalinference_inifile.split('/')[-1].strip('.ini')
+							, '--gid'
+							, streamdata['uid']
+							, '--daglog-path'
+							, '/usr1/'+os.environ['USER']
+							, lalinference_inifile
+							, '--dax'
+							, '--grid-site'
+							, 'local'
+							, '--pegasus-submit'
+							#, '--condor-submit'
+							]
+
+		subprocess.call(lalinferenceargs)
