@@ -58,10 +58,10 @@ def process_alert(client, logger, graceid, voevent_type, skymap_filename=None,
 
 	if proc.returncode == 0:
 		message = '{0} VOEvent sent to GCN for testing purposes.'.format(voevent_type)
-		r = client.writeLog(graceid, 'Successfully sent VOEvent of type {0}.'.format(voevent_type), tagname='em_follow')
+		r = client.writeLog(graceid, 'AP: Successfully sent VOEvent of type {0}.'.format(voevent_type), tagname='em_follow')
 	else:
 		message = 'Error sending {0} VOEvent! {1}.'.format(voevent_type, error)
-		r = client.writeLog(graceid, 'Could not send VOEvent of type {0}.'.format(voevent_type), tagname='em_follow')
+		r = client.writeLog(graceid, 'AP: Could not send VOEvent of type {0}.'.format(voevent_type), tagname='em_follow')
 	logger.debug('{0} -- {1} -- message = {2}.'.format(st, graceid, message))
 	os.remove('/tmp/voevent_{0}_{1}.tmp'.format(graceid, number))
 
