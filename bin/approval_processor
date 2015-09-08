@@ -303,7 +303,7 @@ elif alert_type=='update':
 			if (len(idqvalues) < (len(idq_pipelines)*len(detectors))):
 				logger.info('{0} -- {1} -- Have not gotten all the minfap values yet.'.format(st, graceid))
 				if (min(idqvalues.values() and joint_FAP_values.values()) < idqthresh):
-					r = g.writeLog(graceid, 'AP: Finished running iDQ checks. Candidate event rejected because incomplete joint min-FAP value already less than iDQ threshold. iDQ threshold is {0}.'.format(idqthresh), tagname = 'em_follow')
+					r = g.writeLog(graceid, 'AP: Finished running iDQ checks. Candidate event rejected because incomplete joint min-FAP value already less than iDQ threshold. {0} < {1}'.format(min(idqvalues.values() and joint_FAP_values.values()), idqthresh), tagname = 'em_follow')
 					logger.info('{0} -- {1} -- iDQ check failed. Labeling with DQV.'.format(st, graceid))
 					r = g.writeLabel(graceid, 'DQV')
 					exit()
@@ -337,7 +337,7 @@ elif alert_type=='update':
 
 				if min(joint_FAP_values.values()) > idqthresh:
 					logger.info('{0} -- {1} -- Passed iDQ check.'.format(st, graceid))
-					r = g.writeLog(graceid, 'AP: Finished running iDQ checks. Candidate event passed iDQ checks.', tagname='em_follow')
+					r = g.writeLog(graceid, 'AP: Finished running iDQ checks. Candidate event passed iDQ checks. {0} > {1}'.format(min(joint_FAP_values.values()), idqthresh), tagname='em_follow')
 					if humanscimons=='yes':
 						passesHumanSignoffsOrExit(g, logger, graceid, detectors)
 
@@ -349,7 +349,7 @@ elif alert_type=='update':
 							r = g.writeLabel(graceid, 'EM_READY')
 							break
 				else:
-					r = g.writeLog(graceid, 'AP: Finished running iDQ checks. Candidate event rejected due to low iDQ FAP value of {0}. iDQ threshold is {1}.'.format(joint_FAP, idqthresh), tagname = 'em_follow')
+					r = g.writeLog(graceid, 'AP: Finished running iDQ checks. Candidate event rejected due to low iDQ FAP value. {0} < {1}'.format(min(joint_FAP_values.values()), idqthresh), tagname = 'em_follow')
 					logger.info('{0} -- {1} -- iDQ check failed. Labeling with DQV.'.format(st, graceid))
 					r = g.writeLabel(graceid, 'DQV')
 
