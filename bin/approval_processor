@@ -50,13 +50,13 @@ st = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
 def passesHumanSignoffsOrExit(client, logger, graceid, detectors):
    	signoffResult = checkSignoffs(client, logger, graceid, detectors)
    	if signoffResult=='Fail':
-        	msg = 'Finished running human signoff checks. Candidate event failed human signoff checks.'
+        	msg = 'AP: Finished running human signoff checks. Candidate event failed human signoff checks.'
         	r = client.writeLog(graceid, msg, tagname='em_follow')
         	logger.info('{0} -- {1} -- Labeling with DQV.'.format(st, graceid))
         	r = client.writeLabel(graceid, 'DQV')
         	exit()
 	elif signoffResult=='Pass':
-        	msg = 'Finished running human signoff checks. Candidate event passed human signoff checks.'
+        	msg = 'AP: Finished running human signoff checks. Candidate event passed human signoff checks.'
         	r = client.writeLog(graceid, msg, tagname='em_follow')
 	else:
         	logger.info('{0} -- {1} -- No action taken due to scimon status.'.format(st, graceid))
@@ -185,12 +185,13 @@ elif alert_type == 'new':
 	# If FAR is above threshold, or if event is labeled INJ or DQV, do not create alert
 	# Also log message saying why no alert was created
 	if far >= farthresh:
-		logger.info('{0} -- {1} -- Rejected due to large FAR.'.format(st, graceid))
-		r = g.writeLog(graceid, 'Candidate event rejected due to large FAR.', tagname = 'em_follow')
+		logger.info('{0} -- {1} -- Rejected due to large FAR. {2} >= {3}'.format(st, graceid, far, farthresh))
+		r = g.writeLog(graceid, 'AP: Candidate event rejected due to large FAR. {0} >= {1}'.format(far, farthresh), tagname = 'em_follow')
 	elif checkLabels(hardware_inj, labels.keys()) > 0:
 		logger.info('{0} -- {1} -- Ignoring new event due to INJ or DQV.'.format(st, graceid))
-		r = g.writeLog(graceid, 'Candidate event rejected due to INJ or DQV label.', tagname = 'em_follow')
+		r = g.writeLog(graceid, 'AP: Candidate event rejected due to INJ or DQV label.', tagname = 'em_follow')
 	else:
+		r = g.writeLog(graceid, 'AP: Candidate event has low enough FAR. {0} < {1}'.format(far, farthresh), tagname = 'em_follow')		
 		logger.info('{0} -- {1} -- Submitting preliminary VOEvent to GCN.'.format(st, graceid))
 		process_alert(g, logger, graceid, 'preliminary')
 		detectors = str(event_dict['instruments']).split(',')
@@ -248,7 +249,7 @@ elif alert_type=='update':
 		skymap_filename = filename
 		skymap_type = group + search
 		display_name = streamdata['object']['issuer']['display_name']
-		msg = 'Last skymap submitted was {0} type {1} by {2}.'.format(skymap_filename, skymap_type, display_name)
+		msg = 'AP: Last skymap submitted was {0} type {1} by {2}.'.format(skymap_filename, skymap_type, display_name)
 		r = g.writeLog(graceid, msg.replace('  ',' '))
 
 		if display_name in skymap_ignore_list:
@@ -302,7 +303,7 @@ elif alert_type=='update':
 			if (len(idqvalues) < (len(idq_pipelines)*len(detectors))):
 				logger.info('{0} -- {1} -- Have not gotten all the minfap values yet.'.format(st, graceid))
 				if (min(idqvalues.values() and joint_FAP_values.values()) < idqthresh):
-					r = g.writeLog(graceid, 'Finished running iDQ checks. Candidate event rejected because incomplete joint min-FAP value already less than iDQ threshold. iDQ threshold is {0}.'.format(idqthresh), tagname = 'em_follow')
+					r = g.writeLog(graceid, 'AP: Finished running iDQ checks. Candidate event rejected because incomplete joint min-FAP value already less than iDQ threshold. iDQ threshold is {0}.'.format(idqthresh), tagname = 'em_follow')
 					logger.info('{0} -- {1} -- iDQ check failed. Labeling with DQV.'.format(st, graceid))
 					r = g.writeLabel(graceid, 'DQV')
 					exit()
@@ -336,7 +337,7 @@ elif alert_type=='update':
 
 				if min(joint_FAP_values.values()) > idqthresh:
 					logger.info('{0} -- {1} -- Passed iDQ check.'.format(st, graceid))
-					r = g.writeLog(graceid, 'Finished running iDQ checks. Candidate event passed iDQ checks.', tagname='em_follow')
+					r = g.writeLog(graceid, 'AP: Finished running iDQ checks. Candidate event passed iDQ checks.', tagname='em_follow')
 					if humanscimons=='yes':
 						passesHumanSignoffsOrExit(g, logger, graceid, detectors)
 
@@ -348,7 +349,7 @@ elif alert_type=='update':
 							r = g.writeLabel(graceid, 'EM_READY')
 							break
 				else:
-					r = g.writeLog(graceid, 'Finished running iDQ checks. Candidate event rejected due to low iDQ FAP value of {0}. iDQ threshold is {1}.'.format(joint_FAP, idqthresh), tagname = 'em_follow')
+					r = g.writeLog(graceid, 'AP: Finished running iDQ checks. Candidate event rejected due to low iDQ FAP value of {0}. iDQ threshold is {1}.'.format(joint_FAP, idqthresh), tagname = 'em_follow')
 					logger.info('{0} -- {1} -- iDQ check failed. Labeling with DQV.'.format(st, graceid))
 					r = g.writeLabel(graceid, 'DQV')
 
@@ -396,7 +397,7 @@ elif alert_type=='signoff':
 		passesHumanSignoffsOrExit(g, logger, graceid, detectors)
 	elif humanscimons!='yes':
 		if status=='NO':
-			msg = 'Candidate event failed human signoff checks.'
+			msg = 'AP: Candidate event failed human signoff checks.'
         		r = g.writeLog(graceid, msg, tagname='em_follow')
         		logger.info('{0} -- {1} -- Labeling with DQV.'.format(st, graceid))
         		r = g.writeLabel(graceid, 'DQV')
