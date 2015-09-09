@@ -185,6 +185,37 @@ def config_to_schedule( config, event_type, verbose=False, freq=None ):
         for dt in waits:
             schedule.append( (dt, lib_finish, kwargs, checks['lib_finish'].split(), "lib_finish") )
 
+    if checks.has_key("lib_skymap"):
+        if verbose:
+            report( "\tcheck lib_skymap" )
+        kwargs = {'verbose':verbose}
+        if config.has_option('lib', 'far'):
+            kwargs.update( {'far':config.getfloat('lib', 'far')} )
+
+        ### divide based on frequency
+        if config.has_option('lib', 'freq_thr'): ### we split based on freq_thr
+            if freq!=None: ### we know the frequency
+                freq_thr = config.getfloat("lib", "freq_thr")
+                if freq > freq_thr:
+                    if verbose:
+                        report( "\t\tfreq = %.3f Hz > %.3f Hz. Using high frequency scheduling"%(freq, freq_thr) )
+                    waits = get_dt( config.get("lib", "high_freq_skymap") )
+                else:
+                    if verbose:
+                        report( "\t\tfreq = %.3f <= %.3f Hz. Using low frequency scheduling"%(freq, freq_thr) )
+                    waits = get_dt( config.get("lib", "low_freq_skymap") )
+
+            else: ### we don't know the frquency but we split based on freq_thr
+                if verbose:
+                    report( "\t\tno frequency specified; using all provided scheduling information" )
+                waits = set( get_dt( config.get("lib", "low_freq_skymap") ) + get_dt( config.get("lib", "high_freq_skymap") ) )
+
+        else: ### we don't split based on freq_thr
+            waits = get_dt( config.get("lib", "skymap") )
+
+        for dt in waits:
+            schedule.append( (dt, lib_skymap, kwargs, checks['lib_skymap'].split(), "lib_skymap") )
+
     #=== bayestar
     if checks.has_key("bayestar_start"):
         if verbose:
@@ -203,6 +234,13 @@ def config_to_schedule( config, event_type, verbose=False, freq=None ):
             kwargs.update( {'far':config.getfloat('bayestar', 'far')} )
         for dt in get_dt( config.get("bayestar", "finish") ):
             schedule.append( (dt, bayestar_finish, kwargs, checks['bayestar_finish'].split(), "bayestar_finish") )
+
+    if checks.has_key("bayestar_skymap"):
+        if verbose:
+            report( "\tcheck bayestar_skymap" )
+        kwargs = {'verbose':verbose}
+        for dt in get_dt( config.get("bayestar", "skymap") ):
+            schedule.append( (dt, bayestar_skymap, kwargs, checks['bayestar_skymap'].split(), "bayestar_skymap") )
 
     #=== bayeswave
     if checks.has_key("bayeswave_start"):
@@ -245,6 +283,37 @@ def config_to_schedule( config, event_type, verbose=False, freq=None ):
         for dt in waits:
             schedule.append( (dt, bayeswave_finish, kwargs, checks['bayeswave_finish'].split(), "bayeswave_finish") )
 
+    if checks.has_key("bayeswave_skymap"):
+        if verbose:
+            report( "\tcheck bayeswave_skymap" )
+        kwargs = {'verbose':verbose}
+        if config.has_option('bayeswave', 'far'):
+            kwargs.update( {'far':config.getfloat('bayeswave', 'far')} )
+
+        ### divide based on frequency
+        if config.has_option('bayeswave', 'freq_thr'): ### we split based on freq_thr
+            if freq!=None: ### we know the frequency and we split based on freq_thr
+                freq_thr = config.getfloat("bayeswave", "freq_thr")
+                if freq > freq_thr:
+                    if verbose:
+                        report( "\t\tfreq = %.3f Hz > %.3f Hz. Using high frequency scheduling"%(freq, freq_thr) )
+                    waits = get_dt( config.get("bayeswave", "high_freq_skymap") )
+                else:
+                    if verbose:
+                        report( "\t\tfreq = %.3f <= %.3f Hz. Using low frequency scheduling"%(freq, freq_thr) )
+                    waits = get_dt( config.get("bayeswave", "low_freq_skymap") )
+
+            else: ### we don't know the frquency but we split based on freq_thr
+                if verbose:
+                    report( "\t\tno frequency specified; using all provided scheduling information" )
+                waits = set( get_dt( config.get("bayeswave", "low_freq_skymap") ) + get_dt( config.get("bayeswave", "high_freq_skymap") ) )
+
+        else: ### we don't split based on freq_thr
+            waits = get_dt( config.get("bayeswave", "skymap") )
+
+        for dt in waits:
+            schedule.append( (dt, bayeswave_skymap, kwargs, checks['bayeswave_skymap'].split(), "bayeswave_skymap") )
+
     #=== lalinference
     if checks.has_key("lalinference_start"):
         if verbose:
@@ -263,6 +332,16 @@ def config_to_schedule( config, event_type, verbose=False, freq=None ):
             kwargs.update( {'far':config.getfloat('lalinference', 'far')} )
         for dt in get_dt( config.get("lalinference", "finish") ):
             schedule.append( (dt, lalinference_finish, kwargs, checks['lalinference_finish'].split(), "lalinference_finish") )
+
+    if checks.has_key("lalinference_skymap"):
+        if verbose:
+            report( "\tcheck lalinference_skymap" )
+        kwargs = {'verbose':verbose}
+        if config.has_option('lalinference', 'far'):
+            kwargs.update( {'far':config.getfloat('lalinference', 'far')} )
+
+        for dt in get_dt( config.get("lalinference", "skymap") ):
+            schedule.append( (dt, lalinference_skymap, kwargs, checks['lalinference_skymap'].split(), "lalinference_skymap") )
 
     #=== externaltriggers
     if checks.has_key("externaltriggers_search"):
@@ -295,6 +374,14 @@ def config_to_schedule( config, event_type, verbose=False, freq=None ):
         kwargs = {'verbose':verbose}
         for dt in get_dt( config.get("json_skymaps", "dt") ):
             schedule.append( (dt, json_skymaps, kwargs, checks['json_skymaps'].split(), "json_skymaps") )
+
+    #=== approval_processor FAR check
+    if checks.has_key("approval_processor_far"):
+        if verbose:
+            report( "\tcheck approval_processor_far")
+        kwargs = {'verbose':verbose}
+        for dt in get_dt( config.get("approval_processor_far", "dt") ):
+            schedule.append( (dt, approval_processor_far, kwargs, checks['approval_processor_far'].split(), "approval_processor_far") )
 
     #=== emready_label
     if checks.has_key("emready_label"):
@@ -864,6 +951,36 @@ def lib_finish( gdb, gdb_id, far=None, verbose=False ):
         report( "\taction required : True" )
     return True
 
+def lib_skymap( gdb, gdb_id, far=None, verbose=False ):
+    """
+    checks that LIB uploaded the expected FITS file
+    """
+    if verbose:
+        report( "%s: lib_skymap"%(gdb_id) )
+
+    if far!=None:
+        if verbose:
+            report( "\tchecking far" )
+        if far_check( gdb, gdb_id, verbose=False, minFAR=0.0, maxFAR=far ):
+            report( "\tFAR > %.6e or not defined, event will be ignored"%(far) )
+            report( "\taction required : False" )
+            return False
+
+    if verbose:
+        report( "\tretrieving event files" )
+    files = gdb.files( gdb_id ).json().keys() ### we really just care about the filenames
+
+    if verbose:
+        report( "\tchecking for LIB FITS file" )
+    for filename in files:
+        if "LIB_skymap.fits.gz" in filename:
+            if verbose:
+                report( "\taction required : False" )
+                return False
+    if verbose:
+        report( "\taction required : True" )
+    return True
+
 #=================================================
 # methods that check whether bayeswave processes were triggered and completed
 #=================================================
@@ -926,6 +1043,36 @@ def bayeswave_finish( gdb, gdb_id, far=None, verbose=False ):
             if verbose:
                 report( "\taction required : False" )
             return False
+    if verbose:
+        report( "\taction required : True" )
+    return True
+
+def bayeswave_skymap( gdb, gdb_id, far=None, verbose=False ):
+    """
+    checks that BayesWave uploaded the expected FITS file
+    """
+    if verbose:
+        report( "%s: bayeswave_skymap"%(gdb_id) )
+
+    if far!=None:
+        if verbose:
+            report( "\tchecking far" )
+        if far_check( gdb, gdb_id, verbose=False, minFAR=0.0, maxFAR=far ):
+            report( "\tFAR > %.6e or not defined, event will be ignored"%(far) )
+            report( "\taction required : False" )
+            return False
+    
+    if verbose:
+        report( "\tretrieving event files" )
+    files = gdb.files( gdb_id ).json().keys() ### we really just care about the filenames
+
+    if verbose:
+        report( "\tchecking for BayesWave FITS file" )
+    for filename in files:
+        if ("skymap_" in filename) and filename.endswith(".fits"):
+            if verbose:
+                report( "\taction required : False" )
+                return False
     if verbose:
         report( "\taction required : True" )
     return True
@@ -996,6 +1143,36 @@ def bayestar_finish( gdb, gdb_id, far=None, verbose=False ):
         report( "\taction required : True" )
     return True
 
+def bayestar_skymap( gdb, gdb_id, far=None, verbose=False ):
+    """
+    checks that Bayestar uploaded the expected FITS file
+    """
+    if verbose:
+        report( "%s: bayestar_skymap"%(gdb_id) )
+
+    if far!=None:
+        if verbose:
+            report( "\tchecking far" )
+        if far_check( gdb, gdb_id, verbose=False, minFAR=0.0, maxFAR=far ):
+            report( "\tFAR > %.6e or not defined, event will be ignored"%(far) )
+            report( "\taction required : False" )
+            return False
+
+    if verbose:
+        report( "\tretrieving event files" )
+    files = gdb.files( gdb_id ).json().keys() ### we really just care about the filenames
+
+    if verbose:
+        report( "\tchecking for Bayestar FITS file" )
+    for filename in files:
+        if "skymap.fits.gz" in filename:
+            if verbose:
+                report( "\taction required : False" )
+                return False
+    if verbose:
+        report( "\taction required : True" )
+    return True
+
 #=================================================
 # methods that check whether lalinference processes were triggered and completed
 #=================================================
@@ -1062,8 +1239,39 @@ def lalinference_finish( gdb, gdb_id, far=None, verbose=False ):
         report( "\taction required : True" )
     return True
 
+def lalinference_skymap( gdb, gdb_id, far=None, verbose=False ):
+    """
+    checks that LALInference uploaded the expected FITS file
+    """
+    if verbose:
+        report( "%s: lalinference_skymap"%(gdb_id) )
+
+    if far!=None:
+        if verbose:
+            report( "\tchecking far" )
+        if far_check( gdb, gdb_id, verbose=False, minFAR=0.0, maxFAR=far ):
+            report( "\tFAR > %.6e or not defined, event will be ignored"%(far) )
+            report( "\taction required : False" )
+            return False
+
+    if verbose:
+        report( "\tretrieving event files" )
+    files = gdb.files( gdb_id ).json().keys() ### we really just care about the filenames
+
+    if verbose:
+        report( "\tchecking for LALInference FITS file" )
+    for filename in files:
+#        if ("lalinference_" in filename) and filename.endswith(".fits.gz"):
+        if "LALInference_skymap.fits.gz" in filename:
+            if verbose:
+                report( "\taction required : False" )
+                return False
+    if verbose:
+        report( "\taction required : True" )
+    return True
+
 #=================================================
-# tasks managed by gdb_processor
+# tasks managed by gracedb.processor through grinch
 #=================================================
 
 def externaltriggers_search( gdb, gdb_id, verbose=False ):
@@ -1184,6 +1392,36 @@ def json_skymaps( gdb, gdb_id, verbose=False ):
 #=================================================
 # tasks managed by approval_processor
 #=================================================
+
+def approval_processor_far( gdb, gdb_id, verbose=False ):
+    """
+    checks whether approval_processor has check the FAR of this event and responded in the GraceDB log
+    """
+    if verbose:
+        report( "%s : approval_proccesor_far"%(gdb_id) )
+        report( "\tretrieving log messages" )
+    logs = gdb.logs( gdb_id ).json()['log']
+
+    if verbose:
+        report( "\tparsing log" )
+    for log in logs:
+        comment = log['comment']
+        if ("Candidate event has low enough FAR" in comment) or ("Candidate event rejected due to large FAR" in comment):
+            if verbose:
+                report( "\taction required : False" )
+            return False
+    if verbose:
+        report( "\taction required : True" )
+    return True
+
+
+
+
+
+
+
+
+
 
 def emready_label( gdb, gdb_id, verbose=False ):
     """
