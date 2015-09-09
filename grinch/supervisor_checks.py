@@ -407,6 +407,14 @@ def config_to_schedule( config, event_type, verbose=False, freq=None ):
         for dt in get_dt( config.get("dqveto_label", "dt") ):
             schedule.append( (dt, dqveto_label, kwargs, checks['dqveto_label'].split(), "dqveto_label") )
 
+    #=== dqwarning_label
+    if checks.has_key("dqwarning_label"):
+        if verbose:
+            report( "\tcheck dqwarning_label" )
+        kwargs = {'verbose':verbose}
+        for dt in get_dt( config.get("dqwarning_label", "dt") ):
+            schedule.append( (dt, dqwarning_label, kwargs, checks['dqwarning_label'].split(), "dqwarning_label") )
+
     #=== voevent_creation
     if checks.has_key("voevent_creation"):
         if verbose:
@@ -415,6 +423,13 @@ def config_to_schedule( config, event_type, verbose=False, freq=None ):
         for dt in get_dt( config.get("voevent_creation", "dt") ):
             schedule.append( (dt, voevent_creation, kwargs, checks['voevent_creation'].split(), "voevent_creation") )
 
+    #=== voevent_sent
+    if checks.has_key("voevent_sent"):
+        if verbose:
+            report( "\tcheck voevetn_sent" )
+        kwargs = {'verbose':verbose}
+        for dt in get_dt( config.get("voevent_sent", "dt") ):
+            schedule.append( (dt, voevent_sent, kwargs, checks['voevent_sent'].split(), "voevent_sent") )
 
     ### order according to dt, smallest to largest
     schedule.sort(key=lambda l:l[0])
@@ -1466,6 +1481,7 @@ def emready_label( gdb, gdb_id, verbose=False ):
 
     report( "WARNING: missing logic" )
 
+    raise StandardError
     return action_required
 
 def peready_label( gdb, gdb_id, verbose=False, pe_pipelines="lib bayeswave lalinference".split() ):
@@ -1528,6 +1544,7 @@ def peready_label( gdb, gdb_id, verbose=False, pe_pipelines="lib bayeswave lalin
 
     report( "WARNING: missing logic" )
 
+    raise StandardError
     return action_required
 
 def dqveto_label( gdb, gdb_id, verbose=False ):
@@ -1539,6 +1556,13 @@ def dqveto_label( gdb, gdb_id, verbose=False ):
 
     report( "WARNING: WRITE ME" )
 
+    raise StandardError
+    return False
+
+def dqwarning_label( gdb, gdb_id, verbose=False ):
+    report( "WARING: WRITE ME" )
+
+    raise StandardError
     return False
 
 def voevent_creation( gdb, gdb_id, verbose=False ):
@@ -1557,4 +1581,15 @@ def voevent_creation( gdb, gdb_id, verbose=False ):
 
     report( "WARNING: WRITE ME" )
 
+    raise StandardError
+    return False
+
+def voevent_sent( gdb, gdb_id, verbose=False ):
+    """
+    NOT YET WRITTEN
+    """
+
+    report( "WARNING: WRITE ME" )
+
+    raise StandardError
     return False
