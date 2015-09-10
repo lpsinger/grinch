@@ -30,9 +30,12 @@ parser.add_option("-c", "--config", default="config.ini", type="string", help="t
 
 parser.add_option('-G', '--gracedb_url', default="https://gracedb.ligo.org/api/", type="string")
 parser.add_option('-a', '--annotate-gracedb', default=False, action="store_true", help="write log messages describing checks into GraceDb")
-
+parser.add_option('-n', '--no-email', default=False, action="store_true", help="do not send emails if alerts require action. Useful for debugging")
 
 parser.add_option("", "--dont-submit", default=False, action="store_true", help="don't sumbit the dag after it has been written")
+
+parser.add_option("", "--subprocess", default=False, action="store_true", help="submit via subprocess rather than through Condor")
+parser.add_option("", "--executable", default="event_supervisor", type="string", help="the location of the executable. ONLY USED when running with --subprocess, otherwise this is read from  --subfile")
 
 opts, args = parser.parse_args()
 
@@ -41,6 +44,9 @@ if opts.dagtag:
 
 if not os.path.exists(opts.logdir):
     os.makedirs(opts.logdir)
+
+if opts.subprocess:
+    import subprocess
 
 #=================================================
 
@@ -62,25 +68,65 @@ if opts.verbose:
 
 #=================================================
 
-### write the dag
-dagfilename = "%s/%s%s.dag"%(opts.logdir, gdb_id, opts.dagtag)
-if opts.verbose:
-    report( "writing dag : %s"%dagfilename )
+if opts.subprocess: ### submit via subprocess
 
-file_obj = open(dagfilename, "w")
-print >> file_obj, "JOB %s %s"%(gdb_id, opts.subfile)
-print >> file_obj, "RETRY %s 0"%(gdb_id)
-VARS = "VARS %s graceid=\"%s\" config=\"%s\" logdir=\"%s\" gracedb_url=\"%s\""%(gdb_id, gdb_id, opts.config, opts.logdir, opts.gracedb_url)
-if opts.annotate_gracedb:
-    VARS += " annotate_gracedb=\"--annotate-gracedb\""
-else:
-    VARS += " annotate_gracedb=\"\""
-print >> file_obj, VARS
-file_obj.close()
+    if opts.verbose:
+        report( "configuring command line" )
 
-#=================================================
+    log = "%s/event_supervisor_%s.log"%(opts.logdir, gdb_id)
+    out = "%s/event_supervisor_%s.out"%(opts.logdir, gdb_id)
+    err = "%s/event_supervisor_%s.err"%(opts.logdir, gdb_id)
+   
+    if opts.verbose:
+        report( "log : %s"%log )
+        report( "out : %s"%out )
+        report( "err : %s"%err )
+ 
+    cmd = "%s --verbose --graceid %s --gracedb_url %s %s"%(opts.executable, gdb_id, opts.gracedb_url, opts.config)
+    if opts.annotate_gracedb:
+        cmd += " --annotate-gracedb"
+    if opts.no_email:
+        cmd += " --no-email"
 
-### submit the dag
-if not opts.dont_submit:
-    os.system("condor_submit_dag %s"%dagfilename)
+    log_obj = open(log, "w")
+    print >> log_obj, cmd
+
+    if opts.verbose:
+        report( "submitting command line" )
+    out_obj = open(out, "w")
+    err_obj = open(err, "w")
+    subprocess.Popen(cmd.split(), stdout=out_obj, stderr=err_obj)
+    out_obj.close()
+    err_obj.close()
+
+    print >> log_obj, "stdout : %s"%(out)
+    print >> log_obj, "stderr : %s"%(err)
+    log_obj.close()
+
+else: ### submit through Condor
+    ### write the dag
+    dagfilename = "%s/%s%s.dag"%(opts.logdir, gdb_id, opts.dagtag)
+    if opts.verbose:
+        report( "writing dag : %s"%dagfilename )
+
+    file_obj = open(dagfilename, "w")
+    print >> file_obj, "JOB %s %s"%(gdb_id, opts.subfile)
+    print >> file_obj, "RETRY %s 0"%(gdb_id)
+    VARS = "VARS %s graceid=\"%s\" config=\"%s\" logdir=\"%s\" gracedb_url=\"%s\""%(gdb_id, gdb_id, opts.config, opts.logdir, opts.gracedb_url)
+    if opts.annotate_gracedb:
+        VARS += " annotate_gracedb=\"--annotate-gracedb\""
+    else:
+        VARS += " annotate_gracedb=\"\""
+    if opts.no_email:
+        VARS += " no_email=\"--no-email\""
+    else:
+        VARS += " no_email=\"\""
+    print >> file_obj, VARS
+    file_obj.close()
+
+    ### submit the dag
+    if not opts.dont_submit:
+        if opts.verbose:
+            report( "submitting dag" )
+        os.system("condor_submit_dag %s"%dagfilename)
 

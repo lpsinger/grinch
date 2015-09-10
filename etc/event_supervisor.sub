@@ -5,7 +5,7 @@ log = $(logdir)/event_supervisor_$(graceid).log
 output = $(logdir)/event_supervisor_$(graceid).out
 error = $(logdir)/event_supervisor_$(graceid).err
 notification = never
-arguments = " --verbose --graceid $(graceid) --gracedb_url $(gracedb_url) $(annotate_gracedb) $(config) "
+arguments = " --verbose --graceid $(graceid) --gracedb_url $(gracedb_url) $(annotate_gracedb) $(no_email) $(config) "
 
 accounting_group = ligo.prod.o1.cbc.grb.raven
 accounting_group_user = reed.essick
