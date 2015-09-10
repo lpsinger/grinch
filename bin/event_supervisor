@@ -171,3 +171,5 @@ if opts.annotate_gracedb:
     log = "event_supervisor completed all scheduled checks"
     gracedb.writeLog( gdb_id, log )
 
+if opts.verbose:
+    report( "Done" )
