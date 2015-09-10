@@ -1,1 +1,1 @@
-nohup lvalert_listen -a gdb_processor -b skrite#batz -r approval_processor --dont-wait -c /home/gracedb.processor/opt/etc/approval_processor_lvalert.ini --dont-wait >> /home/gracedb.processor/working/lvalert_listen-approval_processor.out &
+nohup lvalert_listen -a gdb_processor -b skrite#batz -r approval_processor --dont-wait -c /home/gracedb.processor/opt/etc/approval_processor_lvalert.ini >> /home/gracedb.processor/working/lvalert_listen-approval_processor.out &
