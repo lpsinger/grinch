@@ -198,11 +198,11 @@ elif alert_type == 'new':
 		th = 2
 		Injections = query('HardwareInjection', event_time, tl, th)
 		if len(Injections) > 0:
+			logger.info('{0} -- {1} -- Labeling with INJ.'.format(st, graceid))
+			r = g.writeLabel(graceid, 'INJ')
 			if hardware_inj=='no':
 				logger.info('{0} -- {1} -- Ignoring new event because we found hardware injection.'.format(st, graceid))
 				r = g.writeLog(graceid, 'AP: Candidate event rejected because we found hardware injection.', tagname = 'em_follow')
-				logger.info('{0} -- {1} -- Labeling with INJ.'.format(st, graceid))
-				r = g.writeLabel(graceid, 'INJ')
 				exit()
 			else:
 				pass
