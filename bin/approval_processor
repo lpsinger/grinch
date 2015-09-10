@@ -175,6 +175,7 @@ elif alert_type == 'new':
 	far = event_dict['far']
 	pipeline = event_dict['pipeline']
 	labels = event_dict['labels']
+	event_time = float(event_dict['gpstime'])
 	if 'search' in event_dict.keys():
 		search = event_dict['search']
 	else:
@@ -191,6 +192,22 @@ elif alert_type == 'new':
 		logger.info('{0} -- {1} -- Ignoring new event due to INJ or DQV.'.format(st, graceid))
 		r = g.writeLog(graceid, 'AP: Candidate event rejected due to INJ or DQV label.', tagname = 'em_follow')
 	else:
+		# Need to check whether there's a Hardware Injection found +/-2 seconds of this event gpstime
+		from raven.search import query
+		tl = -2
+		th = 2
+		Injections = query('HardwareInjection', event_time, tl, th)
+		if len(Injections) > 0:
+			if hardware_inj=='no':
+				logger.info('{0} -- {1} -- Ignoring new event because we found hardware injection.'.format(st, graceid))
+				r = g.writeLog(graceid, 'AP: Candidate event rejected because we found hardware injection.', tagname = 'em_follow')
+				logger.info('{0} -- {1} -- Labeling with INJ.'.format(st, graceid))
+				r = g.writeLabel(graceid, 'INJ')
+				exit()
+			else:
+				pass
+		elif len(Injections)==0:
+			pass
 		r = g.writeLog(graceid, 'AP: Candidate event has low enough FAR. {0} < {1}'.format(far, farthresh), tagname = 'em_follow')		
 		logger.info('{0} -- {1} -- Submitting preliminary VOEvent to GCN.'.format(st, graceid))
 		process_alert(g, logger, graceid, 'preliminary')
