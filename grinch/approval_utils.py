@@ -31,7 +31,6 @@ def get_idqthresh(config, pipeline, search):
 		return config.getfloat('default', 'default_idqthresh')
 
 # Define a function for pulling down and sending out the correct VOEvent depending on label type
-
 def process_alert(client, logger, graceid, voevent_type, skymap_filename=None, 
 	skymap_type=None, skymap_image_filename=None):
 	logger.info("{0} -- {1} -- Processing {2} VOEvent.".format(st, graceid, voevent_type))
