@@ -86,7 +86,7 @@ except Exception, e:
 
 begintime = gpstime.gps_time_now()
 
-# XXX For ER7 if the graceid starts with 'M' for MDCs or 'S' for Simulation, we want to ignore the event.
+# XXX If the graceid starts with 'M' for MDCs or 'S' for Simulation, we want to ignore the event.
 if re.match('M', graceid) or re.match('S', graceid):
 	logger.error('{0} -- {1} -- Mock data challenge or simulation. Quitting.'.format(st, graceid))
 	exit()
@@ -343,8 +343,7 @@ elif alert_type=='update':
 
 					# Check log to see if there is a skymap file or not... If so, set label 'EM_READY'
 					for message in log_dicts:
-						#XXX Make sure that whenever skymaps are uploaded they always log 'skymap' in the comment
-						if 'skymap' in message['comment']:
+						if 'Last skymap submitted was' in message['comment']:
 							logger.info('{0} -- {1} -- Labeling with EM_READY.'.format(st, graceid))
 							r = g.writeLabel(graceid, 'EM_READY')
 							break
@@ -407,7 +406,7 @@ elif alert_type=='signoff':
 
 	log_dicts = g.logs(graceid).json()['log']
 	for message in log_dicts:
-		if 'skymap' in message['comment']: #XXX Make sure that whenever skymaps are uploaded they always log 'skymap' in the comment
+		if 'Last skymap submited was' in message['comment']:
 			for msg in log_dicts:
 				if use_idq=='yes':
 					if 'Candidate event passed iDQ checks' in msg['comment']: 
