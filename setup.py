@@ -47,9 +47,11 @@ setup(
         'bin/find_data',
         'bin/start_comet',
         'bin/approval_processor',
+        'bin/gdb_processor_approval_processor',
         'bin/lvalert-init_approval_processor',
         'bin/event_supervisor',
         'bin/event_supervisor_wrapper',
+        'bin/gdb_processor_event_supervisor',
         'bin/lvalert-init_event_supervisor',
         'bin/lvalert-run_event_supervisor_wrapper'
     ],
