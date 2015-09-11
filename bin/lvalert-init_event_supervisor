@@ -1,3 +1,3 @@
 #!/bin/bash
-lvalert_listen -a gdb_processor -b skrite#batz -s lvalert.cgca.uwm.edu -r event_supervisor -c /home/gracedb.processor/opt/etc/event_supervisor-lvalertconfig.ini
+lvalert_listen -a gdb_processor -b skrite#batz -s lvalert.cgca.uwm.edu -r event_supervisor -c /home/gracedb.processor/opt/etc/event_supervisor-lvalertconfig.ini --dont-wait
 #nohup lvalert_listen -a gdb_processor -b skrite#batz -s lvalert.cgca.uwm.edu -r event_supervisor -c /home/gracedb.processor/opt/etc/event_supervisor-lvalertconfig.ini >> /home/gracedb.processor/working/lvalert_listen-event_supervisor.out &
