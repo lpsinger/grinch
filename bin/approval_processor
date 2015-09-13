@@ -12,7 +12,7 @@ import urllib
 
 import logging
 
-from grinch.approval_utils import get_farthresh, get_idqthresh, process_alert, checkSignoffs 
+from grinch.approval_utils import get_farthresh, get_idqthresh, process_alert, checkSignoffs, checkAdvocateSignoff 
 from grinch.approval_utils import checkLabels, checkIdqStatus, getIdqAndJointFapValues
 from grinch.workflow_helper import home
 
@@ -61,6 +61,22 @@ def passesHumanSignoffsOrExit(client, logger, graceid, detectors):
         	r = client.writeLog(graceid, msg, tagname='em_follow')
 	else:
         	logger.info('{0} -- {1} -- No action taken due to scimon status.'.format(st, graceid))
+        	exit()
+
+# A common set of tasks related to the advocate signoff
+def passesAdvocateSignoffOrExit(client, logger, graceid):
+   	signoffResult = checkAdvocateSignoff(client, logger, graceid)
+   	if signoffResult=='Fail':
+        	msg = 'AP: Finished running advocate check. Candidate event failed advocate check.'
+        	r = client.writeLog(graceid, msg, tagname='em_follow')
+        	logger.info('{0} -- {1} -- Labeling with DQV.'.format(st, graceid))
+        	r = client.writeLabel(graceid, 'DQV')
+        	exit()
+	elif signoffResult=='Pass':
+        	msg = 'AP: Finished running advocate check. Candidate event passed advocate check.'
+        	r = client.writeLog(graceid, msg, tagname='em_follow')
+	else:
+        	logger.info('{0} -- {1} -- No action taken due to advocate status.'.format(st, graceid))
         	exit()
 
 #--------------------------------------------------------------------------------------
@@ -220,6 +236,7 @@ elif alert_type == 'new':
 		for detector in detectors:
 			logger.info('{0} -- {1} -- Labeling with {2}OPS.'.format(st, graceid, detector))
 			r = g.writeLabel(graceid, '{0}OPS'.format(detector))
+#		r = g.writeLabel(graceid, 'ADVREQ')
 		# Expose event to LV-EM
 		url_perm_base = g.service_url + urllib.quote('events/{0}/perms/gw-astronomy:LV-EM/'.format(graceid))
 		for perm in ['view', 'change']:
@@ -310,6 +327,9 @@ elif alert_type=='update':
 				if humanscimons=='yes':
 					passesHumanSignoffsOrExit(g, logger, graceid, detectors)
 
+				if advocates=='yes':
+					passesAdvocateSignoffOrExit(g, logger, graceid)
+
 				# If we're still here, we are ready to apply the EM_READY label
 				logger.info('{0} -- {1} -- Labeling with EM_READY.'.format(st, graceid))
 				r = g.writeLabel(graceid, 'EM_READY')
@@ -360,8 +380,12 @@ elif alert_type=='update':
 				if min(joint_FAP_values.values()) > idqthresh:
 					logger.info('{0} -- {1} -- Passed iDQ check.'.format(st, graceid))
 					r = g.writeLog(graceid, 'AP: Finished running iDQ checks. Candidate event passed iDQ checks. {0} > {1}'.format(min(joint_FAP_values.values()), idqthresh), tagname='em_follow')
+
 					if humanscimons=='yes':
 						passesHumanSignoffsOrExit(g, logger, graceid, detectors)
+
+					if advocates=='yes':
+						passesAdvocateSignoffOrExit(g, logger, graceid)
 
 					# Check log to see if there is a skymap file or not... If so, set label 'EM_READY'
 					for message in log_dicts:
@@ -375,7 +399,7 @@ elif alert_type=='update':
 					r = g.writeLabel(graceid, 'DQV')
 
 #--------------------------------------------------------------------------------------
-# Handle human scimon signoffs
+# Handle signoffs
 #--------------------------------------------------------------------------------------
 elif alert_type=='signoff':
 	# Since we will need information about the event itself, fetch the event dict
@@ -408,27 +432,62 @@ elif alert_type=='signoff':
 		idqthresh = get_idqthresh(config, pipeline, search)
 
 	signoff_object = streamdata['object']
+	signoff_type = signoff_object['signoff_type']
 	instrument = signoff_object['instrument']
 	# Get the status, 'OK' means 'okay' and 'NO' means 'not okay'
 	status = signoff_object['status']
 
-	if humanscimons=='yes':
-		# Since we need to check the response from all detector sites, get the list of detectors for event
-		detectors = str(event_dict['instruments']).split(',')
-		passesHumanSignoffsOrExit(g, logger, graceid, detectors)
-	elif humanscimons!='yes':
-		if status=='NO':
-			msg = 'AP: Candidate event failed human signoff checks.'
-        		r = g.writeLog(graceid, msg, tagname='em_follow')
-        		logger.info('{0} -- {1} -- Labeling with DQV.'.format(st, graceid))
-        		r = g.writeLabel(graceid, 'DQV')
-       			exit()
-		else:
-			pass
+	if signoff_type=='OP':
+		if humanscimons=='yes':
+			# Since we need to check the response from all detector sites, get the list of detectors for event
+			detectors = str(event_dict['instruments']).split(',')
+			passesHumanSignoffsOrExit(g, logger, graceid, detectors)
+			if advocates=='yes':
+				passesAdvocateSignoffOrExit(g, logger, graceid)
+			elif advocates!='yes':
+				pass
+		if humanscimons!='yes':
+			if status=='NO':
+				msg = 'AP: Candidate event failed human signoff checks.'
+        			r = g.writeLog(graceid, msg, tagname='em_follow')
+        			logger.info('{0} -- {1} -- Labeling with DQV.'.format(st, graceid))
+        			r = g.writeLabel(graceid, 'DQV')
+       				exit()
+			elif status=='OK':
+				if advocates=='yes':
+					passesAdvocateSignoffOrExit(g, logger, graceid)
+				elif advocates!='yes':
+					pass
+
+	if signoff_type=='ADV':
+		if advocates=='yes':
+			passesAdvocateSignoffOrExit(g, logger, graceid)
+			if humanscimons=='yes':
+				# Since we need to check the response from all detector sites, get the list of detectors for event
+				detectors = str(event_dict['instruments']).split(',')
+				passesHumanSignoffsOrExit(g, logger, graceid, detectors)
+			elif humanscimons!='yes':
+				pass
+		if advocates!='yes':
+			if status=='NO':
+				msg = 'AP: Candidate event failed advocate check.'
+        			r = g.writeLog(graceid, msg, tagname='em_follow')
+        			logger.info('{0} -- {1} -- Labeling with DQV.'.format(st, graceid))
+        			r = g.writeLabel(graceid, 'DQV')
+       				exit()
+			elif status=='OK':
+				msg = 'AP: Candidate event passed advocate check.'
+        			r = g.writeLog(graceid, msg, tagname='em_follow')
+				if humanscimons=='yes':
+					# Since we need to check the response from all detector sites, get the list of detectors for event
+					detectors = str(event_dict['instruments']).split(',')
+					passesHumanSignoffsOrExit(g, logger, graceid, detectors)
+				elif humanscimons!='yes':
+					pass
 
 	log_dicts = g.logs(graceid).json()['log']
 	for message in log_dicts:
-		if 'Last skymap submited was' in message['comment']:
+		if 'Last skymap submitted was' in message['comment']:
 			for msg in log_dicts:
 				if use_idq=='yes':
 					if 'Candidate event passed iDQ checks' in msg['comment']: 
