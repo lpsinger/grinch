@@ -101,6 +101,43 @@ def checkSignoffs(client, logger, graceid, detectors):
 		else:
 			return 'Pass'
 
+# Define a function that checks for the advocate signoff
+def checkAdvocateSignoff(client, logger, graceid):
+	log_dicts = client.logs(graceid).json()['log']
+	for message in log_dicts:
+		if 'Finished running advocate check.' in message['comment']:
+			passorfail = re.findall(r'Candidate event (.*)ed advocate check.', message['comment'])
+			if passorfail[0]=='pass':
+				return 'Pass'
+			elif passorfail[0]=='fail':
+				return 'Fail'
+		else:
+			pass 
+	# Construct the URL for the signoff list
+	url = client.templates['signoff-list-template'].format(graceid=graceid)
+	# Pull down the operator signoff list
+	signoff_list = client.get(url).json()['signoff']
+	# Use the list to construct the signoff results dictionary
+	signoffdict = {}
+	for signoff in signoff_list:
+		if signoff['instrument']=='':
+			signoffdict[signoff['instrument']] = 'Pass' if signoff['status']=='OK' else 'Fail'
+		else:
+			pass
+	# Now use the signoffdict to do the check
+	if (len(signoffdict) > 1):
+		logger.info('{0} -- {1} -- More than one advocate signoff in the signoff dictionary.'.format(st, graceid))
+		return 'Unknown'
+	elif (len(signoffdict) < 1):
+		logger.info('{0} -- {1} -- No advocate signoff in the signoff dictionary.'.format(st, graceid))
+		return 'Unknown'
+	else:
+		logger.info('{0} -- {1} -- Ready to run advocate signoff check.'.format(st, graceid))
+		if ('Fail' in signoffdict.values()):
+			return 'Fail'
+		else:
+			return 'Pass'
+
 # Define a function that disqualifies an event for being and INJ or DQV. 
 # This function depends on the value of hardware_inj in the config file
 # hardware_inj == 'yes' means we treat hardware injections are real events
