@@ -238,7 +238,7 @@ elif alert_type == 'new':
 			r = g.writeLabel(graceid, '{0}OPS'.format(detector))
 #		r = g.writeLabel(graceid, 'ADVREQ')
 		# Expose event to LV-EM
-		url_perm_base = g.service_url + urllib.quote('events/{0}/perms/gw-astronomy:LV-EM/'.format(graceid))
+		url_perm_base = g.service_url + urllib.quote('events/{0}/perms/gw-astronomy:LV-EM:Observers/'.format(graceid))
 		for perm in ['view', 'change']:
 			url = url_perm_base + perm
 			r = g.put(url)
