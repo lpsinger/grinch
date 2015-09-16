@@ -241,7 +241,7 @@ elif alert_type == 'new':
 		url_perm_base = g.service_url + urllib.quote('events/{0}/perms/gw-astronomy:LV-EM:Observers/'.format(graceid))
 		for perm in ['view', 'change']:
 			url = url_perm_base + perm
-			r = g.put(url)
+#			r = g.put(url)
 
 #--------------------------------------------------------------------------------------
 # Handle uploaded files
