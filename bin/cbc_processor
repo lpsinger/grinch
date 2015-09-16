@@ -6,21 +6,16 @@ import os
 import os.path
 import subprocess
 import tempfile
-import urlparse
 import re
 import json
 import ConfigParser
-import shutil
-import ligo.gracedb.rest
 
 from sys             import exit, stdin
+from ligo.gracedb.rest import GraceDb
 from grinch.workflow_helper import directory, home
 from glue.ligolw     import ligolw
 from glue.ligolw     import utils
-from glue.ligolw     import table
-from glue.ligolw     import lsctables
 
-lsctables.use_in(ligolw.LIGOLWContentHandler)
 
 # Create a dictionary from the gracedb table.
 streamdata = json.loads( stdin.read() )
@@ -148,17 +143,6 @@ SCRIPT POST PLOTALLSKY %(gracedbcommand)s --tag-name=sky_loc upload %(uid)s %(pl
 # Elsewise, end the processor.
 else:
 	exit()
-
-# Extract information about the event.
-coincfile = 'coinc.xml'
-gracedb_client = ligo.gracedb.rest.GraceDb()
-remote_file = gracedb_client.files(streamdata['uid'], coincfile)
-
-with open(coincfile, 'w') as local_file:
-	shutil.copyfileobj(remote_file, local_file)
-
-doc        = utils.load_filename(coincfile, contenthandler = ligolw.LIGOLWContentHandler)
-coinctable = table.get_table(doc,lsctables.CoincInspiralTable.tableName)
 
 
 ## Get ifo info.
@@ -327,7 +311,9 @@ subprocess.call(condorargs)
 if cp.has_section('lalinference'):
 	print "Starting LALInference follow-up"
 	far_threshold = cp.get('lalinference', 'far_threshold')
-	if coinctable[0].combined_far <= eval(far_threshold):
+	gracedb = GraceDb()  # Initialize instance of GraceDB client
+	far = list(gracedb.events( streamdata['uid'] ))[0]['far']
+	if far <= eval(far_threshold):
 		print "FAR low enough"
 		lscsoftrc = cp.get('lalinference', 'lscsoftrc')
 		command = ['bash', '-c', 'source '+lscsoftrc+' && env']
@@ -357,4 +343,5 @@ if cp.has_section('lalinference'):
 				     #, '--condor-submit'
 				     ]
 		subprocess.call(lalinferenceargs)
-
+	else:
+		print "FAR is higher than %s; not triggering LALInference for event %s." % (eval(far_threshold), streamdata['uid'])
