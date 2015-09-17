@@ -236,7 +236,7 @@ elif alert_type == 'new':
 		for detector in detectors:
 			logger.info('{0} -- {1} -- Labeling with {2}OPS.'.format(st, graceid, detector))
 			r = g.writeLabel(graceid, '{0}OPS'.format(detector))
-#		r = g.writeLabel(graceid, 'ADVREQ')
+		r = g.writeLabel(graceid, 'ADVREQ')
 		# Expose event to LV-EM
 		url_perm_base = g.service_url + urllib.quote('events/{0}/perms/gw-astronomy:LV-EM:Observers/'.format(graceid))
 		for perm in ['view', 'change']:
