@@ -77,9 +77,9 @@ def checkSignoffs(client, logger, graceid, detectors):
 		else:
 			pass 
 	# Construct the URL for the operator signoff list
-	url = client.templates['operatorsignoff-list-template'].format(graceid=graceid)
+	url = client.templates['signoff-list-template'].format(graceid=graceid)
 	# Pull down the operator signoff list
-	signoff_list = client.get(url).json()['operator_signoff']
+	signoff_list = client.get(url).json()['signoff']
 	# Use the list to construct the signoff results dictionary
 	signoffdict = {}
 	for signoff in signoff_list:
