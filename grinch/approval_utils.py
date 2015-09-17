@@ -83,7 +83,10 @@ def checkSignoffs(client, logger, graceid, detectors):
 	# Use the list to construct the signoff results dictionary
 	signoffdict = {}
 	for signoff in signoff_list:
-		signoffdict[signoff['instrument']] = 'Pass' if signoff['status']=='OK' else 'Fail'
+		if signoff['instrument']!='':
+			signoffdict[signoff['instrument']] = 'Pass' if signoff['status']=='OK' else 'Fail'
+		else:
+			pass
 	# Now use the signoffdict to do the check
 	if (len(signoffdict) < len(detectors)):
 		if ('Fail' in signoffdict.values()):
