@@ -32,7 +32,7 @@ def file_has_tag( gdb, gdb_id, filename, tag, verbose=False ):
     checks whether a filename has the stated tag
     """
     if verbose:
-        report( "%s : file_has_tag"%(gdb_id) )
+        report( "%s : file_has_tag -> %s %s"%(gdb_id, filename, tag) )
 
     ### get this event
     if verbose:
@@ -45,10 +45,45 @@ def file_has_tag( gdb, gdb_id, filename, tag, verbose=False ):
                            ### this means we will get the most recent version of files, if multiple exist
         if filename == log['filename']: ### this is the log message associated with that filename
             if verbose:
-                report( "\tfilename (%s) assoicated with log message : %d"%(filename, log['N']) )
+                report( "\t%s assoicated with log message : %d"%(filename, log['N']) )
             return tag in log['tag_names']
     else:
         raise ValueError( "could not find %s in association with any log messages for %s"%(filename, gdb_id) )
+
+def tags_match( gdb, gdb_id, filename1, filename2, verbose=False ):
+    """
+    checks to make sure the filenames have the same tags.
+    requires an exact match.
+    """
+    if verbose:
+        report( "%s : tags_match -> %s %s"%(gdb_id, filename1, filename2) )
+
+    if verbose:
+        report( "\tretrieving log messages" )
+    logs = gdb.logs( gdb_id ).json()['log']
+
+    if verbose:
+        report( "\tparsing log messages" )
+    tags1=None
+    tags2=None
+    for log in logs[::-1]:
+        if (tags1==None) and (filename1 == log['filename']):
+            if verbose:
+                report( "\t%s associated with log message : %d"%(filename1, log['N']) )
+            tags1 = log['tag_names']
+        if (tags2==None) and (filename2 == log['filename']):
+            if verbose:
+                report( "\t%s associated with log message : %d"%(filename2, log['N']) )
+            tags2 = log['tag_names']
+        if (tags1!=None) and (tags2!=None):
+            break
+    else:
+        if tags1==None:
+            raise ValueError( "could not find %s in association with any log messages for %s"%(filename1, gdb_id) )
+        if tags2==None:
+            raise ValueError( "could not find %s in association with any log messages for %s"%(filename2, gdb_id) )
+
+    return sorted(tags1) == sorted(tags2) ### require an exact match
 
 #=================================================
 # set up schedule of checks
@@ -404,7 +439,7 @@ def config_to_schedule( config, event_type, verbose=False, freq=None ):
     if checks.has_key("plot_skymaps"):
         if verbose:
             report( "\tcheck plot_skymaps" )
-        kwargs = {'verbose':verbose}
+        kwargs = {'verbose':verbose, 'check_tags':True}
         for dt in get_dt( config.get("plot_skymaps", "dt") ):
             schedule.append( (dt, plot_skymaps, kwargs, checks['plot_skymaps'].split(), "plot_skymaps") )
 
@@ -412,7 +447,7 @@ def config_to_schedule( config, event_type, verbose=False, freq=None ):
     if checks.has_key("json_skymaps"):
         if verbose:
             report( "\tcheck json_skymaps" )
-        kwargs = {'verbose':verbose}
+        kwargs = {'verbose':verbose, 'check_tags':True}
         for dt in get_dt( config.get("json_skymaps", "dt") ):
             schedule.append( (dt, json_skymaps, kwargs, checks['json_skymaps'].split(), "json_skymaps") )
 
@@ -1454,7 +1489,7 @@ def unblindinjections_search( gdb, gdb_id, verbose=False ):
         report( "\taction required : False" )
     return False
 
-def plot_skymaps( gdb, gdb_id, verbose=False ):
+def plot_skymaps( gdb, gdb_id, check_tags=True, verbose=False ):
     """
     checks that all FITS files attached to this event have an associated png file (produced by gdb_processor)
     """
@@ -1472,13 +1507,22 @@ def plot_skymaps( gdb, gdb_id, verbose=False ):
     result = []
     for fitsfile in fitsfiles:
         pngfile = "%s.png"%(fitsfile.split(".")[0])
-        result.append( (not (pngfile in files), pngfile, fitsfile) )
+        if pngfile in files:
+            if check_tags:
+                result.append( (False, not tags_match( gdb, gdb_id, pngfile, fitsfile, verbose=False ), pngfile, fitsfile) )
+            else:
+                result.append( (False, False, pngfile, fitsfile) )
+        else:
+            result.append( (True, True, pngfile, fitsfile) )
 
     if verbose:
         action_required = False
-        for r, pngfile, fitsfile in result:
+        for r, m, pngfile, fitsfile in result:
             if r:
                 report( "\tWARNING: no png file found for FITS : %s <-> %s"%(fitsfile, pngfile) )
+                action_required = True
+            elif m:
+                report( "\tWARNING: png tags and FITS tags do not match : %s <-> %s"%(fitsfile, pngfile) )
                 action_required = True
             else:
                 report( "\tpng file found for FITS : %s <-> %s"%(fitsfile, pngfile) )
@@ -1490,7 +1534,7 @@ def plot_skymaps( gdb, gdb_id, verbose=False ):
 # tasks managed by skyviewer and friends
 #=================================================
 
-def json_skymaps( gdb, gdb_id, verbose=False ):
+def json_skymaps( gdb, gdb_id, check_tags=True, verbose=False ):
     """
     checks that all FITS files attached to this event have an associated json file
     """
@@ -1508,15 +1552,25 @@ def json_skymaps( gdb, gdb_id, verbose=False ):
     result = []
     for fitsfile in fitsfiles:
         if fitsfile.endswith(".gz"):
-            fitsfile = fitsfile[:-3]
-        jsonfile = "%sjson"%(fitsfile[:-4])
-        result.append( (not (jsonfile in files), jsonfile, fitsfile) )
+            jsonfile = "%sjson"%(fitsfile[:-7])
+        else:
+            jsonfile = "%sjson"%(fitsfile[:-4])
+        if jsonfile in files:
+            if check_tags:
+                result.append( (False, not tags_match( gdb, gdb_id, jsonfile, fitsfile, verbose=False ), jsonfile, fitsfile) )
+            else:
+                result.append( (False, False, jsonfile, fitsfile) )
+        else: 
+            result.append( (True, False, jsonfile, fitsfile) )
 
     if verbose:
         action_required = False
-        for r, jsonfile, fitsfile in result:
+        for r, m, jsonfile, fitsfile in result:
             if r:
                 report( "\tWARNING: no json file found for FITS : %s <-> %s"%(fitsfile, jsonfile) )
+                action_required = True
+            elif m:
+                report( "\tWARNING: json tags and FITS tags do not match : %s <-> %s"%(fitsfile, jsonfile) )
                 action_required = True
             else:
                 report( "\tjson file found for FITS : %s <-> %s"%(fitsfile, jsonfile) )
