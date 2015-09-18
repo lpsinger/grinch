@@ -27,6 +27,29 @@ def __fix_int( num ):
     else:
         return "%s"%num
 
+def file_has_tag( gdb, gdb_id, filename, tag, verbose=False ):
+    """
+    checks whether a filename has the stated tag
+    """
+    if verbose:
+        report( "%s : file_has_tag"%(gdb_id) )
+
+    ### get this event
+    if verbose:
+        report( "\tretrieving log messages" )
+    logs = gdb.logs( gdb_id ).json()['log']
+
+    if verbose:
+        report( "\tparsing log messages" )
+    for log in logs[::-1]: ### iterate through logs in reverse so we get the most recent logs first
+                           ### this means we will get the most recent version of files, if multiple exist
+        if filename == log['filename']: ### this is the log message associated with that filename
+            if verbose:
+                report( "\tfilename (%s) assoicated with log message : %d"%(filename, log['N']) )
+            return tag in log['tag_names']
+    else:
+        raise ValueError( "could not find %s in association with any log messages for %s"%(filename, gdb_id) )
+
 #=================================================
 # set up schedule of checks
 #=================================================
@@ -144,6 +167,16 @@ def config_to_schedule( config, event_type, verbose=False, freq=None ):
         for dt in get_dt( config.get("idq", "tables") ):
             schedule.append( (dt, idq_tables, kwargs, checks['idq_tables'].split(), "idq_tables") )
 
+    #=== cWB
+    if checks.has_key("cwb_skymap"):
+        if verbose:
+            report( "\tcheck cwb_skymap" )
+        kwargs = {'verbose':verbose}
+        if config.has_option('cwb', 'lvem'):
+            kwargs.update( {'lvem':config.getboolean('cwb','lvem')} )
+        for dt in get_dt( config.get('cwb', 'skymap') ):
+            schedule.append( (dt, cwb_skymap, kwargs, checks['cwb_skymap'].split(), 'cwb_skymap') )
+
     #=== lib
     if checks.has_key("lib_start"):
         if verbose:
@@ -191,6 +224,8 @@ def config_to_schedule( config, event_type, verbose=False, freq=None ):
         kwargs = {'verbose':verbose}
         if config.has_option('lib', 'far'):
             kwargs.update( {'far':config.getfloat('lib', 'far')} )
+        if config.has_option('lib', 'lvem'):
+            kwargs.update( {'lvem':config.getboolean('lib', 'lvem')} )
 
         ### divide based on frequency
         if config.has_option('lib', 'freq_thr'): ### we split based on freq_thr
@@ -241,6 +276,8 @@ def config_to_schedule( config, event_type, verbose=False, freq=None ):
         kwargs = {'verbose':verbose}
         for dt in get_dt( config.get("bayestar", "skymap") ):
             schedule.append( (dt, bayestar_skymap, kwargs, checks['bayestar_skymap'].split(), "bayestar_skymap") )
+        if config.has_option('bayestar', 'lvem'):
+            kwargs.update( {'lvem':config.getboolean('bayestar', 'lvem')} )
 
     #=== bayeswave
     if checks.has_key("bayeswave_start"):
@@ -289,6 +326,8 @@ def config_to_schedule( config, event_type, verbose=False, freq=None ):
         kwargs = {'verbose':verbose}
         if config.has_option('bayeswave', 'far'):
             kwargs.update( {'far':config.getfloat('bayeswave', 'far')} )
+        if config.has_option('bayeswave', 'lvem'):
+            kwargs.update( {'lvem':config.getboolean('bayeswave', 'lvem')} )
 
         ### divide based on frequency
         if config.has_option('bayeswave', 'freq_thr'): ### we split based on freq_thr
@@ -339,6 +378,8 @@ def config_to_schedule( config, event_type, verbose=False, freq=None ):
         kwargs = {'verbose':verbose}
         if config.has_option('lalinference', 'far'):
             kwargs.update( {'far':config.getfloat('lalinference', 'far')} )
+        if config.has_option('lalinference', 'lvem'):
+            kwargs.update( {'lvem':config.getboolean('lalinference', 'lvem')} )
 
         for dt in get_dt( config.get("lalinference", "skymap") ):
             schedule.append( (dt, lalinference_skymap, kwargs, checks['lalinference_skymap'].split(), "lalinference_skymap") )
@@ -620,22 +661,25 @@ def cwb_eventcreation( gdb, gdb_id, verbose=False, fits="skyprobcc.fits.gz" ):
 
     if verbose:
         report( "\tparsing log" )
-    fit = False
+#    fit = False
     pe = False
     for log in logs:
         comment = log['comment']
-        if "cWB skymap fit" in comment:
-            fit = True
-        elif "cWB parameter estimation" in comment:
+        if "cWB parameter estimation" in comment:
             pe = True
+#        elif "cWB skymap fit" in comment:
+#            fit = True
 
-        if (fit and pe):
+#        if (fit and pe):
+        if (pe):
             break
 
     if verbose:
-        report( "\taction required : %s"%( not (fit and pe)) )
+#        report( "\taction required : %s"%( not (fit and pe)) )
+        report( "\taction required : %s"%( not (pe)) )
 
-    return not (fit and pe)
+#    return not (fit and pe)
+    return not (pe)
 
 def olib_eventcreation( gdb, gdb_id, verbose=False ):
     """
@@ -899,12 +943,48 @@ def idq_tables( gdb, gdb_id, ifos=['H', 'L'], verbose=False ):
     return action_required
 
 #=================================================
+# methods that check whether cWB processes wer triggered and completed
+#=================================================
+
+def cwb_skymap( gdb, gdb_id, lvem=None, verbose=False ):
+    """
+    checks that cwb skymaps are uploaded
+    """
+    if verbose:
+        report( "%s: cwb_skymap"%(gdb_id) )
+
+    if verbose:
+        report( "\tretrieving event files" )
+    files = sorted(gdb.files( gdb_id ).json().keys()) ### we really just care about the filenames
+
+    if verbose:
+        report( "\tchecking for cWB FITS file" )
+    for filename in files:
+        if "skyprobcc_cWB.fits" == filename: ### may be fragile
+            if verbose:
+                report( "\t\tfound : %s"%(filename) )
+            if lvem!=None:
+                if verbose:
+                    report( "\t\tchecking for lvem tag" )
+                if file_has_tag( gdb, gdb_id, filename, "lvem", verbose=False ) != lvem:
+                    if verbose:
+                        report( "\taction required : True" )
+                    return True
+            if verbose:
+                report( "\taction required : False" )
+            return False
+
+    if verbose:
+        report( "\taction required : True" )
+    return True
+
+#=================================================
 # methods that check whether lib processes were triggered and completed
 #=================================================
 
 def lib_start( gdb, gdb_id, far=None, verbose=False ):
     """
-    checsk that LIB PE followup processes started (and were tagged correctly?)
+    checks that LIB PE followup processes started (and were tagged correctly?)
     """
     if verbose:
         report( "%s : lib_start"%(gdb_id) )
@@ -966,7 +1046,7 @@ def lib_finish( gdb, gdb_id, far=None, verbose=False ):
         report( "\taction required : True" )
     return True
 
-def lib_skymap( gdb, gdb_id, far=None, verbose=False ):
+def lib_skymap( gdb, gdb_id, far=None, lvem=None, verbose=False ):
     """
     checks that LIB uploaded the expected FITS file
     """
@@ -983,15 +1063,25 @@ def lib_skymap( gdb, gdb_id, far=None, verbose=False ):
 
     if verbose:
         report( "\tretrieving event files" )
-    files = gdb.files( gdb_id ).json().keys() ### we really just care about the filenames
+    files = sorted(gdb.files( gdb_id ).json().keys()) ### we really just care about the filenames
 
     if verbose:
         report( "\tchecking for LIB FITS file" )
     for filename in files:
-        if "LIB_skymap.fits.gz" in filename:
+        if "LIB_skymap.fits.gz" == filename: ### may be fragile
+            if verbose:
+                report( "\t\tfound : %s"%(filename) )
+            if lvem!=None:
+                if verbose:
+                    report( "\t\tchecking for lvem tag" )
+                if file_has_tag( gdb, gdb_id, filename, "lvem", verbose=False ) != lvem:
+                    if verbose:
+                        report( "\taction required : True" )
+                    return True
             if verbose:
                 report( "\taction required : False" )
-                return False
+            return False
+
     if verbose:
         report( "\taction required : True" )
     return True
@@ -1062,7 +1152,7 @@ def bayeswave_finish( gdb, gdb_id, far=None, verbose=False ):
         report( "\taction required : True" )
     return True
 
-def bayeswave_skymap( gdb, gdb_id, far=None, verbose=False ):
+def bayeswave_skymap( gdb, gdb_id, far=None, lvem=None, verbose=False ):
     """
     checks that BayesWave uploaded the expected FITS file
     """
@@ -1079,15 +1169,25 @@ def bayeswave_skymap( gdb, gdb_id, far=None, verbose=False ):
     
     if verbose:
         report( "\tretrieving event files" )
-    files = gdb.files( gdb_id ).json().keys() ### we really just care about the filenames
+    files = sorted(gdb.files( gdb_id ).json().keys()) ### we really just care about the filenames
 
     if verbose:
         report( "\tchecking for BayesWave FITS file" )
     for filename in files:
-        if ("skymap_" in filename) and filename.endswith(".fits"):
+        if ("skymap_" in filename) and filename.endswith(".fits"): ### may be fragile
+            if verbose:
+                report( "\t\tfound : %s"%(filename) )
+            if lvem!=None:
+                if verbose:
+                    report( "\t\tchecking for lvem tag" )
+                if file_has_tag( gdb, gdb_id, filename, "lvem", verbose=False ) != lvem:
+                    if verbose:
+                        report( "\taction required : True" )
+                    return True
             if verbose:
                 report( "\taction required : False" )
-                return False
+            return False
+
     if verbose:
         report( "\taction required : True" )
     return True
@@ -1158,7 +1258,7 @@ def bayestar_finish( gdb, gdb_id, far=None, verbose=False ):
         report( "\taction required : True" )
     return True
 
-def bayestar_skymap( gdb, gdb_id, far=None, verbose=False ):
+def bayestar_skymap( gdb, gdb_id, far=None, lvem=None, verbose=False ):
     """
     checks that Bayestar uploaded the expected FITS file
     """
@@ -1175,15 +1275,25 @@ def bayestar_skymap( gdb, gdb_id, far=None, verbose=False ):
 
     if verbose:
         report( "\tretrieving event files" )
-    files = gdb.files( gdb_id ).json().keys() ### we really just care about the filenames
+    files = sorted(gdb.files( gdb_id ).json().keys()) ### we really just care about the filenames
 
     if verbose:
         report( "\tchecking for Bayestar FITS file" )
     for filename in files:
-        if "skymap.fits.gz" in filename:
+        if "skymap.fits.gz" == filename: ### may be fragile
+            if verbose:
+                report( "\t\tfound : %s"%(filename) )
+            if lvem!=None:
+                if verbose:
+                    report( "\t\tchecking for lvem tag" )
+                if file_has_tag( gdb, gdb_id, filename, "lvem", verbose=False ) != lvem:
+                    if verbose:
+                        report( "\taction required : True" )
+                    return True
             if verbose:
                 report( "\taction required : False" )
-                return False
+            return False
+
     if verbose:
         report( "\taction required : True" )
     return True
@@ -1254,7 +1364,7 @@ def lalinference_finish( gdb, gdb_id, far=None, verbose=False ):
         report( "\taction required : True" )
     return True
 
-def lalinference_skymap( gdb, gdb_id, far=None, verbose=False ):
+def lalinference_skymap( gdb, gdb_id, far=None, lvem=None, verbose=False ):
     """
     checks that LALInference uploaded the expected FITS file
     """
@@ -1271,16 +1381,26 @@ def lalinference_skymap( gdb, gdb_id, far=None, verbose=False ):
 
     if verbose:
         report( "\tretrieving event files" )
-    files = gdb.files( gdb_id ).json().keys() ### we really just care about the filenames
+    files = sorted(gdb.files( gdb_id ).json().keys()) ### we really just care about the filenames
 
     if verbose:
         report( "\tchecking for LALInference FITS file" )
     for filename in files:
 #        if ("lalinference_" in filename) and filename.endswith(".fits.gz"):
-        if "LALInference_skymap.fits.gz" in filename:
+        if "LALInference_skymap.fits.gz" == filename: ### may be fragile
+            if verbose:
+                report( "\t\tfound : %s"%(filename) )
+            if lvem!=None:
+                if verbose:
+                    report( "\t\tchecking for lvem tag" )
+                if file_has_tag( gdb, gdb_id, filename, "lvem", verbose=False ) != lvem:
+                    if verbose:
+                        report( "\taction required : True" )
+                    return True
             if verbose:
                 report( "\taction required : False" )
-                return False
+            return False
+
     if verbose:
         report( "\taction required : True" )
     return True
