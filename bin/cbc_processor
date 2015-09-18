@@ -336,11 +336,11 @@ if cp.has_section('lalinference'):
 				     , '--daglog-path'
 				     , '/usr1/'+os.environ['USER']
 				     , lalinference_inifile
-				     , '--dax'
-				     , '--grid-site'
-				     , 'local'
-				     , '--pegasus-submit'
-				     #, '--condor-submit'
+				     #, '--dax'
+				     #, '--grid-site'
+				     #, 'local'
+				     #, '--pegasus-submit'
+				     , '--condor-submit'
 				     ]
 		subprocess.call(lalinferenceargs)
 	else:
