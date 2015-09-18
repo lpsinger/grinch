@@ -48,6 +48,7 @@ setup(
         'bin/start_comet',
         'bin/approval_processor',
         'bin/gdb_processor_approval_processor',
+	'bin/gdb_processor_start_comet',
         'bin/lvalert-init_approval_processor',
         'bin/event_supervisor',
         'bin/event_supervisor_wrapper',
