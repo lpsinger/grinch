@@ -1,0 +1,81 @@
+#!/usr/bin/python
+
+"""
+Script to manage starting, stopping, and monitoring of the 
+LV alert listening process an related tasks on gdb_processor
+"""
+__author__ = "Alex Urban <alexander.urban@ligo.org>, Reed Essick <reed.essick@ligo.org>, Min-a Cho <minacho19@gmail.com>"
+
+import argparse
+import os
+
+from sys import exit
+
+# define and parse command-line arguments
+parser = argparse.ArgumentParser(description='Manage the start_comet workflow.')
+parser.add_argument('command', choices=['start', 'status', 'stop'],
+		help='start, stop or status of gdb_processor tasks')
+args = parser.parse_args()
+
+# store the name of the home directory as a global variable
+home = os.getenv("HOME")
+
+# switch to the working directory
+try: 
+	os.chdir(home+'/working')
+except OSError:
+	os.mkdir(home+'/working')
+	os.mkdir(home+'/working/log')
+	os.chdir(home+'/working')
+	pass
+
+# if run with argument 'start,' write and submit condor .sub file 
+if args.command == 'start':
+	contents = """\
+#this is the submit file to condor for start_comet
+
+universe            = local
+
+executable          = %s/opt/bin/start_comet
+getenv              = True
+notification        = never
+environment         = DISPLAY=localhost:10.0
+accounting_group = ligo.prod.o1.cbc.grb.raven
+accounting_group_user = mina.cho
+
+## add attribute""" % home + r"""
+## condor_q -format "%s " Owner -format "%s " ClusterId -format "%s\n" comet
++Comet      = "gdb_processor comet"
+
+log                 = log/start_comet_listener.$(Cluster).log 
+output              = log/start_comet_listener.$(Cluster).out
+error               = log/start_comet_listener.$(Cluster).error
+
+Queue
+"""
+	with open('start_comet_listener.sub', 'w') as f:
+		f.write(contents)
+	condorargs = ['condor_submit','start_comet_listener.sub']
+	os.execlp('condor_submit', *condorargs)
+	print 'comet is now able to send alerts to GCN.'
+	exit()
+
+# if run with argument 'status', print a short summary of the job to screen
+elif args.command == 'status':
+	user = os.getenv("USER")
+	condorargs = ['condor_q', user]
+	os.execlp('condor_q', *condorargs)
+	exit()
+
+# if run with argument 'stop', kill the lvalertlisten job
+elif args.command == 'stop':
+	exterminate = raw_input('Are you sure?? This will kill all condor jobs for this user... [y/n] ')
+	if exterminate == 'y' or exterminate == 'yes': 
+		print 'Righty-ho then. Exterminate!'
+		user = os.getenv("USER")
+		condorargs = ['condor_rm',user]
+		os.execlp('condor_rm', *condorargs)
+		exit()
+	else:
+		print 'I thought as much!'
+		exit()
