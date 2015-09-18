@@ -1528,7 +1528,7 @@ def plot_skymaps( gdb, gdb_id, check_tags=True, verbose=False ):
                 report( "\tpng file found for FITS : %s <-> %s"%(fitsfile, pngfile) )
         report( "\taction required : %s"% action_required )
 
-    return sum([r[0] for r in result]) > 0
+    return sum([r[0]+r[1] for r in result]) > 0
 
 #=================================================
 # tasks managed by skyviewer and friends
@@ -1561,7 +1561,7 @@ def json_skymaps( gdb, gdb_id, check_tags=True, verbose=False ):
             else:
                 result.append( (False, False, jsonfile, fitsfile) )
         else: 
-            result.append( (True, False, jsonfile, fitsfile) )
+            result.append( (True, True, jsonfile, fitsfile) )
 
     if verbose:
         action_required = False
@@ -1576,7 +1576,7 @@ def json_skymaps( gdb, gdb_id, check_tags=True, verbose=False ):
                 report( "\tjson file found for FITS : %s <-> %s"%(fitsfile, jsonfile) )
         report( "\taction required : %s"% action_required )
 
-    return sum([r[0] for r in result]) > 0
+    return sum([r[0]+r[1] for r in result]) > 0
 
 #=================================================
 # tasks managed by approval_processor
