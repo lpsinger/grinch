@@ -144,6 +144,7 @@ def config_to_schedule( config, event_type, verbose=False, freq=None ):
 
     #=== event creation
     if checks.has_key('eventcreation'):
+
         group, pipeline = event_type.split("_")[:2]
         if pipeline == "cwb":
             if verbose:
@@ -165,6 +166,13 @@ def config_to_schedule( config, event_type, verbose=False, freq=None ):
             kwargs = {'verbose':verbose}
             for dt in get_dt( config.get("eventcreation", "dt") ):
                 schedule.append( (dt, gstlal_eventcreation, kwargs, checks['eventcreation'].split(), "gstlal_eventcreation") )
+
+        elif pipeline == "gstlal-spiir":
+            if verbose:
+                report( "\tcheck gstlal-spiir event_creation" )
+            kwargs = {'verbose':verbose}
+            for dt in get_dt( config.get("eventcreation", "dt") ):
+                schedule.append( (dt, gstlalspiir_eventcreation, kwargs, checks['eventcreation'].split(), 'gstlal-spiir_eventcreation') )
 
         elif pipeline == "mbtaonline":
             if verbose:
@@ -753,6 +761,37 @@ def gstlal_eventcreation( gdb, gdb_id, verbose=False ):
 #    files = gdb.files( gdb_id )
     if verbose:
         report( "%s : gstlal_eventcreation"%(gdb_id) )
+        report( "\tretrieving log messages" )
+    logs = gdb.logs( gdb_id ).json()['log']
+
+    if verbose:
+        report( "\tparsing log" )
+    psd = False
+    coinc = False
+    for log in logs:
+        comment = log['comment']
+        if "strain spectral densities" in comment:
+            psd = True
+        elif "Coinc Table Created" in comment:
+            coinc = True
+
+        if psd and coinc:
+            break
+
+    if verbose:
+        report( "\taction required : %s"% (not (psd and coinc)) )
+    return not (psd and coinc)
+
+def gstlalspiir_eventcreation( gdb, gdb_id, verbose=False ):
+    """
+    checks that all expected data is present for newly created gstlal events.
+    This includes:
+        inspiral_coinc table
+        psd estimates from the detectors
+    """
+#    files = gdb.files( gdb_id )
+    if verbose:
+        report( "%s : gstlal-spiir_eventcreation"%(gdb_id) )
         report( "\tretrieving log messages" )
     logs = gdb.logs( gdb_id ).json()['log']
 
