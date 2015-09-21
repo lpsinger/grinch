@@ -144,8 +144,8 @@ if alert_type == 'label':
 		# Fetch the event log list from the GraceDB server
 		log_dicts = g.logs(graceid).json()['log']
 		for message in reversed(log_dicts): # reversed pulls the most recent skymap to reference in the VOEvent
-			if 'Last skymap submitted was' in message['comment']:
-				skymapinfo = re.findall(r'Last skymap submitted was (.*) type (.*) by (.*).', message['comment'])
+			if 'Last skymap submitted with lvem tag was' in message['comment']:
+				skymapinfo = re.findall(r'Last skymap submitted with lvem tag was (.*) type (.*) by (.*).', message['comment'])
 				skymap_filename = skymapinfo[0][0]
 				skymapname = re.findall(r'(\S+).fits', skymap_filename)[0]
 				skymap_type = skymapname + '-' + skymapinfo[0][1]
@@ -161,8 +161,8 @@ if alert_type == 'label':
 		# Fetch the event log list from the GraceDB server
 		log_dicts = g.logs(graceid).json()['log']
 		for message in reversed(log_dicts):
-			if 'Last skymap submitted was' in message['comment']:
-				skymapinfo = re.findall(r'Last skymap submitted was (.*) type (.*) by (.*).', message['comment'])
+			if 'Last skymap submitted with lvem tag was' in message['comment']:
+				skymapinfo = re.findall(r'Last skymap submitted with lvem tag was (.*) type (.*) by (.*).', message['comment'])
 				skymap_filename = skymapinfo[0][0]
 				skymapname = re.findall(r'(\S+).fits', skymap_filename)[0]
 				skymap_type = skymapname + '-' + skymapinfo[0][1]
@@ -302,13 +302,6 @@ elif alert_type=='update':
 		skymap_filename = filename
 		skymap_type = group + search
 		display_name = streamdata['object']['issuer']['display_name']
-		msg = 'AP: Last skymap submitted was {0} type {1} by {2}.'.format(skymap_filename, skymap_type, display_name)
-		r = g.writeLog(graceid, msg.replace('  ',' '))
-
-		if display_name in skymap_ignore_list:
-			exit()
-		else:
-			pass
 
 		# Check tag has lvem
 		tag_names = streamdata['object']['tag_names']
@@ -316,6 +309,14 @@ elif alert_type=='update':
 			pass
 		else:
 			exit()
+
+		msg = 'AP: Last skymap submitted with lvem tag was {0} type {1} by {2}.'.format(skymap_filename, skymap_type, display_name)
+		r = g.writeLog(graceid, msg.replace('  ',' '))
+
+		if display_name in skymap_ignore_list:
+			exit()
+		else:
+			pass
 		
 		# If new skymaps are loaded, check if the event has passed iDQ checks by reading the log and labeling the event as either 'EM_READY' or 'PE_READY'
 		#'EM_READY' is the label set if there have been no previous skymaps
@@ -410,7 +411,7 @@ elif alert_type=='update':
 
 					# Check log to see if there is a skymap file or not... If so, set label 'EM_READY'
 					for message in log_dicts:
-						if 'Last skymap submitted was' in message['comment']:
+						if 'Last skymap submitted with lvem tag was' in message['comment']:
 							logger.info('{0} -- {1} -- Labeling with EM_READY.'.format(st, graceid))
 							r = g.writeLabel(graceid, 'EM_READY')
 							break
@@ -511,7 +512,7 @@ elif alert_type=='signoff':
 
 	log_dicts = g.logs(graceid).json()['log']
 	for message in log_dicts:
-		if 'Last skymap submitted was' in message['comment']:
+		if 'Last skymap submitted with lvem tag was' in message['comment']:
 			for msg in log_dicts:
 				if use_idq=='yes':
 					if 'Candidate event passed iDQ checks' in msg['comment']: 
