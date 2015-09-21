@@ -120,6 +120,9 @@ if alert_type == 'label':
 		exit()
 
 	far = event_dict['far']
+	if far==None:
+		logger.info('{0} -- {1} -- Event missing FAR. Not processing label.'.format(st, graceid))
+		exit()
 	pipeline = event_dict['pipeline']
 	if 'search' in event_dict.keys():
 		search = event_dict['search']
@@ -190,6 +193,10 @@ elif alert_type == 'new':
 	# Get event information from streamdata
 	event_dict = streamdata['object']
 	far = event_dict['far']
+	if far==None:
+		logger.info('{0} -- {1} -- Event missing FAR. Not processing new event.'.format(st, graceid))
+		r = g.writeLog(graceid, 'AP: Candidate event missing FAR.', tagname = 'em_follow')
+		exit()
 	pipeline = event_dict['pipeline']
 	labels = event_dict['labels']
 	event_time = float(event_dict['gpstime'])
@@ -255,6 +262,9 @@ elif alert_type=='update':
 		exit()
 
 	far = event_dict['far']
+	if far==None:
+		logger.info('{0} -- {1} -- Event missing FAR. Not processing update.'.format(st, graceid))
+		exit()
 	pipeline = event_dict['pipeline']
 	if 'search' in event_dict.keys():
 		search = event_dict['search']
@@ -410,6 +420,9 @@ elif alert_type=='signoff':
 		exit()
 
 	far = event_dict['far']
+	if far==None:
+		logger.info('{0} -- {1} -- Event missing FAR. Not processing signoff.'.format(st, graceid))
+		exit()
 	pipeline = event_dict['pipeline']
 	if 'search' in event_dict.keys():
 		search = event_dict['search']
