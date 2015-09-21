@@ -33,7 +33,8 @@ idq_pipelines = idq_pipelines.replace(' ','') # remove any spaces
 idq_pipelines = idq_pipelines.split(',') # a list of iDQ pipelines
 hardware_inj = config.get('default', 'hardware_inj')
 humanscimons = config.get('default', 'humanscimons')
-advocates = config.get('default','advocates')
+advocates = config.get('default', 'advocates')
+advocate_text = config.get('default', 'advocate_text')
 
 # Import list of skymap submitters to ignore
 skymap_ignore_list = config.get('default', 'skymap_ignore_list')
@@ -239,11 +240,14 @@ elif alert_type == 'new':
 		r = g.writeLog(graceid, 'AP: Candidate event has low enough FAR. {0} < {1}'.format(far, farthresh), tagname = 'em_follow')		
 		logger.info('{0} -- {1} -- Submitting preliminary VOEvent to GCN.'.format(st, graceid))
 		process_alert(g, logger, graceid, 'preliminary')
+		# Notify human scimons
 		detectors = str(event_dict['instruments']).split(',')
 		for detector in detectors:
 			logger.info('{0} -- {1} -- Labeling with {2}OPS.'.format(st, graceid, detector))
 			r = g.writeLabel(graceid, '{0}OPS'.format(detector))
+		# Notify the advocates
 		r = g.writeLabel(graceid, 'ADVREQ')
+		r = os.system('echo \'{0}\' | mail -s \'Event {1} passed criteria for follow-up.\' lvc-cloud-phone@email2phone.net'.format(advocate_text, graceid))
 		# Expose event to LV-EM
 		url_perm_base = g.service_url + urllib.quote('events/{0}/perms/gw-astronomy:LV-EM:Observers/'.format(graceid))
 		for perm in ['view', 'change']:
