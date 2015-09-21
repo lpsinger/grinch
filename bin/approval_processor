@@ -309,6 +309,13 @@ elif alert_type=='update':
 			exit()
 		else:
 			pass
+
+		# Check tag has lvem
+		tag_names = streamdata['object']['tag_names']
+		if 'lvem' in tag_names:
+			pass
+		else:
+			exit()
 		
 		# If new skymaps are loaded, check if the event has passed iDQ checks by reading the log and labeling the event as either 'EM_READY' or 'PE_READY'
 		#'EM_READY' is the label set if there have been no previous skymaps
