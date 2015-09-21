@@ -120,6 +120,8 @@ def config_to_schedule( config, event_type, verbose=False, freq=None ):
         if verbose:
             report( "\tnotify" )
         kwargs = {"verbose":verbose}
+        if config.has_option("notify", "far"):
+            kwargs.update( {"far":config.getfloat("notify","far")} )
         dt = 0.0
         schedule.append( (dt, notify, kwargs, checks['notify'].split(), 'just a notification' ) )
 
@@ -524,14 +526,61 @@ def config_to_schedule( config, event_type, verbose=False, freq=None ):
 # methods that don't check things, just notify humans
 #=================================================
 
-def notify( gdb, gdb_id, verbose=False ):
+def notify( gdb, gdb_id, far=None, verbose=False ):
     """
     return True
     """
     if verbose:
         report( "%s : notify"%(gdb_id) )
-        report( "\taction required : True" )
-    return True
+
+    if far==None:
+        if verbose:
+            report( "\tno far specified" )
+            report( "\taction required : True" )
+        return True
+    else:
+        action_required = far_check( gdb, gdb_id, minFAR=far, maxFAR=np.infty, verbose=False ) ### if it is lower than minFAR, this returns True
+        if verbose:
+            if action_required:
+                report( "\tFAR <= %.4e"%(far) )
+            else:
+                report( "\tFAR > %.4e"%(far) )
+            report( "\taction required : %s"%action_required )
+        return action_required
+
+def far_check( gdb, gdb_id, verbose=False, minFAR=0.0, maxFAR=1e-6 ):
+    """
+    check that FAR < FARthr
+    """
+    if verbose:
+        report( "%s : far_check"%(gdb_id) )
+        report( "\tretrieving event details" )
+    event = gdb.event( gdb_id ).json()
+
+    if not event.has_key("far"):
+        if verbose:
+            report( "\tno FAR found" )
+            report( "\taction required : True" )
+        return True
+
+    far = event['far']
+    big_enough = minFAR < far
+    sml_enough = far < maxFAR
+    if verbose:
+        if big_enough:
+            report( "\tFAR > %.6e"%(minFAR) )
+        else:
+            report( "\tFAR <= %.3e"%(minFAR) )
+        if sml_enough:
+            report( "\tFAR < %.3e"%(maxFAR) )
+        else:
+            report( "\tFAR >= %.3e"%(maxFAR) )
+
+    action_required = not (big_enough and sml_enough)
+    if verbose:
+        report( "\taction required : %s"%( action_required) )
+    return action_required
+
 
 #=================================================
 # methods that check the local properties of the stream of events submitted to GraceDB
@@ -1248,7 +1297,8 @@ def bayeswave_skymap( gdb, gdb_id, far=None, lvem=None, verbose=False ):
     if verbose:
         report( "\tchecking for BayesWave FITS file" )
     for filename in files:
-        if ("skymap_" in filename) and filename.endswith(".fits"): ### may be fragile
+#        if ("skymap_" in filename) and filename.endswith(".fits"): ### may be fragile
+        if "BW_skymap.fits" == filename: ### may be fragile
             if verbose:
                 report( "\t\tfound : %s"%(filename) )
             if lvem!=None:
