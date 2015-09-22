@@ -66,16 +66,16 @@ def process_alert(client, logger, graceid, voevent_type, skymap_filename=None,
 
 # Define a function that checks for the human scimon signoffs
 def checkSignoffs(client, logger, graceid, detectors):
-	log_dicts = client.logs(graceid).json()['log']
-	for message in log_dicts:
-		if 'Finished running human signoff checks.' in message['comment']:
-			passorfail = re.findall(r'Candidate event (.*)ed human signoff checks.', message['comment'])
-			if passorfail[0]=='pass':
-				return 'Pass'
-			elif passorfail[0]=='fail':
-				return 'Fail'
-		else:
-			pass 
+#	log_dicts = client.logs(graceid).json()['log']
+#	for message in log_dicts:
+#		if 'Finished running human signoff checks.' in message['comment']:
+#			passorfail = re.findall(r'Candidate event (.*)ed human signoff checks.', message['comment'])
+#			if passorfail[0]=='pass':
+#				return 'Pass'
+#			elif passorfail[0]=='fail':
+#				return 'Fail'
+#		else:
+#			pass 
 	# Construct the URL for the operator signoff list
 	url = client.templates['signoff-list-template'].format(graceid=graceid)
 	# Pull down the operator signoff list
@@ -106,16 +106,16 @@ def checkSignoffs(client, logger, graceid, detectors):
 
 # Define a function that checks for the advocate signoff
 def checkAdvocateSignoff(client, logger, graceid):
-	log_dicts = client.logs(graceid).json()['log']
-	for message in log_dicts:
-		if 'Finished running advocate check.' in message['comment']:
-			passorfail = re.findall(r'Candidate event (.*)ed advocate check.', message['comment'])
-			if passorfail[0]=='pass':
-				return 'Pass'
-			elif passorfail[0]=='fail':
-				return 'Fail'
-		else:
-			pass 
+#	log_dicts = client.logs(graceid).json()['log']
+#	for message in log_dicts:
+#		if 'Finished running advocate check.' in message['comment']:
+#			passorfail = re.findall(r'Candidate event (.*)ed advocate check.', message['comment'])
+#			if passorfail[0]=='pass':
+#				return 'Pass'
+#			elif passorfail[0]=='fail':
+#				return 'Fail'
+#		else:
+#			pass 
 	# Construct the URL for the signoff list
 	url = client.templates['signoff-list-template'].format(graceid=graceid)
 	# Pull down the operator signoff list
