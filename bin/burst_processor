@@ -55,9 +55,9 @@ elif streamdata['alert_type'] == 'update' and ( streamdata['file'].endswith('.fi
     logs = gracedb.logs(streamdata['uid']).json()['log'][::-1]  # Reverse-sorted list of log messages
     for log in logs:  # Iterate over log messages, find the one containing this FITS file
         if log['filename'] == fitsfile:
-            tags = ','.join(log['tagnames'])  # Comma-separated list of tags associated with this FITS file
+            tags = ','.join(log['tag_names'])  # Comma-separated list of tags associated with this FITS file
             break
-    if tags: tag_option = "--tag-name='%s'" % tags
+    if tags: tag_option = "--tag-name=%s" % tags
     else: tag_option = ""
 
     # Write emlabel.sub.
