@@ -13,6 +13,7 @@ import shutil
 import ligo.gracedb.rest
 
 from sys             import exit, stdin
+from ligo.gracedb.rest import GraceDb
 from grinch.workflow_helper import directory, home
 from glue.ligolw     import ligolw
 from glue.ligolw     import utils
@@ -48,6 +49,16 @@ if streamdata['alert_type'] == 'new':
 elif streamdata['alert_type'] == 'update' and ( streamdata['file'].endswith('.fits') or streamdata['file'].endswith('.fits.gz') ):
     fitsfile = streamdata['file']
     plotfile = '%s.png' % fitsfile.split('.')[0]
+
+    # Obtain the tags with which this FITS file was uploaded.
+    gracedb = GraceDb()  # Initialize an instance of GraceDB
+    logs = gracedb.logs(streamdata['uid']).json()['log'][::-1]  # Reverse-sorted list of log messages
+    for log in logs:  # Iterate over log messages, find the one containing this FITS file
+        if log['filename'] == fitsfile:
+            tags = ','.join(log['tagnames'])  # Comma-separated list of tags associated with this FITS file
+            break
+    if tags: tag_option = "--tag-name='%s'" % tags
+    else: tag_option = ""
 
     # Write emlabel.sub.
 #    contents   = """\
@@ -132,7 +143,7 @@ Queue
     contents = """\
 JOB PLOTALLSKY plot_allsky.sub
 SCRIPT PRE PLOTALLSKY %(gracedbcommand)s download %(uid)s %(fits)s
-SCRIPT POST PLOTALLSKY %(gracedbcommand)s --tag-name=sky_loc upload %(uid)s %(plot)s
+SCRIPT POST PLOTALLSKY %(gracedbcommand)s %(tags)s upload %(uid)s %(plot)s
 
 #JOB COINCSEARCH coinc_search_with_sky_map.sub
 #SCRIPT PRE COINCSEARCH %(gracedbcommand)s download %(uid)s %(fits)s
@@ -141,7 +152,7 @@ SCRIPT POST PLOTALLSKY %(gracedbcommand)s --tag-name=sky_loc upload %(uid)s %(pl
 """
     with tempfile.NamedTemporaryFile(mode='w', suffix='.dag', prefix='fits_followup_', dir='.', delete=False) as dagfile:
         dagfilename = dagfile.name
-        print >>dagfile, contents%{'gracedbcommand': gracedbcommand, 'uid': streamdata['uid'], 'fits': fitsfile, 'plot': plotfile}
+        print >>dagfile, contents%{'gracedbcommand': gracedbcommand, 'uid': streamdata['uid'], 'fits': fitsfile, 'tags': tag_option, 'plot': plotfile}
 
     # Create a uniquely-named log file.
     logfid, logpath = tempfile.mkstemp(suffix='.nodes.log', prefix=streamdata['uid'])
