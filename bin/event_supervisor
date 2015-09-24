@@ -136,32 +136,49 @@ for dt, foo, kwargs, email, description in schedule:
         action_required = foo( gracedb, gdb_id, **kwargs ) ### perform this check. (foo -> True) means the check failed!
         if action_required: ### perform this check. (foo -> True) means the check failed!
             if opts.no_email:
-                pass
+                if opts.verbose:
+                    report( "\tevet_supervisor checked : %s. Action required! no email sent"%(description) )
             elif email:
                 os.system( "echo \"action required for GraceDB event : %s (%s)\n%s\" | mail -s \"action required for GraceDB event : %s (%s)\" %s"%(event_url, event_type, description, gdb_id, event_type, " ".join(email)) )
                 if opts.annotate_gracedb:
                     log = "event_supervisor checked : %s. Action required! email sent to %s"%(description, ", ".join(email))
                     gracedb.writeLog( gdb_id, log )
+                if opts.verbose:
+                    report( "\tevent_supervisor checked : %s. Action required! email sent to %s"%(description, ", ".join(email)) )
             else:
                 report( "WARNING: check requires action but no email recipients specified! No warning messages will be sent!" )
                 if opts.annotate_gracedb:
                     log = "event_supervisor checked : %s. Action required! but no email specified"%(description)
                     gracedb.writeLog( gdb_id, log )
-        elif opts.annotate_gracedb:
-            log = "event_supervisor checked : %s. No action required."%(description)
-            gracedb.writeLog( gdb_id, log )
+                if opts.verobse:
+                    report( "\tevent_supervisor checked : %s. Action required! but no email specified"%(description) )
+
+        elif opts.annotate_gracedb or opts.verbose:
+            if opts.annotate_gracedb:
+                log = "event_supervisor checked : %s. No action required."%(description)
+                gracedb.writeLog( gdb_id, log )
+            if opts.verbose:
+                report( "\tevent_supervisor checked : %s. No action required."%(description) )
+
     except Exception as e:
         report( "check FAILED : %s -> %s"%(description, type(e)) )
         if opts.no_email:
-            pass
+            if opts.verbose:
+                report( "\tcheck failed : %s. no email sent"%(description) )
         elif email:
             os.system( "echo \"check failed for GraceDB event : %s (%s)\n%s\" | mail -s \"checked failed for GraceDB event : %s (%s)\" %s"%(event_url, event_type, description, gdb_id, event_type, " ".join(email)) )
+            if opts.annotate_gracedb:
+                log = "event_supervisor attempted to check : %s, but FAILED! email sent to %s"%(description, " ".join(email))
+                gracedb.writeLog( gdb_id, log )
+            if opts.verbose:
+                report( "\tcheck failed : %s. email sent to %s"%(description, " ".join(email)) )
         else:
             report( "WARNING: check failed but no email recipients specified! No warning message will be sent!" )
-
-        if opts.annotate_gracedb:
-            log = "event_supervisor attempted to check : %s, but FAILED!"%(description)
-            gracedb.writeLog( gdb_id, log )
+            if opts.annotate_gracedb:
+                log = "event_supervisor attempted to check : %s, but FAILED! no email specified"%(description)
+                gracedb.writeLog( gdb_id, log )
+            if opts.verbose:
+                report( "\tcheck failed : %s. but no email specified"%(description) )
 
     ### force flushes
     sys.stdout.flush()
