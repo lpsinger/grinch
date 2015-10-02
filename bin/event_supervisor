@@ -130,6 +130,8 @@ for dt, foo, kwargs, email, description in schedule:
     if wait > 0:
         if opts.verbose:
             report( "waiting %.3f seconds before performing : %s"%(wait, description) )
+            sys.stdout.flush()
+            sys.stderr.flush()
         time.sleep( wait )
 
     try:
