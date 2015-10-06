@@ -32,14 +32,14 @@ def get_idqthresh(config, pipeline, search):
 
 # Define a function for pulling down and sending out the correct VOEvent depending on label type
 def process_alert(client, logger, graceid, voevent_type, skymap_filename=None, 
-	skymap_type=None, skymap_image_filename=None):
+	skymap_type=None, skymap_image_filename=None, internal=1):
 	logger.info("{0} -- {1} -- Processing {2} VOEvent.".format(st, graceid, voevent_type))
 
 	# Create the VOEvent.
 	voevent = None
 	try:
 		r = client.createVOEvent(graceid, voevent_type, skymap_filename=skymap_filename, 
-			skymap_type=skymap_type, skymap_image_filename=skymap_image_filename)
+			skymap_type=skymap_type, skymap_image_filename=skymap_image_filename, internal=internal)
 		voevent = r.json()['text']
 	except Exception, e:
 		logger.info("{0} -- {1} -- Caught HTTPError: {2}".format(st, graceid, str(e)))
