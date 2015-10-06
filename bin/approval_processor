@@ -39,6 +39,10 @@ advocate_text = config.get('default', 'advocate_text')
 # Import list of skymap submitters to ignore
 skymap_ignore_list = config.get('default', 'skymap_ignore_list')
 
+# Import VOEvent settings
+force_all_internal = config.get('default', 'force_all_internal')
+preliminary_internal = config.get('default', 'preliminary_internal')
+
 # Set up logging
 logger = logging.getLogger('approval_processor')
 logging_filehandler = logging.FileHandler(config.get('default', 'approval_processor_logfile'))
@@ -139,6 +143,12 @@ if alert_type == 'label':
 		logger.info('{0} -- {1} -- Ignoring update due to high FAR.'.format(st, graceid))
 		exit()
 
+	# Set internal value settings for VOEvents
+	if force_all_internal == 'yes':
+		internal = 1
+	else:
+		internal = 0
+
 	if description == 'PE_READY':
 		logger.info('{0} -- {1} -- Submitting update VOEvent to GCN.'.format(st, graceid))
 		# Fetch the event log list from the GraceDB server
@@ -154,7 +164,7 @@ if alert_type == 'label':
 				if submitter in skymap_ignore_list:
 					pass
 				else:
-					process_alert(g, logger, graceid, 'update', skymap_filename, skymap_type, skymap_image_filename)
+					process_alert(g, logger, graceid, 'update', skymap_filename, skymap_type, skymap_image_filename, internal)
 					break
 	elif description == 'EM_READY':
 		logger.info('{0} -- {1} -- Submitting initial VOEvent to GCN.'.format(st, graceid))
@@ -171,7 +181,7 @@ if alert_type == 'label':
 				if submitter in skymap_ignore_list:
 					pass
 				else:
-					process_alert(g, logger, graceid, 'initial', skymap_filename, skymap_type, skymap_image_filename)
+					process_alert(g, logger, graceid, 'initial', skymap_filename, skymap_type, skymap_image_filename, internal)
 					break
 	elif (checkLabels(hardware_inj, description.split()) > 0):
         # Check: Have we already sent out alerts on this event?
@@ -184,7 +194,17 @@ if alert_type == 'label':
 					exit()
 			# There are existing VOEvents, but we haven't already sent a 
 			# retraction, so let's do that.
-			process_alert(g, logger, graceid, 'retraction')
+			# Check whether to keep internal = 1 or 0 for retraction alert
+			if (force_all_internal!='yes') and (pipeline in preliminary_internal):
+				latest_voevent = voevent_dicts[-1]
+				latest_voevent_type = latest_voevent['voevent_type']
+				if latest_voevent_type == 'PR':
+					internal = 1
+				else:
+					internal = 0
+			else:
+				pass
+			process_alert(g, logger, graceid, 'retraction', None, None, None, internal)
 
 #--------------------------------------------------------------------------------------
 # Handle new candidate event
@@ -239,7 +259,15 @@ elif alert_type == 'new':
 			pass
 		r = g.writeLog(graceid, 'AP: Candidate event has low enough FAR. {0} < {1}'.format(far, farthresh), tagname = 'em_follow')		
 		logger.info('{0} -- {1} -- Submitting preliminary VOEvent to GCN.'.format(st, graceid))
-		process_alert(g, logger, graceid, 'preliminary')
+		# Set internal value settings for VOEvents
+		if force_all_internal == 'yes':
+			internal = 1
+		else:
+			if pipeline in preliminary_internal:
+				internal = 1
+			else:
+				internal = 0
+		process_alert(g, logger, graceid, 'preliminary', None, None, None, internal)
 		# Notify human scimons
 		detectors = str(event_dict['instruments']).split(',')
 		for detector in detectors:
@@ -331,7 +359,7 @@ elif alert_type=='update':
 			if latest_voevent_type == 'UP': 
 				skymapname = re.findall(r'(\S+).fits', skymap_filename)[0]
 				skymap_image_filename = skymapname + '.png'
-				process_alert(g, logger, graceid, 'update', skymap_filename, skymap_type, skymap_image_filename)
+				process_alert(g, logger, graceid, 'update', skymap_filename, skymap_type, skymap_image_filename, internal)
 			elif latest_voevent_type == 'IN':
 				# Set label 'PE_READY' since the initial_localization alert was already created and/or sent out
 				# It must already be labeled EM_READY
