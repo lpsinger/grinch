@@ -2,6 +2,7 @@ description = """ a module for performing checks of GraceDB triggered processes.
 
 #=================================================
 
+import sys
 import time
 import numpy as np
 
@@ -10,7 +11,10 @@ import numpy as np
 #=================================================
 
 def report( string ):
-    print "%s GMT :  %s"%(time.asctime(time.gmtime()), string)
+    print >> sys.stdout, "%s GMT :  %s"%(time.asctime(time.gmtime()), string)
+
+def errReport( string ):
+    print >> sys.stderr, "%s GMT :  %s"%(time.asctime(time.gmtime()), string)
 
 def datestring_converter( datestring ):
     """
@@ -84,6 +88,25 @@ def tags_match( gdb, gdb_id, filename1, filename2, verbose=False ):
             raise ValueError( "could not find %s in association with any log messages for %s"%(filename2, gdb_id) )
 
     return sorted(tags1) == sorted(tags2) ### require an exact match
+
+def isINJ( gracedb, gdb_id, verbose=False ):
+    """
+    checks to see if the event is labeled \"INJ\"
+    used to ignore hardware injections within event_supervisor
+    """
+    if verbose:
+        report( "%s : isINJ"%(gdb_id) )
+
+    if verbose:
+        report( "\tretrieving labels" )
+    labels = gracedb.labels( gdb_id ).json()['labels']
+    truth = "INJ" in [label['name'] for label in labels]
+    if verbose:
+        if truth:
+            report( "\tevent labeled \"INJ\"" )
+        else:
+            report( "\tevent not labeled \"INJ\"" )
+    return truth
 
 #=================================================
 # set up schedule of checks
@@ -1684,7 +1707,7 @@ def approval_processor_far( gdb, gdb_id, verbose=False ):
         report( "\tparsing log" )
     for log in logs:
         comment = log['comment']
-        if ("Candidate event has low enough FAR" in comment) or ("Candidate event rejected due to large FAR" in comment):
+        if ("Candidate event has low enough FAR" in comment) or ("Candidate event rejected due to large FAR" in comment) or ("Ignoring new event because we found a hardware injection" in comment):
             if verbose:
                 report( "\taction required : False" )
             return False
