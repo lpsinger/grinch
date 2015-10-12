@@ -225,6 +225,28 @@ elif alert_type == 'new':
 		search = event_dict['search']
 	else:
 		search = ''
+
+	# Check whether there's a Hardware Injection found +/-2 seconds of this event gpstime
+	from raven.search import query
+	th = 2
+	tl = -th
+	Injections = query('HardwareInjection', event_time, tl, th)
+	if len(Injections) > 0:
+		logger.info('{0} -- {1} -- Labeling with INJ.'.format(st, graceid))
+		r = g.writeLabel(graceid, 'INJ')
+		if hardware_inj=='no':
+			logger.info('{0} -- {1} -- Ignoring new event because we found a hardware injection +/- {2} seconds of event gpstime.'.format(st, graceid, th))
+			r = g.writeLog(graceid, 'AP: Ignoring new event because we found a hardware injection +/- {0} seconds of event gpstime.'.format(th), tagname = 'em_follow')
+			exit()
+		else:
+			logger.info('{0} -- {1} -- Found hardware injection +/- {2} seconds of event gpstime but treating as real event in config.'.format(st, graceid, th))
+			r = g.writeLog(graceid, 'AP: Found hardware injection +/- {0} seconds of event gpstime but treating as real event in config.'.format(th), tagname = 'em_follow')
+			pass
+	elif len(Injections)==0:
+		logger.info('{0} -- {1} -- No hardware injection found near event gpstime +/- {2} seconds.'.format(st, graceid, th))
+		r = g.writeLog(graceid, 'AP: No hardware injection found near event gpstime +/- {0} seconds.'.format(th), tagname = 'em_follow')
+		pass
+
 	# Calculate the FAR threshold for this event
 	farthresh = get_farthresh(config, pipeline, search)
 
@@ -237,28 +259,6 @@ elif alert_type == 'new':
 		logger.info('{0} -- {1} -- Ignoring new event due to INJ or DQV.'.format(st, graceid))
 		r = g.writeLog(graceid, 'AP: Candidate event rejected due to INJ or DQV label.', tagname = 'em_follow')
 	else:
-		# Need to check whether there's a Hardware Injection found +/-2 seconds of this event gpstime
-		from raven.search import query
-		th = 2
-		tl = -th
-		Injections = query('HardwareInjection', event_time, tl, th)
-		if len(Injections) > 0:
-			logger.info('{0} -- {1} -- Labeling with INJ.'.format(st, graceid))
-			r = g.writeLabel(graceid, 'INJ')
-			if hardware_inj=='no':
-				logger.info('{0} -- {1} -- Ignoring new event because we found a hardware injection +/- {2} seconds of event gpstime.'.format(st, graceid, th))
-				r = g.writeLog(graceid, 'AP: Ignoring new event because we found a hardware injection +/- {0} seconds of event gpstime.'.format(th), tagname = 'em_follow')
-				exit()
-			else:
-				logger.info('{0} -- {1} -- Found hardware injection +/- {2} seconds of event gpstime but treating as real event in config.'.format(st, graceid, th))
-				r = g.writeLog(graceid, 'AP: Found hardware injection +/- {0} seconds of event gpstime but treating as real event in config.'.format(th), tagname = 'em_follow')
-				pass
-		elif len(Injections)==0:
-			logger.info('{0} -- {1} -- No hardware injection found near event gpstime +/- {2} seconds.'.format(st, graceid, th))
-			r = g.writeLog(graceid, 'AP: No hardware injection found near event gpstime +/- {0} seconds.'.format(th), tagname = 'em_follow')
-			pass
-		r = g.writeLog(graceid, 'AP: Candidate event has low enough FAR. {0} < {1}'.format(far, farthresh), tagname = 'em_follow')		
-		logger.info('{0} -- {1} -- Submitting preliminary VOEvent to GCN.'.format(st, graceid))
 		# Set internal value settings for VOEvents
 		if force_all_internal == 'yes':
 			internal = 1
