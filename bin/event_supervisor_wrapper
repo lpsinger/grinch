@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-usage = "gdb_event_supervisor_wrapper.py [--options] "
+usage = "event_supervisor_wrapper [--options] "
 description = \
 """
 a simple wrapper that builds and submits jobs to condor based on sys.stdin (assuemd to be an lvalert)

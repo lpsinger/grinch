@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-usage = "gdb_event_supervisor.py [--options] config.ini"
+usage = "event_supervisor [--options] config.ini"
 description = \
 """
 launched for each new lvalert message, this script will exit if alert_type!="new".

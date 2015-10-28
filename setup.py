@@ -52,6 +52,7 @@ setup(
         'bin/lvalert-init_approval_processor',
         'bin/event_supervisor',
         'bin/event_supervisor_wrapper',
+        'bin/event_supervisor_latency',
         'bin/gdb_processor_event_supervisor',
         'bin/lvalert-init_event_supervisor',
         'bin/lvalert-run_event_supervisor_wrapper'
