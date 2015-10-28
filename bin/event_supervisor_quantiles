@@ -1,0 +1,151 @@
+#!/usr/bin/python
+
+usage = "event_supervisor_quantiles [--options] data.pkl data.pkl data.pkl"
+description = \
+"""
+plots latency distributions and finds quantiles
+"""
+
+#=================================================
+
+import numpy as np
+import pickle
+
+import matplotlib
+matplotlib.use("Agg")
+from matplotlib import pyplot as plt
+plt.rcParams['text.usetex'] = True
+
+from grinch import supervisor_checks as checks
+report = checks.report
+
+from optparse import OptionParser
+
+#=================================================
+
+def quantile( a, q, kind='linear', notSorted=True ):
+    '''
+    returns the percentile of a
+    '''
+    if notSorted:
+        a = sorted(a)
+    if not isinstance(a, np.ndarray):
+        a = np.array(a)
+    if not isinstance(q, np.ndarray):
+        q = np.array(q)
+
+    N = len(a)
+    n = (N-1)*q ### subtract one to get indexing right
+    l = np.floor( n ).astype( int )
+    u = np.ceil( n ).astype( int )
+
+    ans = a[l]
+    truth = u!=l
+    ans[truth] += (a[u][truth]-a[l][truth])*(N*q[truth] - l[truth])/(u[truth] - l[truth])
+
+    return ans
+
+#=================================================
+
+parser = OptionParser(usage=usage, description=description)
+
+parser.add_option('-v', '--verbose', default=False, action="store_true")
+
+parser.add_option('-q', '--quantile', default=[0.5], type='float', action='append', help='print this quantile to the terminal and display on the plot.')
+
+parser.add_option('-o', '--output-dir', default='.', type='string')
+parser.add_option('-t', '--tag', default='', type='string')
+parser.add_option('-g', '--grid', default=False, action='store_true')
+
+opts, args = parser.parse_args()
+
+if not len(args):
+    raise ValueError("please supply at least one data.pkl file as an argument")
+
+if opts.tag:
+    opts.tag = "_%s"%(opts.tag)
+
+opts.quantile = sorted(set(opts.quantile))
+
+#=================================================
+
+### read in data
+data = {}
+for pkl in args:
+    if opts.verbose:
+        print "reading : %s"%(pkl)
+    file_obj = open(pkl, 'r')
+    d = pickle.load( file_obj )
+    file_obj.close()
+
+    for key, value in d.items():
+        if data.has_key( key ):
+            data[key] += value
+        else:
+            data[key] = value
+
+keys = sorted(data.keys())
+
+#=================================================
+
+### iterate through each key, make a plot, compute quantiles, etc.
+for key in keys:
+    if opts.verbose:
+        print key
+    datum = data[key]
+    #  data[description].append( (latency, gdb_id, action_requried, logs) )
+    n = len(datum)
+    l = sorted([ l[0] for l in datum if (l[0] < np.infty) ])
+    N = len(l)
+
+    if opts.verbose:
+        print "\t%d / %d events with latency < infty"%(N, n)
+
+    if not N:
+        continue ### don't plot
+
+    nbins = N/5
+    bins = np.linspace( min(l)-1, max(l)+1, nbins+1 )
+
+    ### quantiles!
+#    quantiles = np.percentile( l, opts.quantile*100 ) ### not implemented until version 1.5.x
+    quantiles = quantile( l, opts.quantile, notSorted=False ) ### my own implementation
+
+    ### plot!
+    fig = plt.figure()
+
+    ax = plt.subplot(1,1,1)
+    axc = ax.twinx()
+
+    ax.hist( l, bins=bins, alpha=0.5 )
+
+    axc.plot( l, 1.0*(1+np.arange(N))/N, color='k' )
+
+#    ax.set_xlim(xmin=bins[0]-1, xmax=bins[-1]+1)
+    ax.set_xlabel('latency [sec]')
+    ax.set_ylabel('count')
+
+    axc.set_xlim(ax.get_xlim())
+    axc.set_ylim(ymin=-0.05, ymax=1.05)
+    axc.set_ylabel('cumulative fraction of events')
+
+    ax.grid(opts.grid, which="both")
+
+    ylim = ax.get_ylim()
+    for q, Q in zip(opts.quantile, quantiles):
+        if opts.verbose:
+            print "\t%.3f%s : %.3f sec"%(q*100,"%",Q)
+        ax.plot( [Q]*2, ylim, 'r--' )
+        ax.text( Q, ylim[1], '%.1f\%s\n%.3f'%(q*100,"%",Q), ha='center', va='top')
+
+    fig.text(0.90, 0.95, '%d events'%(N), ha='right', va='top')
+
+    figname = "%s/%s%s.png"%(opts.output_dir, key.replace(" ","_"), opts.tag)
+    if opts.verbose:
+        print "\t%s"%(figname)
+    fig.savefig( figname )
+    plt.close( fig )
+
+    
+
+

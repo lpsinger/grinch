@@ -120,11 +120,11 @@ if opts.verbose:
 data = dict( (description, []) for _, _, _, _, description in schedule ) ### set up data structure
 
 ### iterate over events
-for event in events:
+for ind, event in enumerate(events):
     gdb_id = event['graceid']
 
     if opts.verbose:
-        report( "---------- processing %s ----------"%(gdb_id) )
+        report( "---------- processing %s (%d/%d) ----------"%(gdb_id, ind+1, nevents) )
 
     ### parse creation time from GraceDB
     report( "WARNING: you are using a hacky fix for timezones between event creation and log creations. It does not know about daylight savings time" )

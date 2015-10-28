@@ -53,6 +53,7 @@ setup(
         'bin/event_supervisor',
         'bin/event_supervisor_wrapper',
         'bin/event_supervisor_latency',
+        'bin/event_supervisor_quantiles',
         'bin/gdb_processor_event_supervisor',
         'bin/lvalert-init_event_supervisor',
         'bin/lvalert-run_event_supervisor_wrapper'
