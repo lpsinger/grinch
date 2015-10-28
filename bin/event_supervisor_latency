@@ -1,0 +1,160 @@
+#!/usr/bin/python
+
+usage = "event_supervisor_latency [--options] group pipeline [search]"
+description = \
+"""
+measures the latency of each check from a sample of GraceDB entries.
+Reports the result nicely
+"""
+
+#=================================================
+
+from numpy import infty
+import pickle
+
+import time
+import ConfigParser
+from ligo.gracedb.rest import GraceDb
+
+from grinch import supervisor_checks as checks
+report = checks.report
+
+from optparse import OptionParser
+
+#=================================================
+
+def latency_from_logs( logs, to ):
+    """
+    computes the latency relative to "to" based on the log messages included
+    we take the log message with the highest latency and return that
+    the assumption is that all logs are required for the check to complete (successfully), 
+    and thus the latency of the check is the maximum over this set
+    """
+    if not logs:
+        return infty
+    else:
+        dt = -infty
+        for log in logs:
+            t = time.mktime( time.strptime( log['created'], '%Y-%m-%dT%H:%M:%S' ) )
+            if dt < t-to:
+                dt = t-to
+
+        return dt
+          
+#=================================================
+
+parser = OptionParser(usage=usage, description=description)
+
+parser.add_option('-v', '--verbose', default=False, action="store_true")
+
+parser.add_option('-s', '--gps-start', default=0, type='float')
+parser.add_option('-e', '--gps-end', default=0, type='float')
+
+parser.add_option('-c', '--config', default="./config.ini", type="string")
+
+parser.add_option('-G', '--gracedb_url', default=None, type="string")
+
+parser.add_option('-i', '--ignore-INJ', default=False, action="store_true", help="if supplied, we check for the \"INJ\" label before each check and exit if it is present.")
+
+parser.add_option('', '--dont-wait', default=False, action='store_true')
+
+parser.add_option('-p', '--pklfile', default='latency.pkl', type='string')
+
+opts, args = parser.parse_args()
+
+lenargs = len(args)
+if lenargs == 2:
+    group, pipeline = args
+    search = ""
+elif lenargs == 3:
+    group, pipeline, search = args
+else:
+    raise ValueError("please supply either 2 or 3 input arguments: group pipeline [search]")
+
+event_type = ("_".join(args)).lower()
+
+#=================================================
+
+### set up the connection to gracedb
+if opts.gracedb_url:
+    if opts.verbose:
+        report( "conecting to GraceDb : %s"%(opts.gracedb_url) )
+    gracedb = GraceDb( opts.gracedb_url )
+else:
+    if opts.verbose:
+        report( "connecting to GraceDb" )
+    gracedb = GraceDb()
+
+#=================================================
+
+### query for events
+query = "%.6f .. %.6f %s"%(opts.gps_start, opts.gps_end, " ".join((group, pipeline, search)) )
+if opts.verbose:
+    report( "querying GraceDb : %s"%(query) )
+events = [ event for event in gracedb.events( query ) if (not opts.ignore_INJ) or ("INJ" not in event['labels']) ]
+nevents = len(events)
+if opts.verbose:
+    report( "\tfound %d events"%(nevents) )
+
+if not nevents:
+    raise ValueError( "no events found!" )
+
+#=================================================    
+
+### read in the config file
+if opts.verbose:
+    report( "reading config from : %s and setting up schedule of checks"%(opts.config) )
+config = ConfigParser.SafeConfigParser()
+config.read(opts.config)
+
+#=================================================
+
+### set up the schedule of checks
+kwargs = {'verbose':opts.verbose, 'returnLogs':True} ### we need returnLogs to get latencies!
+schedule = checks.config_to_schedule( config, event_type, **kwargs )
+
+### iterate through events, performing checks and measuring latencies
+if opts.verbose:
+    report( "performing schedule" )
+
+data = dict( (description, []) for _, _, _, _, description in schedule ) ### set up data structure
+
+### iterate over events
+for event in events:
+    gdb_id = event['graceid']
+
+    if opts.verbose:
+        report( "---------- processing %s ----------"%(gdb_id) )
+
+    ### parse creation time from GraceDB
+    report( "WARNING: you are using a hacky fix for timezones between event creation and log creations. It does not know about daylight savings time" )
+    to = time.mktime(time.strptime(event['created'], '%Y-%m-%d %H:%M:%S %Z')) - 21600 ### correct for time-zone FRAGILE
+
+    for dt, foo, kwargs, email, description in schedule:
+        ### check current time stamp
+        if not opts.dont_wait:
+            wait = dt - (time.mktime(time.gmtime())-to) ### we go through gmtime() and mktime() because time.time() was producing weird results
+            if wait > 0:
+                if opts.verbose:
+                    report( "waiting %.3f seconds before performing : %s"%(wait, description) )
+                    sys.stdout.flush()
+                    sys.stderr.flush()
+                time.sleep( wait )
+
+        ### try to perform the scheduled check
+        action_requried, logs = foo( gracedb, gdb_id, **kwargs )
+        latency = latency_from_logs( logs, to )
+        data[description].append( (latency, gdb_id, action_requried, logs) )
+
+        if opts.verbose:
+            report( "latency : %.0f sec"%latency )
+
+#=================================================
+
+### write the data into a pickle file
+if opts.verbose:
+    print "writing : %s"%opts.pklfile
+file_obj = open(opts.pklfile, "w")
+pickle.dump( data, file_obj )
+file_obj.close()
+

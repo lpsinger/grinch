@@ -31,6 +31,19 @@ def __fix_int( num ):
     else:
         return "%s"%num
 
+def log_for_filename( filename, logs, verbose=False ):
+    """
+    finds the log associated with a given filename
+    """
+    for log in logs[::-1]: ### iterate through logs in reverse so we get the most recent logs first
+                           ### this means we will get the most recent version of files, if multiple exist
+        if filename == log['filename']: ### this is the log message associated with that filename
+            if verbose:
+                report( "\t%s assoicated with log message : %d"%(filename, log['N']) )
+            return log
+    else:
+        raise ValueError( "could not find %s in association with any log messages for %s"%(filename, gdb_id) )
+
 def file_has_tag( gdb, gdb_id, filename, tag, verbose=False ):
     """
     checks whether a filename has the stated tag
@@ -45,14 +58,8 @@ def file_has_tag( gdb, gdb_id, filename, tag, verbose=False ):
 
     if verbose:
         report( "\tparsing log messages" )
-    for log in logs[::-1]: ### iterate through logs in reverse so we get the most recent logs first
-                           ### this means we will get the most recent version of files, if multiple exist
-        if filename == log['filename']: ### this is the log message associated with that filename
-            if verbose:
-                report( "\t%s assoicated with log message : %d"%(filename, log['N']) )
-            return tag in log['tag_names']
-    else:
-        raise ValueError( "could not find %s in association with any log messages for %s"%(filename, gdb_id) )
+    log = log_for_filename( filename, logs, verbose=verbose )
+    return tag in log['tag_names']
 
 def tags_match( gdb, gdb_id, filename1, filename2, verbose=False ):
     """
@@ -68,24 +75,30 @@ def tags_match( gdb, gdb_id, filename1, filename2, verbose=False ):
 
     if verbose:
         report( "\tparsing log messages" )
-    tags1=None
-    tags2=None
-    for log in logs[::-1]:
-        if (tags1==None) and (filename1 == log['filename']):
-            if verbose:
-                report( "\t%s associated with log message : %d"%(filename1, log['N']) )
-            tags1 = log['tag_names']
-        if (tags2==None) and (filename2 == log['filename']):
-            if verbose:
-                report( "\t%s associated with log message : %d"%(filename2, log['N']) )
-            tags2 = log['tag_names']
-        if (tags1!=None) and (tags2!=None):
-            break
-    else:
-        if tags1==None:
-            raise ValueError( "could not find %s in association with any log messages for %s"%(filename1, gdb_id) )
-        if tags2==None:
-            raise ValueError( "could not find %s in association with any log messages for %s"%(filename2, gdb_id) )
+
+    log1 = log_for_filename( filename1, logs, verbose=verbose )
+    log2 = log_for_filename( filename2, logs, verbose=verbose )
+    tags1 = log1['tag_names']
+    tags2 = log2['tag_names']
+
+#    tags1=None
+#    tags2=None
+#    for log in logs[::-1]:
+#        if (tags1==None) and (filename1 == log['filename']):
+#            if verbose:
+#                report( "\t%s associated with log message : %d"%(filename1, log['N']) )
+#            tags1 = log['tag_names']
+#        if (tags2==None) and (filename2 == log['filename']):
+#            if verbose:
+#                report( "\t%s associated with log message : %d"%(filename2, log['N']) )
+#            tags2 = log['tag_names']
+#        if (tags1!=None) and (tags2!=None):
+#            break
+#    else:
+#        if tags1==None:
+#            raise ValueError( "could not find %s in association with any log messages for %s"%(filename1, gdb_id) )
+#        if tags2==None:
+#            raise ValueError( "could not find %s in association with any log messages for %s"%(filename2, gdb_id) )
 
     return sorted(tags1) == sorted(tags2) ### require an exact match
 
@@ -118,10 +131,13 @@ def get_dt( string ):
     """
     return [float(l) for l in string.split()]
 
-def config_to_schedule( config, event_type, verbose=False, freq=None ):
+def config_to_schedule( config, event_type, verbose=False, freq=None, returnLogs=False ):
     """
     determines the schedule of checks that should be performed for this event
     the checks should be (timestamp, function, kwargs, email) tuples, where timestamp is the amount of time after NOW we wait until performing the check, function is the specific function that performs the check (should have a uniform input argument? just the gracedb connection?) that returns either True or False depending on whether the check was passed, kwargs are any extra arguments needed for function, and email is a list of people to email if the check fails
+
+    returnLogs is added to kwargs where appropriate and checks are skipped if that option doesn't make sense for them
+        should really only be used when measuring latencies
     """
 
     ### extract lists of checks
@@ -139,7 +155,7 @@ def config_to_schedule( config, event_type, verbose=False, freq=None ):
     schedule = []
 
     #=== just let people know
-    if checks.has_key("notify"):
+    if checks.has_key("notify") and (not returnLogs):
         if verbose:
             report( "\tnotify" )
         kwargs = {"verbose":verbose}
@@ -149,7 +165,7 @@ def config_to_schedule( config, event_type, verbose=False, freq=None ):
         schedule.append( (dt, notify, kwargs, checks['notify'].split(), 'just a notification' ) )
 
     #=== properties of this event
-    if checks.has_key("far"):
+    if checks.has_key("far") and (not returnLogs):
         if verbose:
             report( "\tcheck far" )
         kwargs = {"minFAR":config.getfloat("far","minFAR"), "maxFAR":config.getfloat("far","maxFAR"), "verbose":verbose}
@@ -157,7 +173,7 @@ def config_to_schedule( config, event_type, verbose=False, freq=None ):
             schedule.append( (dt, far_check, kwargs, checks['far'].split(), "far") )
 
     #=== local properties of event streams
-    if checks.has_key("local_rates"):
+    if checks.has_key("local_rates") and (not returnLogs):
         if verbose:
             report( "\tcheck local_rates (event time)" )
             report( "\tcheck local_rates (creation time)" )
@@ -174,35 +190,35 @@ def config_to_schedule( config, event_type, verbose=False, freq=None ):
         if pipeline == "cwb":
             if verbose:
                 report( "\tcheck cWB event creation" )
-            kwargs = {'verbose':verbose}
+            kwargs = {'verbose':verbose, 'returnLogs':returnLogs}
             for dt in get_dt( config.get("eventcreation", "dt") ):
                 schedule.append( (dt, cwb_eventcreation, kwargs, checks['eventcreation'].split(), "cwb_eventcreation") )
 
         elif pipeline == "olib":
             if verbose:
                 report( "\tcheck oLIB event creation" )
-            kwargs = {'verbose':verbose}
+            kwargs = {'verbose':verbose, 'returnLogs':returnLogs}
             for dt in get_dt( config.get("eventcreation", "dt") ):
                 schedule.append( (dt, olib_eventcreation, kwargs, checks['eventcreation'].split(), "olib_eventcreation") )
 
         elif pipeline == "gstlal":
             if verbose:
                 report( "\tcheck gstlal event creation" )
-            kwargs = {'verbose':verbose}
+            kwargs = {'verbose':verbose, 'returnLogs':returnLogs}
             for dt in get_dt( config.get("eventcreation", "dt") ):
                 schedule.append( (dt, gstlal_eventcreation, kwargs, checks['eventcreation'].split(), "gstlal_eventcreation") )
 
         elif pipeline == "gstlal-spiir":
             if verbose:
                 report( "\tcheck gstlal-spiir event_creation" )
-            kwargs = {'verbose':verbose}
+            kwargs = {'verbose':verbose, 'returnLogs':returnLogs}
             for dt in get_dt( config.get("eventcreation", "dt") ):
                 schedule.append( (dt, gstlalspiir_eventcreation, kwargs, checks['eventcreation'].split(), 'gstlal-spiir_eventcreation') )
 
         elif pipeline == "mbtaonline":
             if verbose:
                 report( "\tcheck MBTA event creation" )
-            kwargs = {'verbose':verbose}
+            kwargs = {'verbose':verbose, 'returnLogs':returnLogs}
             for dt in get_dt( config.get("eventcreation", "dt") ):
                 schedule.append( (dt, mbta_eventcreation, kwargs, checks['eventcreation'].split(), "mbta_eventcreation") )
 
@@ -210,28 +226,28 @@ def config_to_schedule( config, event_type, verbose=False, freq=None ):
     if checks.has_key("idq_start"):
         if verbose:
             report( "\tcheck idq_start" )
-        kwargs = {"ifos":config.get("idq","ifos").split(), 'verbose':verbose}
+        kwargs = {"ifos":config.get("idq","ifos").split(), 'verbose':verbose, 'returnLogs':returnLogs}
         for dt in get_dt( config.get("idq", "start") ):
             schedule.append( (dt, idq_start, kwargs, checks['idq_start'].split(), "idq_start") )
 
     if checks.has_key("idq_finish"):
         if verbose:
             report( "\tcheck idq_finish" )
-        kwargs = {"ifos":config.get("idq","ifos").split(), 'verbose':verbose}
+        kwargs = {"ifos":config.get("idq","ifos").split(), 'verbose':verbose, 'returnLogs':returnLogs}
         for dt in get_dt( config.get("idq", "finish") ):
             schedule.append( (dt, idq_finish, kwargs, checks['idq_finish'].split(), "idq_finish") )
 
     if checks.has_key("idq_timeseries"):
         if verbose:
             report( "\tcheck idq_timeseries" )
-        kwargs = {"ifos":config.get("idq","ifos").split(), 'verbose':verbose}
+        kwargs = {"ifos":config.get("idq","ifos").split(), 'verbose':verbose, 'returnLogs':returnLogs}
         for dt in get_dt( config.get("idq", "timeseries") ):
             schedule.append( (dt, idq_timeseries, kwargs, checks['idq_timeseries'].split(), "idq_timeseries") )
 
     if checks.has_key("idq_tables"):
         if verbose:
             report( "\tcheck idq_tables" )
-        kwargs = {"ifos":config.get("idq","ifos").split(), 'verbose':verbose}
+        kwargs = {"ifos":config.get("idq","ifos").split(), 'verbose':verbose, 'returnLogs':returnLogs}
         for dt in get_dt( config.get("idq", "tables") ):
             schedule.append( (dt, idq_tables, kwargs, checks['idq_tables'].split(), "idq_tables") )
 
@@ -239,7 +255,7 @@ def config_to_schedule( config, event_type, verbose=False, freq=None ):
     if checks.has_key("cwb_skymap"):
         if verbose:
             report( "\tcheck cwb_skymap" )
-        kwargs = {'verbose':verbose}
+        kwargs = {'verbose':verbose, 'returnLogs':returnLogs}
         if config.has_option('cwb', 'lvem'):
             kwargs.update( {'lvem':config.getboolean('cwb','lvem')} )
         for dt in get_dt( config.get('cwb', 'skymap') ):
@@ -249,7 +265,7 @@ def config_to_schedule( config, event_type, verbose=False, freq=None ):
     if checks.has_key("lib_start"):
         if verbose:
             report( "\tcheck lib_start" )
-        kwargs = {'verbose':verbose}
+        kwargs = {'verbose':verbose, 'returnLogs':returnLogs}
         if config.has_option('lib', 'far'):
             kwargs.update( {'far':config.getfloat('lib', 'far')} )
         for dt in get_dt( config.get("lib", "start") ):
@@ -258,7 +274,7 @@ def config_to_schedule( config, event_type, verbose=False, freq=None ):
     if checks.has_key("lib_finish"):
         if verbose:
             report( "\tcheck lib_finish" )
-        kwargs = {'verbose':verbose}
+        kwargs = {'verbose':verbose, 'returnLogs':returnLogs}
         if config.has_option('lib', 'far'):
             kwargs.update( {'far':config.getfloat('lib', 'far')} )
 
@@ -289,7 +305,7 @@ def config_to_schedule( config, event_type, verbose=False, freq=None ):
     if checks.has_key("lib_skymap"):
         if verbose:
             report( "\tcheck lib_skymap" )
-        kwargs = {'verbose':verbose}
+        kwargs = {'verbose':verbose, 'returnLogs':returnLogs}
         if config.has_option('lib', 'far'):
             kwargs.update( {'far':config.getfloat('lib', 'far')} )
         if config.has_option('lib', 'lvem'):
@@ -323,7 +339,7 @@ def config_to_schedule( config, event_type, verbose=False, freq=None ):
     if checks.has_key("bayestar_start"):
         if verbose:
             report( "\tcheck bayestar_start" )
-        kwargs = {'verbose':verbose}
+        kwargs = {'verbose':verbose, 'returnLogs':returnLogs}
         if config.has_option('bayestar', 'far'):
             kwargs.update( {'far':config.getfloat('bayestar', 'far')} )
         for dt in get_dt( config.get("bayestar", "start") ):
@@ -332,7 +348,7 @@ def config_to_schedule( config, event_type, verbose=False, freq=None ):
     if checks.has_key("bayestar_finish"):
         if verbose:
             report( "\tcheck bayestar_finish" )
-        kwargs = {'verbose':verbose}
+        kwargs = {'verbose':verbose, 'returnLogs':returnLogs}
         if config.has_option('bayestar', 'far'):
             kwargs.update( {'far':config.getfloat('bayestar', 'far')} )
         for dt in get_dt( config.get("bayestar", "finish") ):
@@ -341,7 +357,7 @@ def config_to_schedule( config, event_type, verbose=False, freq=None ):
     if checks.has_key("bayestar_skymap"):
         if verbose:
             report( "\tcheck bayestar_skymap" )
-        kwargs = {'verbose':verbose}
+        kwargs = {'verbose':verbose, 'returnLogs':returnLogs}
         for dt in get_dt( config.get("bayestar", "skymap") ):
             schedule.append( (dt, bayestar_skymap, kwargs, checks['bayestar_skymap'].split(), "bayestar_skymap") )
         if config.has_option('bayestar', 'lvem'):
@@ -351,7 +367,7 @@ def config_to_schedule( config, event_type, verbose=False, freq=None ):
     if checks.has_key("bayeswave_start"):
         if verbose:
             report( "\tcheck bayeswave_start" )
-        kwargs = {'verbose':verbose}
+        kwargs = {'verbose':verbose, 'returnLogs':returnLogs}
         if config.has_option('bayeswave', 'far'):
             kwargs.update( {'far':config.getfloat('bayeswave', 'far')} )
         for dt in get_dt( config.get("bayeswave", "start") ):
@@ -360,7 +376,7 @@ def config_to_schedule( config, event_type, verbose=False, freq=None ):
     if checks.has_key("bayeswave_finish"):
         if verbose:
             report( "\tcheck bayeswave_finish" )
-        kwargs = {'verbose':verbose}
+        kwargs = {'verbose':verbose, 'returnLogs':returnLogs}
         if config.has_option('bayeswave', 'far'):
             kwargs.update( {'far':config.getfloat('bayeswave', 'far')} )
 
@@ -391,7 +407,7 @@ def config_to_schedule( config, event_type, verbose=False, freq=None ):
     if checks.has_key("bayeswave_skymap"):
         if verbose:
             report( "\tcheck bayeswave_skymap" )
-        kwargs = {'verbose':verbose}
+        kwargs = {'verbose':verbose, 'returnLogs':returnLogs}
         if config.has_option('bayeswave', 'far'):
             kwargs.update( {'far':config.getfloat('bayeswave', 'far')} )
         if config.has_option('bayeswave', 'lvem'):
@@ -425,7 +441,7 @@ def config_to_schedule( config, event_type, verbose=False, freq=None ):
     if checks.has_key("lalinference_start"):
         if verbose:
             report( "\tcheck lalinference_start" )
-        kwargs = {'verbose':verbose}
+        kwargs = {'verbose':verbose, 'returnLogs':returnLogs}
         if config.has_option('lalinference', 'far'):
             kwargs.update( {'far':config.getfloat('lalinference', 'far')} )
         for dt in get_dt( config.get("lalinference", "start") ):
@@ -434,7 +450,7 @@ def config_to_schedule( config, event_type, verbose=False, freq=None ):
     if checks.has_key("lalinference_finish"):
         if verbose:
             report( "\tcheck lalinference_finish" )
-        kwargs = {'verbose':verbose}
+        kwargs = {'verbose':verbose, 'returnLogs':returnLogs}
         if config.has_option('lalinference', 'far'):
             kwargs.update( {'far':config.getfloat('lalinference', 'far')} )
         for dt in get_dt( config.get("lalinference", "finish") ):
@@ -443,7 +459,7 @@ def config_to_schedule( config, event_type, verbose=False, freq=None ):
     if checks.has_key("lalinference_skymap"):
         if verbose:
             report( "\tcheck lalinference_skymap" )
-        kwargs = {'verbose':verbose}
+        kwargs = {'verbose':verbose, 'returnLogs':returnLogs}
         if config.has_option('lalinference', 'far'):
             kwargs.update( {'far':config.getfloat('lalinference', 'far')} )
         if config.has_option('lalinference', 'lvem'):
@@ -456,7 +472,7 @@ def config_to_schedule( config, event_type, verbose=False, freq=None ):
     if checks.has_key("externaltriggers_search"):
         if verbose:
             report( "\tcheck externaltriggers_search" )
-        kwargs = {'verbose':verbose}
+        kwargs = {'verbose':verbose, 'returnLogs':returnLogs}
         for dt in get_dt( config.get("externaltriggers_search", "dt") ):
             schedule.append( (dt, externaltriggers_search, kwargs, checks['externaltriggers_search'].split(), "externaltriggers_search") )
 
@@ -464,7 +480,7 @@ def config_to_schedule( config, event_type, verbose=False, freq=None ):
     if checks.has_key("unblindinjections_search"):
         if verbose:
             report( "\tcheck unblindinjections_search" )
-        kwargs = {'verbose':verbose}
+        kwargs = {'verbose':verbose, 'returnLogs':returnLogs}
         for dt in get_dt( config.get("unblindinjections_search", "dt") ):
             schedule.append( (dt, unblindinjections_search, kwargs, checks['unblindinjections_search'].split(), "unblindinjections_search") )
 
@@ -472,7 +488,7 @@ def config_to_schedule( config, event_type, verbose=False, freq=None ):
     if checks.has_key("plot_skymaps"):
         if verbose:
             report( "\tcheck plot_skymaps" )
-        kwargs = {'verbose':verbose, 'check_tags':True}
+        kwargs = {'verbose':verbose, 'check_tags':True, 'returnLogs':returnLogs}
         for dt in get_dt( config.get("plot_skymaps", "dt") ):
             schedule.append( (dt, plot_skymaps, kwargs, checks['plot_skymaps'].split(), "plot_skymaps") )
 
@@ -480,7 +496,7 @@ def config_to_schedule( config, event_type, verbose=False, freq=None ):
     if checks.has_key("json_skymaps"):
         if verbose:
             report( "\tcheck json_skymaps" )
-        kwargs = {'verbose':verbose, 'check_tags':True}
+        kwargs = {'verbose':verbose, 'check_tags':True, 'returnLogs':returnLogs}
         for dt in get_dt( config.get("json_skymaps", "dt") ):
             schedule.append( (dt, json_skymaps, kwargs, checks['json_skymaps'].split(), "json_skymaps") )
 
@@ -488,10 +504,13 @@ def config_to_schedule( config, event_type, verbose=False, freq=None ):
     if checks.has_key("approval_processor_far"):
         if verbose:
             report( "\tcheck approval_processor_far")
-        kwargs = {'verbose':verbose}
+        kwargs = {'verbose':verbose, 'returnLogs':returnLogs}
         for dt in get_dt( config.get("approval_processor_far", "dt") ):
             schedule.append( (dt, approval_processor_far, kwargs, checks['approval_processor_far'].split(), "approval_processor_far") )
 
+
+
+    '''
     #=== emready_label
     if checks.has_key("emready_label"):
         if verbose:
@@ -539,6 +558,9 @@ def config_to_schedule( config, event_type, verbose=False, freq=None ):
         kwargs = {'verbose':verbose}
         for dt in get_dt( config.get("voevent_sent", "dt") ):
             schedule.append( (dt, voevent_sent, kwargs, checks['voevent_sent'].split(), "voevent_sent") )
+    '''
+
+
 
     ### order according to dt, smallest to largest
     schedule.sort(key=lambda l:l[0])
@@ -603,7 +625,6 @@ def far_check( gdb, gdb_id, verbose=False, minFAR=0.0, maxFAR=1e-6 ):
     if verbose:
         report( "\taction required : %s"%( action_required) )
     return action_required
-
 
 #=================================================
 # methods that check the local properties of the stream of events submitted to GraceDB
@@ -729,45 +750,11 @@ def local_rates( gdb, gdb_id, verbose=False, window=5.0, rate_thr=5.0, event_typ
 # methods that check that an event was created successfully and all expected meta-data/information has been uploaded
 #=================================================
 
-def far_check( gdb, gdb_id, verbose=False, minFAR=0.0, maxFAR=1e-6 ):
-    """
-    check that FAR < FARthr
-    """
-    if verbose:
-        report( "%s : far_check"%(gdb_id) )
-        report( "\tretrieving event details" )
-    event = gdb.event( gdb_id ).json()
-
-    if not event.has_key("far"):
-        if verbose:
-            report( "\tno FAR found" )
-            report( "\taction required : True" )
-        return True
-
-    far = event['far']
-    big_enough = minFAR < far
-    sml_enough = far < maxFAR
-    if verbose:
-        if big_enough:
-            report( "\tFAR > %.6e"%(minFAR) )
-        else:
-            report( "\tFAR <= %.3e"%(minFAR) )
-        if sml_enough:
-            report( "\tFAR < %.3e"%(maxFAR) )
-        else:
-            report( "\tFAR >= %.3e"%(maxFAR) ) 
-        
-    action_required = not (big_enough and sml_enough)
-    if verbose:
-        report( "\taction required : %s"%( action_required) )
-    return action_required
-
-def cwb_eventcreation( gdb, gdb_id, verbose=False, fits="skyprobcc.fits.gz" ):
+def cwb_eventcreation( gdb, gdb_id, verbose=False, returnLogs=False ):
     """
     checks that all expected data is present for newly created cWB events.
     This includes:
         the cWB ascii file uploaded by the pipeline for this event
-        the fits file generated as part of the detection processes.
     """
     if verbose:
         report( "%s : cwb_eventcreation"%(gdb_id) )
@@ -776,33 +763,30 @@ def cwb_eventcreation( gdb, gdb_id, verbose=False, fits="skyprobcc.fits.gz" ):
 
     if verbose:
         report( "\tparsing log" )
-#    fit = False
     pe = False
+    Logs = []
     for log in logs:
         comment = log['comment']
         if "cWB parameter estimation" in comment:
             pe = True
-#        elif "cWB skymap fit" in comment:
-#            fit = True
-
-#        if (fit and pe):
+            Logs.append( log )
         if (pe):
             break
 
     if verbose:
-#        report( "\taction required : %s"%( not (fit and pe)) )
         report( "\taction required : %s"%( not (pe)) )
 
-#    return not (fit and pe)
-    return not (pe)
+    if returnLogs:
+        return not (pe), Logs
+    else:
+        return not (pe)
 
-def olib_eventcreation( gdb, gdb_id, verbose=False ):
+def olib_eventcreation( gdb, gdb_id, verbose=False, returnLogs=False ):
     """
     checks that all expected data is present for newly created oLIB (eagle) events.
     This includes:
         the json dictionary uploaed by the pipeline
     """
-#    files = gdb.files( gdb_id )
     if verbose:
         report( "%s : olib_eventcreation"%(gdb_id) )
         report( "\tretrieving log messages" )
@@ -811,26 +795,29 @@ def olib_eventcreation( gdb, gdb_id, verbose=False ):
     if verbose:
         report( "\tparsing log" )
     prelim = False
+    Logs = []
     for log in logs:
         comment = log['comment']
         if "Preliminary results: " in comment:
             prelim = True
-
+            Logs.append( log )
         if prelim:
             break
 
     if verbose:
         report( "\taction required : %s"%(not (prelim)) )
-    return not (prelim)
+    if returnLogs:
+        return not (prelim), Logs
+    else:
+        return not (prelim)
 
-def gstlal_eventcreation( gdb, gdb_id, verbose=False ):
+def gstlal_eventcreation( gdb, gdb_id, verbose=False, returnLogs=False ):
     """
     checks that all expected data is present for newly created gstlal events.
     This includes:
         inspiral_coinc table
         psd estimates from the detectors
     """
-#    files = gdb.files( gdb_id )
     if verbose:
         report( "%s : gstlal_eventcreation"%(gdb_id) )
         report( "\tretrieving log messages" )
@@ -840,28 +827,33 @@ def gstlal_eventcreation( gdb, gdb_id, verbose=False ):
         report( "\tparsing log" )
     psd = False
     coinc = False
+    Logs = []
     for log in logs:
         comment = log['comment']
         if "strain spectral densities" in comment:
             psd = True
+            Logs.append( log )
         elif "Coinc Table Created" in comment:
             coinc = True
+            Logs.append( log )
 
         if psd and coinc:
             break
 
     if verbose:
         report( "\taction required : %s"% (not (psd and coinc)) )
-    return not (psd and coinc)
+    if returnLogs:
+        return not (psd and coinc), Logs
+    else:
+        return not (psd and coinc)
 
-def gstlalspiir_eventcreation( gdb, gdb_id, verbose=False ):
+def gstlalspiir_eventcreation( gdb, gdb_id, verbose=False, returnLogs=False ):
     """
     checks that all expected data is present for newly created gstlal events.
     This includes:
         inspiral_coinc table
         psd estimates from the detectors
     """
-#    files = gdb.files( gdb_id )
     if verbose:
         report( "%s : gstlal-spiir_eventcreation"%(gdb_id) )
         report( "\tretrieving log messages" )
@@ -871,21 +863,27 @@ def gstlalspiir_eventcreation( gdb, gdb_id, verbose=False ):
         report( "\tparsing log" )
     psd = False
     coinc = False
+    Logs = []
     for log in logs:
         comment = log['comment']
         if "strain spectral densities" in comment:
             psd = True
+            Logs.append( log )
         elif "Coinc Table Created" in comment:
             coinc = True
+            Logs.append( log )
 
         if psd and coinc:
             break
 
     if verbose:
         report( "\taction required : %s"% (not (psd and coinc)) )
-    return not (psd and coinc)
+    if returnLogs:
+        return not (psd and coinc), Logs
+    else:
+        return not (psd and coinc)
 
-def mbta_eventcreation( gdb, gdb_id, verbose=False ):
+def mbta_eventcreation( gdb, gdb_id, verbose=False, returnLogs=False ):
     """
     checks that all expected data is present for newly created mbta events.
     This includes:
@@ -900,25 +898,30 @@ def mbta_eventcreation( gdb, gdb_id, verbose=False ):
         report( "\tparsing log" )
     psd = False
     coinc = False
+    Logs = []
     for log in logs:
         comment = log['comment']
         if "Coinc Table Created" in comment:
             coinc = True
+            Logs.append( log )
         if "PSDs" in comment:
             psd = True
-
+            Logs.append( log )
         if (psd and coinc):
             break
 
     if verbose:
         report( "\taction required : %s"%( not (psd and coinc)) )
-    return not (psd and coinc)
+    if returnLogs:
+        return not (psd and coinc), Logs
+    else:
+        return not (psd and coinc)
 
 #=================================================
 # methods that check whether idq processes were triggered and completed
 #=================================================
 
-def idq_start( gdb, gdb_id, ifos=['H','L'], verbose=False ):
+def idq_start( gdb, gdb_id, ifos=['H','L'], verbose=False, returnLogs=False ):
     """
     check that iDQ processes were started at each of the specified ifos
     """
@@ -931,12 +934,14 @@ def idq_start( gdb, gdb_id, ifos=['H','L'], verbose=False ):
     if verbose:
         report( "\tparsing log" )
     result = [1]*len(ifos)
+    Logs = []
     for log in logs:
         comment = log['comment']
         if ("Started searching for iDQ information" in comment):
             for ind, ifo in enumerate(ifos):
                 if result[ind] and (ifo in comment):
                     result[ind] = 0
+                    Logs.append( log )
     
     if verbose:
         action_required = False
@@ -948,9 +953,12 @@ def idq_start( gdb, gdb_id, ifos=['H','L'], verbose=False ):
                 report( "\tidq_start statement found for ifo : %s"%ifo )
         report( "\taction required : %s"% action_required )
 
-    return sum(result) > 0
+    if returnLogs:
+        return sum(result) > 0, Logs
+    else:
+        return sum(result) > 0
 
-def idq_finish( gdb, gdb_id, ifos=['H','L'], verbose=False ):
+def idq_finish( gdb, gdb_id, ifos=['H','L'], verbose=False, returnLogs=False ):
     """
     check that iDQ processes finished at each of the specified ifos
     """
@@ -962,12 +970,14 @@ def idq_finish( gdb, gdb_id, ifos=['H','L'], verbose=False ):
     if verbose:
         report( "\tparsing log" )
     result = [1]*len(ifos)
+    Logs = []
     for log in logs:
         comment = log['comment']
         if ("Finished searching for iDQ information" in comment):
             for ind, ifo in enumerate(ifos):
                 if result[ind] and (ifo in comment):
                     result[ind] = 0
+                    Logs.append( log )
 
     if verbose:
         action_required = False
@@ -979,9 +989,12 @@ def idq_finish( gdb, gdb_id, ifos=['H','L'], verbose=False ):
                 report( "\tidq_finish statement found for ifo : %s"%ifo )
         report( "\taction required : %s"%action_required )
 
-    return sum(result) > 0
+    if returnLogs:
+        return sum(result) > 0, Logs
+    else: 
+        return sum(result) > 0
 
-def idq_timeseries( gdb, gdb_id, ifos=['H', 'L'], verbose=False, minfap_statement=True ):
+def idq_timeseries( gdb, gdb_id, ifos=['H', 'L'], verbose=False, returnLogs=False, minfap_statement=True ):
     """
     check that iDQ timeseries jobs completed at each site
     checks for the presences of "idq_fap.gwf" files in GDB
@@ -993,14 +1006,20 @@ def idq_timeseries( gdb, gdb_id, ifos=['H', 'L'], verbose=False, minfap_statemen
     files = gdb.files( gdb_id ).json().keys() ### we only care about filenames
 
     if verbose:
+        report( "\tretrieving log messages" )
+    logs = gdb.logs( gdb_id ).json()['log']
+
+    if verbose:
         report( "\tchecking filenames" )
     result = [1]*len(ifos)
+    Logs = []
     for filename in files:
         # H1_idq_ovl_fap_T176444-1124114448-16.gwf
         if filename.endswith(".gwf") and ("_idq_" in filename) and ("_fap_" in filename):
             for ind, ifo in enumerate(ifos):
                 if result[ind] and (ifo in filename):
                     result[ind] = 0
+                    Logs.append( log_for_filename( filename, logs, verbose=verbose ) )
 
     if verbose:
         for r, ifo in zip(result, ifos):
@@ -1008,8 +1027,6 @@ def idq_timeseries( gdb, gdb_id, ifos=['H', 'L'], verbose=False, minfap_statemen
                 report( "\tWARNING: no idq_fap.gwf found for ifo : %s"%ifo )
             else:
                 report( "\tidq_fap.gwf found for ifo : %s"%ifo )
-        report( "\tretrieving log messages" )
-    logs = gdb.logs( gdb_id ).json()['log']
 
     if verbose:
         report( "\tparsing log" )
@@ -1020,7 +1037,8 @@ def idq_timeseries( gdb, gdb_id, ifos=['H', 'L'], verbose=False, minfap_statemen
             for ind, ifo in enumerate(ifos):
                 if (1 - log_result[ind]) and (ifo in comment):
                     log_result[ind] = 1
-                       
+                    Logs.append( log )
+                   
     if verbose:
         for r, ifo in zip(log_result, ifos):
             if r:
@@ -1028,14 +1046,38 @@ def idq_timeseries( gdb, gdb_id, ifos=['H', 'L'], verbose=False, minfap_statemen
             else:
                 report( "\tno idq timeseries FAILED message found for ifo : %s"%ifo )
 
-    action_required = sum(result) + sum(log_result) > 0
+    if minfap_statement:
+        fap_result = [1]*len(ifos)
+        for log in logs:
+            comment = log['comment']
+            if ("minimum glitch-FAP" in comment):
+                for ind, ifo in enumerate(ifos):
+                    if fap_result[ind] and (ifo in comment):
+                        fap_result[ind] = 0
+                        Logs.append( log )
+
+        if verbose:
+            for r, ifo in zip(fap_result, ifos):
+                if r:
+                    report( "\tWARNING: idq minimum glitch-FAP message not found for ifo : %s"%ifo )
+                else:
+                    report( "\tidq minimum glitch-FAP message found for ifo : %s"%ifo )
+
+    if minfap_statement:
+        action_required = sum(result) + sum(log_result) + sum(fap_result) > 0
+    else:
+        action_required = sum(result) + sum(log_result) > 0
+
     if verbose:
         report( "\taction required : %s"% action_required )
 
-    return action_required
+    if returnLogs:
+        return action_required, Logs
+    else:
+        return action_required
 
 
-def idq_tables( gdb, gdb_id, ifos=['H', 'L'], verbose=False ):
+def idq_tables( gdb, gdb_id, ifos=['H', 'L'], verbose=False, returnLogs=False ):
     """
     checks that iDQ tables jobs completed at each site
     checks for the presences of "idq_fap.gwf" files in GDB
@@ -1046,15 +1088,21 @@ def idq_tables( gdb, gdb_id, ifos=['H', 'L'], verbose=False ):
         report( "\tretrieving files" )
     files = gdb.files( gdb_id ).json().keys() ### we only care about filenames
 
+    if verobse:
+        report( "\tretrieving log messages" )
+    logs = gdb.logs( gdb_id ).json()['log']
+
     if verbose:
         report( "\tchecking filenames" )
     result = [1]*len(ifos)
+    Logs = []
     for filename in files:
         #  H1_idq_ovl_T176i444-1124114453-10.xml.gz
         if filename.endswith(".xml.gz") and ("_idq_" in filename):
             for ind, ifo in enumerate(ifos):
                 if result[ind] and (ifo in filename):
                     result[ind] = 0
+                    Logs.append( log_for_filename( filename, logs, verbose=verbose ) )
 
     if verbose:
         for r, ifo in zip(result, ifos):
@@ -1062,8 +1110,6 @@ def idq_tables( gdb, gdb_id, ifos=['H', 'L'], verbose=False ):
                 report( "\tWARNING: no idq.xml.gz found for ifo : %s"%ifo )
             else:
                 report( "\tidq.xml.gz found for ifo : %s"%ifo )
-        report( "\tretrieving log messages" )
-    logs = gdb.logs( gdb_id ).json()['log']  
 
     if verbose:
         report( "\tparsing log" )
@@ -1074,6 +1120,7 @@ def idq_tables( gdb, gdb_id, ifos=['H', 'L'], verbose=False ):
             for ind, ifo in enumerate(ifos):
                 if (1 - log_result[ind]) and (ifo in comment):
                     log_result[ind] = 1
+                    Logs.append( log )
 
     if verbose:
         for r, ifo in zip(log_result, ifos):
@@ -1086,13 +1133,16 @@ def idq_tables( gdb, gdb_id, ifos=['H', 'L'], verbose=False ):
     if verbose:
         report( "\taction_required : %s"% action_required )
 
-    return action_required
+    if returnLogs:
+        return action_required, Logs
+    else:
+        return action_required
 
 #=================================================
 # methods that check whether cWB processes wer triggered and completed
 #=================================================
 
-def cwb_skymap( gdb, gdb_id, lvem=None, verbose=False ):
+def cwb_skymap( gdb, gdb_id, lvem=None, verbose=False, returnLogs=False ):
     """
     checks that cwb skymaps are uploaded
     """
@@ -1103,10 +1153,18 @@ def cwb_skymap( gdb, gdb_id, lvem=None, verbose=False ):
         report( "\tretrieving event files" )
     files = sorted(gdb.files( gdb_id ).json().keys()) ### we really just care about the filenames
 
+    if returnLogs:
+        if verbose:
+            report( "\tretrieving log messages" )
+        logs = gdb.logs( gdb_id ).json()['log']
+        Logs = []
+
     if verbose:
         report( "\tchecking for cWB FITS file" )
     for filename in files:
         if "skyprobcc_cWB.fits" == filename: ### may be fragile
+            if returnLogs:
+                Logs.append( log_for_filename( filename, logs, verbose=verbose ) )
             if verbose:
                 report( "\t\tfound : %s"%(filename) )
             if lvem!=None:
@@ -1115,20 +1173,29 @@ def cwb_skymap( gdb, gdb_id, lvem=None, verbose=False ):
                 if file_has_tag( gdb, gdb_id, filename, "lvem", verbose=False ) != lvem:
                     if verbose:
                         report( "\taction required : True" )
-                    return True
+                    if returnLogs:
+                        return True, Logs
+                    else:
+                        return True
             if verbose:
                 report( "\taction required : False" )
-            return False
+            if returnLogs:
+                return False, Logs
+            else:
+                return False
 
     if verbose:
         report( "\taction required : True" )
-    return True
+    if returnLogs:
+        return True, Logs
+    else:
+        return True
 
 #=================================================
 # methods that check whether lib processes were triggered and completed
 #=================================================
 
-def lib_start( gdb, gdb_id, far=None, verbose=False ):
+def lib_start( gdb, gdb_id, far=None, verbose=False, returnLogs=False ):
     """
     checks that LIB PE followup processes started (and were tagged correctly?)
     """
@@ -1141,7 +1208,10 @@ def lib_start( gdb, gdb_id, far=None, verbose=False ):
         if far_check( gdb, gdb_id, verbose=False, minFAR=0.0, maxFAR=far ):
             report( "\tFAR > %.6e or not defined, event will be ignored"%(far) )
             report( "\taction required : False" )
-            return False
+            if returnLogs:
+                return False, []
+            else:
+                return False
 
     if verbose:
         report( "\tretrieving log messages" )
@@ -1154,14 +1224,19 @@ def lib_start( gdb, gdb_id, far=None, verbose=False ):
         if "LIB Parameter estimation started." in comment:
             if verbose:
                 report( "\taction required : False" )
-            return False
+            if returnLogs:
+                return False, [log]
+            else:
+                return False, 
 
     if verbose:
         report( "\taction required : True" )
+    if returnLogs:
+        return True, []
+    else:
+        return True
 
-    return True
-
-def lib_finish( gdb, gdb_id, far=None, verbose=False ):
+def lib_finish( gdb, gdb_id, far=None, verbose=False, returnLogs=False ):
     """
     checks that LIB PE followup processes finished (and were tagged correctly?)
     """
@@ -1174,7 +1249,10 @@ def lib_finish( gdb, gdb_id, far=None, verbose=False ):
         if far_check( gdb, gdb_id, verbose=False, minFAR=0.0, maxFAR=far ):
             report( "\tFAR > %.6e or not defined, event will be ignored"%(far) )
             report( "\taction required : False" )
-            return False
+            if returnLogs:
+                return False, []
+            else:
+                return False
 
     if verbose:
         report( "\tretrieving log messages" )
@@ -1187,12 +1265,19 @@ def lib_finish( gdb, gdb_id, far=None, verbose=False ):
         if "LIB Parameter estimation finished." in comment:
             if verbose:
                 report( "\taction required : False" )
-            return False
+            if returnLogs:
+                return False, [log]
+            else:
+                return False
     if verbose:
         report( "\taction required : True" )
-    return True
+    if returnLogs:
+        return True, []
+    else:
+        return True
 
-def lib_skymap( gdb, gdb_id, far=None, lvem=None, verbose=False ):
+
+def lib_skymap( gdb, gdb_id, far=None, lvem=None, verbose=False, returnLogs=False ):
     """
     checks that LIB uploaded the expected FITS file
     """
@@ -1205,16 +1290,26 @@ def lib_skymap( gdb, gdb_id, far=None, lvem=None, verbose=False ):
         if far_check( gdb, gdb_id, verbose=False, minFAR=0.0, maxFAR=far ):
             report( "\tFAR > %.6e or not defined, event will be ignored"%(far) )
             report( "\taction required : False" )
-            return False
+            if returnLogs:
+                return False, []
+            else:
+                return False
 
     if verbose:
         report( "\tretrieving event files" )
     files = sorted(gdb.files( gdb_id ).json().keys()) ### we really just care about the filenames
+    if returnLogs:
+        if verbose:
+            report( "\tretrieving log messages" )
+        logs = gdb.logs( gdb_id ).json()['log']
 
     if verbose:
         report( "\tchecking for LIB FITS file" )
+    Logs = []
     for filename in files:
         if "LIB_skymap.fits.gz" == filename: ### may be fragile
+            if returnLogs:
+                Logs.append( log_for_filename( filename, logs, verbose=verbose ) )
             if verbose:
                 report( "\t\tfound : %s"%(filename) )
             if lvem!=None:
@@ -1223,20 +1318,29 @@ def lib_skymap( gdb, gdb_id, far=None, lvem=None, verbose=False ):
                 if file_has_tag( gdb, gdb_id, filename, "lvem", verbose=False ) != lvem:
                     if verbose:
                         report( "\taction required : True" )
-                    return True
+                    if returnLogs:
+                        return True, Logs
+                    else:
+                        return True
             if verbose:
                 report( "\taction required : False" )
-            return False
+            if returnLogs:
+                return False, Logs
+            else:
+                return False
 
     if verbose:
         report( "\taction required : True" )
-    return True
+    if returnLogs:
+        return True, Logs
+    else:
+        return True
 
 #=================================================
 # methods that check whether bayeswave processes were triggered and completed
 #=================================================
 
-def bayeswave_start( gdb, gdb_id, far=None, verbose=False ):
+def bayeswave_start( gdb, gdb_id, far=None, verbose=False, returnLogs=False ):
     """
     checks that BayesWave PE processes started (and were tagged correctly?)
     """
@@ -1249,7 +1353,10 @@ def bayeswave_start( gdb, gdb_id, far=None, verbose=False ):
         if far_check( gdb, gdb_id, verbose=False, minFAR=0.0, maxFAR=far ):
             report( "\tFAR > %.6e or not defined, event will be ignored"%(far) )
             report( "\taction required : False" )
-            return False
+            if returnLogs:
+                return False, []
+            else:
+                return False
 
     if verbose:
         report( "\tretrieving log messages" )
@@ -1262,12 +1369,18 @@ def bayeswave_start( gdb, gdb_id, far=None, verbose=False ):
         if "BayesWaveBurst launched" in comment:
             if verbose:
                 report( "\taction required : False" )
-            return False
+            if returnLogs:
+                return False, [log]
+            else:
+                return False
     if verbose:
         report( "\taction required : True" )
-    return True
+    if returnLogs:
+        return True, []
+    else:
+        return True
 
-def bayeswave_finish( gdb, gdb_id, far=None, verbose=False ):
+def bayeswave_finish( gdb, gdb_id, far=None, verbose=False, returnLogs=False ):
     """
     checks that BayesWave PE processes finished (and were tagged correctly?)
     """
@@ -1280,7 +1393,10 @@ def bayeswave_finish( gdb, gdb_id, far=None, verbose=False ):
         if far_check( gdb, gdb_id, verbose=False, minFAR=0.0, maxFAR=far ):
             report( "\tFAR > %.6e or not defined, event will be ignored"%(far) )
             report( "\taction required : False" ) 
-            return False
+            if returnLogs:
+                return False, []
+            else:
+                return False
 
     if verbose:
         report( "\tretrieving log messages" )
@@ -1293,12 +1409,18 @@ def bayeswave_finish( gdb, gdb_id, far=None, verbose=False ):
         if "BWB Follow-up results" in comment:
             if verbose:
                 report( "\taction required : False" )
-            return False
+            if returnLogs:
+                return False, [log]
+            else:
+                return False
     if verbose:
         report( "\taction required : True" )
-    return True
+    if returnLogs:
+        return True, []
+    else:
+        return True
 
-def bayeswave_skymap( gdb, gdb_id, far=None, lvem=None, verbose=False ):
+def bayeswave_skymap( gdb, gdb_id, far=None, lvem=None, verbose=False, returnLogs=False ):
     """
     checks that BayesWave uploaded the expected FITS file
     """
@@ -1311,17 +1433,29 @@ def bayeswave_skymap( gdb, gdb_id, far=None, lvem=None, verbose=False ):
         if far_check( gdb, gdb_id, verbose=False, minFAR=0.0, maxFAR=far ):
             report( "\tFAR > %.6e or not defined, event will be ignored"%(far) )
             report( "\taction required : False" )
-            return False
+            if returnLogs:
+                return False, []
+            else:
+                return False
     
     if verbose:
         report( "\tretrieving event files" )
     files = sorted(gdb.files( gdb_id ).json().keys()) ### we really just care about the filenames
 
+    if returnLogs:
+        if verbose:
+            report( "\tretrieving log messages" )
+        logs = gdb.logs( gdb_id ).json()['log']
+    
+
     if verbose:
         report( "\tchecking for BayesWave FITS file" )
+    Logs = []
     for filename in files:
 #        if ("skymap_" in filename) and filename.endswith(".fits"): ### may be fragile
         if "BW_skymap.fits" == filename: ### may be fragile
+            if returnLogs:
+                Logs.append( log_for_filename( filename, logs, verbose=verbose ) )
             if verbose:
                 report( "\t\tfound : %s"%(filename) )
             if lvem!=None:
@@ -1330,20 +1464,29 @@ def bayeswave_skymap( gdb, gdb_id, far=None, lvem=None, verbose=False ):
                 if file_has_tag( gdb, gdb_id, filename, "lvem", verbose=False ) != lvem:
                     if verbose:
                         report( "\taction required : True" )
-                    return True
+                    if returnLogs:
+                        return True, Logs
+                    else:
+                        return True
             if verbose:
                 report( "\taction required : False" )
-            return False
+            if returnLogs:
+                return False, Logs
+            else:
+                return False
 
     if verbose:
         report( "\taction required : True" )
-    return True
+    if returnLogs:
+        return True, []
+    else:
+        return True
 
 #=================================================
 # methods that check whether bayestar processes were triggered and completed
 #=================================================
 
-def bayestar_start( gdb, gdb_id, far=None, verbose=False ):
+def bayestar_start( gdb, gdb_id, far=None, verbose=False, returnLogs=False ):
     """
     checks that BAYESTAR processes started (and were tagged correctly?)
     """
@@ -1356,7 +1499,10 @@ def bayestar_start( gdb, gdb_id, far=None, verbose=False ):
         if far_check( gdb, gdb_id, verbose=False, minFAR=0.0, maxFAR=far ):
             report( "\tFAR > %.6e or not defined, event will be ignored"%(far) )
             report( "\taction required : False" )
-            return False
+            if returnLogs:
+                return False, []
+            else:
+                return False
 
     if verbose:
         report( "\tretrieving log messages" )
@@ -1369,12 +1515,18 @@ def bayestar_start( gdb, gdb_id, far=None, verbose=False ):
         if "INFO:BAYESTAR:starting sky localization" in comment:
             if verbose:
                 report( "\taction required : False" )
-            return False
+            if returnLogs:
+                return False, [log]
+            else:
+                return False
     if verbose:
         report( "\taction required : True" )
-    return True
+    if returnLogs:
+        return True, []
+    else:
+        return True
 
-def bayestar_finish( gdb, gdb_id, far=None, verbose=False ):
+def bayestar_finish( gdb, gdb_id, far=None, verbose=False, returnLogs=False ):
     """
     checks that BAYESTAR processes finished (and were tagged correctly?)
     """
@@ -1387,7 +1539,10 @@ def bayestar_finish( gdb, gdb_id, far=None, verbose=False ):
         if far_check( gdb, gdb_id, verbose=False, minFAR=0.0, maxFAR=far ):
             report( "\tFAR > %.6e or not defined, event will be ignored"%(far) )
             report( "\taction required : False" )
-            return False
+            if returnLogs:
+                return False, []
+            else:
+                return False
 
     if verbose:
         report( "\tretrieving log messages" )
@@ -1400,12 +1555,18 @@ def bayestar_finish( gdb, gdb_id, far=None, verbose=False ):
         if "INFO:BAYESTAR:sky localization complete" in comment:
             if verbose:
                 report( "\taction required : False" )
-            return False
+            if returnLogs:
+                return False, [log]
+            else:
+                return False
     if verbose:
         report( "\taction required : True" )
-    return True
+    if returnLogs:
+        return True, []
+    else:
+        return True
 
-def bayestar_skymap( gdb, gdb_id, far=None, lvem=None, verbose=False ):
+def bayestar_skymap( gdb, gdb_id, far=None, lvem=None, verbose=False, returnLogs=False ):
     """
     checks that Bayestar uploaded the expected FITS file
     """
@@ -1418,16 +1579,27 @@ def bayestar_skymap( gdb, gdb_id, far=None, lvem=None, verbose=False ):
         if far_check( gdb, gdb_id, verbose=False, minFAR=0.0, maxFAR=far ):
             report( "\tFAR > %.6e or not defined, event will be ignored"%(far) )
             report( "\taction required : False" )
-            return False
+            if returnLogs:
+                return False, []
+            else:
+                return False
 
     if verbose:
         report( "\tretrieving event files" )
     files = sorted(gdb.files( gdb_id ).json().keys()) ### we really just care about the filenames
 
+    if returnLogs:
+        if verbose:
+            report( "\tretrieving log messags" )
+        logs = gdb.logs( gdb_id ).json()['log']
+
     if verbose:
         report( "\tchecking for Bayestar FITS file" )
+    Logs = []
     for filename in files:
         if "skymap.fits.gz" == filename: ### may be fragile
+            if returnLogs:
+                Logs.append( log_for_filename( filename, logs, verbose=verbose ) )
             if verbose:
                 report( "\t\tfound : %s"%(filename) )
             if lvem!=None:
@@ -1436,20 +1608,29 @@ def bayestar_skymap( gdb, gdb_id, far=None, lvem=None, verbose=False ):
                 if file_has_tag( gdb, gdb_id, filename, "lvem", verbose=False ) != lvem:
                     if verbose:
                         report( "\taction required : True" )
-                    return True
+                    if returnLogs:
+                        return True, Logs
+                    else:
+                        return True
             if verbose:
                 report( "\taction required : False" )
-            return False
+            if returnLogs:
+                return False, Logs
+            else:
+                return False
 
     if verbose:
         report( "\taction required : True" )
-    return True
+    if returnLogs:
+        return True, Logs
+    else:
+        return True
 
 #=================================================
 # methods that check whether lalinference processes were triggered and completed
 #=================================================
 
-def lalinference_start( gdb, gdb_id, far=None, verbose=False ):
+def lalinference_start( gdb, gdb_id, far=None, verbose=False, returnLogs=False ):
     """
     checks that LALInference PE processes started (and were tagged correctly?)
     """
@@ -1462,7 +1643,10 @@ def lalinference_start( gdb, gdb_id, far=None, verbose=False ):
         if far_check( gdb, gdb_id, verbose=False, minFAR=0.0, maxFAR=far ):
             report( "\tFAR > %.6e or not defined, event will be ignored"%(far) )
             report( "\taction required : False" )
-            return False
+            if returnLogs:
+                return False, []
+            else:
+                return False
 
     if verbose:
         report( "\tretrieving log messages" )
@@ -1475,12 +1659,18 @@ def lalinference_start( gdb, gdb_id, far=None, verbose=False ):
         if "LALInference online parameter estimation started" in comment:
             if verbose:
                 report( "\taction required : False" )
-            return False
+            if returnLogs:
+                return False, [log]
+            else:
+                return False
     if verbose:
         report( "\taction required : True" )
-    return True
+    if returnLogs:
+        return True, []
+    else:
+        return True
 
-def lalinference_finish( gdb, gdb_id, far=None, verbose=False ):
+def lalinference_finish( gdb, gdb_id, far=None, verbose=False, returnLogs=False ):
     """
     checks that LALInference PE processes finished (and were tagged correctly?)
     """
@@ -1493,7 +1683,10 @@ def lalinference_finish( gdb, gdb_id, far=None, verbose=False ):
         if far_check( gdb, gdb_id, verbose=False, minFAR=0.0, maxFAR=far ):
             report( "\tFAR > %.6e or not defined, event will be ignored"%(far) )
             report( "\taction required : False" )
-            return False
+            if returnLogs:
+                return False, []
+            else:
+                return False
 
     if verbose:
         report( "\tretrieving log messages" )
@@ -1506,12 +1699,18 @@ def lalinference_finish( gdb, gdb_id, far=None, verbose=False ):
         if "LALInference online parameter estimation finished" in comment:
             if verbose:
                 report( "\taction required : False" )
-            return False
+            if returnLogs:
+                return False, [log]
+            else:
+                return False
     if verbose:
         report( "\taction required : True" )
-    return True
+    if returnLogs:
+        return True, []
+    else:
+        return True
 
-def lalinference_skymap( gdb, gdb_id, far=None, lvem=None, verbose=False ):
+def lalinference_skymap( gdb, gdb_id, far=None, lvem=None, verbose=False, returnLogs=False ):
     """
     checks that LALInference uploaded the expected FITS file
     """
@@ -1524,17 +1723,28 @@ def lalinference_skymap( gdb, gdb_id, far=None, lvem=None, verbose=False ):
         if far_check( gdb, gdb_id, verbose=False, minFAR=0.0, maxFAR=far ):
             report( "\tFAR > %.6e or not defined, event will be ignored"%(far) )
             report( "\taction required : False" )
-            return False
+            if returnLogs:
+                return False, []
+            else:
+                return False
 
     if verbose:
         report( "\tretrieving event files" )
     files = sorted(gdb.files( gdb_id ).json().keys()) ### we really just care about the filenames
 
+    if returnLogs:
+        if verbose:
+            report( "\tretrieving log messags" )
+        logs = gdb.logs( gdb_id ).json()['log']
+
     if verbose:
         report( "\tchecking for LALInference FITS file" )
+    Logs = []
     for filename in files:
 #        if ("lalinference_" in filename) and filename.endswith(".fits.gz"):
         if "LALInference_skymap.fits.gz" == filename: ### may be fragile
+            if returnLogs:
+                Logs.append( log_for_filename( filename, logs, verbose=verbose ) )
             if verbose:
                 report( "\t\tfound : %s"%(filename) )
             if lvem!=None:
@@ -1543,20 +1753,29 @@ def lalinference_skymap( gdb, gdb_id, far=None, lvem=None, verbose=False ):
                 if file_has_tag( gdb, gdb_id, filename, "lvem", verbose=False ) != lvem:
                     if verbose:
                         report( "\taction required : True" )
-                    return True
+                    if returnLogs:
+                        return True, Logs
+                    else:
+                        return True
             if verbose:
                 report( "\taction required : False" )
-            return False
+            if returnLogs:
+                return False, Logs
+            else:
+                return False
 
     if verbose:
         report( "\taction required : True" )
-    return True
+    if returnLogs:
+        return True, []
+    else:
+        return True
 
 #=================================================
 # tasks managed by gracedb.processor through grinch
 #=================================================
 
-def externaltriggers_search( gdb, gdb_id, verbose=False ):
+def externaltriggers_search( gdb, gdb_id, verbose=False, returnLogs=False ):
     """
     checks that external trigger searches were performed
     """
@@ -1572,12 +1791,18 @@ def externaltriggers_search( gdb, gdb_id, verbose=False ):
         if "Coincidence search complete" in comment:
             if verbose:
                 report( "\taction required : False" )
-            return False
+            if returnLogs:
+                return False, [log]
+            else:
+                return False
     if verbose:
         report( "\taction required : True" )
-    return True
+    if returnLogs:
+        return True, []
+    else:
+        return True
 
-def unblindinjections_search( gdb, gdb_id, verbose=False ):
+def unblindinjections_search( gdb, gdb_id, verbose=False, returnLogs=False ):
     """
     checks that unblind injection search was performed
     """
@@ -1593,15 +1818,21 @@ def unblindinjections_search( gdb, gdb_id, verbose=False ):
         if ("No unblind injections in window" in comment):
             if verbose:
                 report( "\taction required : False" )
-            return False
+            if returnLogs:
+                return False, [log]
+            else:
+                return False
 
     report( "\tWARNING: we do not currently know how to parse out statements when there is an unblind injection...proceeding assuming everything is kosher" )
 
     if verbose:
         report( "\taction required : False" )
-    return False
+    if returnLogs:
+        return False, []
+    else:
+        return False
 
-def plot_skymaps( gdb, gdb_id, check_tags=True, verbose=False ):
+def plot_skymaps( gdb, gdb_id, check_tags=True, verbose=False, returnLogs=False ):
     """
     checks that all FITS files attached to this event have an associated png file (produced by gdb_processor)
     """
@@ -1610,6 +1841,11 @@ def plot_skymaps( gdb, gdb_id, check_tags=True, verbose=False ):
         report( "\tretrieving event files" )
     files = gdb.files( gdb_id ).json().keys() ### we really just care about the filenames
 
+    if returnLogs:
+        if verbose:
+            report( "\tretrieving log messages" )
+        logs = gdb.logs( gdb_id ).json()['log']
+
     if verbose:
         report( "\tidentifying all FITS files" )
     fitsfiles = [ filename for filename in files if filename.endswith(".fits") or filename.endswith(".fits.gz") ]
@@ -1617,13 +1853,18 @@ def plot_skymaps( gdb, gdb_id, check_tags=True, verbose=False ):
     if verbose:
         report( "\tchecking for corresponding png figures" )
     result = []
+    Logs = []
     for fitsfile in fitsfiles:
+        if returnLogs:
+            Logs.append( log_for_filename( fitsfile, logs, verbose=verbose ) )
         pngfile = "%s.png"%(fitsfile.split(".")[0])
         if pngfile in files:
             if check_tags:
                 result.append( (False, not tags_match( gdb, gdb_id, pngfile, fitsfile, verbose=False ), pngfile, fitsfile) )
             else:
                 result.append( (False, False, pngfile, fitsfile) )
+            if returnLogs:
+                Logs.append( log_for_filename( pngfile, logs, verbose=verbose ) )
         else:
             result.append( (True, True, pngfile, fitsfile) )
 
@@ -1640,13 +1881,16 @@ def plot_skymaps( gdb, gdb_id, check_tags=True, verbose=False ):
                 report( "\tpng file found for FITS : %s <-> %s"%(fitsfile, pngfile) )
         report( "\taction required : %s"% action_required )
 
-    return sum([r[0]+r[1] for r in result]) > 0
+    if returnLogs:
+        return sum([r[0]+r[1] for r in result]) > 0, Logs
+    else:
+        return sum([r[0]+r[1] for r in result]) > 0
 
 #=================================================
 # tasks managed by skyviewer and friends
 #=================================================
 
-def json_skymaps( gdb, gdb_id, check_tags=True, verbose=False ):
+def json_skymaps( gdb, gdb_id, check_tags=True, verbose=False, returnLogs=False ):
     """
     checks that all FITS files attached to this event have an associated json file
     """
@@ -1655,6 +1899,11 @@ def json_skymaps( gdb, gdb_id, check_tags=True, verbose=False ):
         report( "\tretrieving event files" )
     files = gdb.files( gdb_id ).json().keys() ### get just the names, not the urls
 
+    if returnLogs:
+        if verbose: 
+            report( "\tretrieving log messages" )
+        logs = gdb.logs( gdb_id ).json()['log']
+
     if verbose:
         report( "\tidentifying all FITS files" )
     fitsfiles = [filename for filename in files if filename.endswith(".fits") or filename.endswith(".fits.gz") ]
@@ -1662,7 +1911,10 @@ def json_skymaps( gdb, gdb_id, check_tags=True, verbose=False ):
     if verbose:
         report( "\tchecking for corresponding json files" )
     result = []
+    Logs = []
     for fitsfile in fitsfiles:
+        if returnLogs:
+            Logs.append( log_for_filename( fitsfile, logs, verbose=verbose ) )
         if fitsfile.endswith(".gz"):
             jsonfile = "%sjson"%(fitsfile[:-7])
         else:
@@ -1672,6 +1924,8 @@ def json_skymaps( gdb, gdb_id, check_tags=True, verbose=False ):
                 result.append( (False, not tags_match( gdb, gdb_id, jsonfile, fitsfile, verbose=False ), jsonfile, fitsfile) )
             else:
                 result.append( (False, False, jsonfile, fitsfile) )
+            if returnLogs:
+                Logs.append( log_for_filename( jsonfile, logs, verbose=verbose ) )
         else: 
             result.append( (True, True, jsonfile, fitsfile) )
 
@@ -1688,13 +1942,16 @@ def json_skymaps( gdb, gdb_id, check_tags=True, verbose=False ):
                 report( "\tjson file found for FITS : %s <-> %s"%(fitsfile, jsonfile) )
         report( "\taction required : %s"% action_required )
 
-    return sum([r[0]+r[1] for r in result]) > 0
+    if returnLogs:
+        return sum([r[0]+r[1] for r in result]) > 0, Logs
+    else:
+        return sum([r[0]+r[1] for r in result]) > 0
 
 #=================================================
 # tasks managed by approval_processor
 #=================================================
 
-def approval_processor_far( gdb, gdb_id, verbose=False ):
+def approval_processor_far( gdb, gdb_id, verbose=False, returnLogs=False ):
     """
     checks whether approval_processor has check the FAR of this event and responded in the GraceDB log
     """
@@ -1710,10 +1967,16 @@ def approval_processor_far( gdb, gdb_id, verbose=False ):
         if ("Candidate event has low enough FAR" in comment) or ("Candidate event rejected due to large FAR" in comment) or ("Ignoring new event because we found a hardware injection" in comment):
             if verbose:
                 report( "\taction required : False" )
-            return False
+            if returnLogs:
+                return False, [log]
+            else:
+                return False
     if verbose:
         report( "\taction required : True" )
-    return True
+    if returnLogs:
+        return True, []
+    else:
+        return True
 
 
 
