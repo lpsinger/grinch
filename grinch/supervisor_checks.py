@@ -42,7 +42,7 @@ def log_for_filename( filename, logs, verbose=False ):
                 report( "\t%s assoicated with log message : %d"%(filename, log['N']) )
             return log
     else:
-        raise ValueError( "could not find %s in association with any log messages for %s"%(filename, gdb_id) )
+        raise ValueError( "could not find %s in association with any log messages"%(filename) )
 
 def file_has_tag( gdb, gdb_id, filename, tag, verbose=False ):
     """
@@ -499,6 +499,22 @@ def config_to_schedule( config, event_type, verbose=False, freq=None, returnLogs
         kwargs = {'verbose':verbose, 'check_tags':True, 'returnLogs':returnLogs}
         for dt in get_dt( config.get("json_skymaps", "dt") ):
             schedule.append( (dt, json_skymaps, kwargs, checks['json_skymaps'].split(), "json_skymaps") )
+
+    #=== autosummary skymap comparison
+    if checks.has_key("skymap_summary"):
+        if verbose:
+            report( "\tcheck skymap_summary")
+        kwargs = {'verbose':verbose, 'check_tags':True, 'returnLogs':returnLogs}
+        for dt in get_dt( config.get('skymap_summary', 'dt') ):
+            schedule.append( (dt, skymap_summary, kwargs, checks['skymap_summary'].split(), 'skymap_summary') )
+
+    #=== segment_summary
+    if checks.has_key("segment_summary"):
+        if verbose:
+            report( "\tcheck segment_summary" )
+        kwargs = {'verbose':verbose, 'flags':config.get('segment_summary', 'flags').split(), 'returnLogs':returnLogs}
+        for dt in get_dt( config.get('segment_summary', 'dt') ):
+            schedule.append( (dt, segment_summary, kwargs, checks['segment_summary'].split(), 'segment_summary') )
 
     #=== approval_processor FAR check
     if checks.has_key("approval_processor_far"):
@@ -1088,7 +1104,7 @@ def idq_tables( gdb, gdb_id, ifos=['H', 'L'], verbose=False, returnLogs=False ):
         report( "\tretrieving files" )
     files = gdb.files( gdb_id ).json().keys() ### we only care about filenames
 
-    if verobse:
+    if verbose:
         report( "\tretrieving log messages" )
     logs = gdb.logs( gdb_id ).json()['log']
 
@@ -1885,6 +1901,113 @@ def plot_skymaps( gdb, gdb_id, check_tags=True, verbose=False, returnLogs=False 
         return sum([r[0]+r[1] for r in result]) > 0, Logs
     else:
         return sum([r[0]+r[1] for r in result]) > 0
+
+#=================================================
+# misc. tasks managed outside of grinch
+#=================================================
+
+def skymap_summary( gdb, gdb_id, check_tags=False, verbose=False, returnLogs=False ):
+    """
+    checks that skymap_summary is posted as expected
+    if check_tags=True (recommended), requires both lvem and non-lvem versions to be present. 
+    Otherwise either will satisfy the check.
+    """
+    if verbose:
+        report( "%s : skymap_summary"%(gdb_id) )
+        report( "\treteiving event files" )
+    files = gdb.files( gdb_id ).json().keys()
+
+    fits = [filename for filename in files if filename.strip(".gz").endswith(".fits")]
+    summarypdf = [ filename.split(",") for filename in files if "summary.pdf" in filename ]
+    summarypdf = [ x for x in summarypdf if len(x) > 1 ] ### only keep the versioned filenames
+
+    ### check that there are at least as many summarypdf files as there are FITS files?
+    if not check_tags:
+        action_required = len(summarypdf) < len(fits)
+    else:
+        action_required = len(summarypdf) != 2*len(fits)
+
+        if verbose:
+            report( "\tretrieving log messages" )
+        logs = gdb.logs( gdb_id ).json()['log']
+
+        ### find log messages attached to these files
+        Logs = []
+        for pdf, version in summarypdf:
+            log = log_for_filename( pdf, logs, verbose=verbose )
+            lvem = "lvem" in log['tag_names']
+            lvempdf = "lvem_" == pdf[:5]
+            if lvem!=lvempdf: ### tag issue
+                if verbose:
+                    report( "\ttags don't match for %s"%pdf )
+                action_required = True
+            elif verbose:
+                report( "\ttags match for %s"%pdf )
+            Logs.append( log )
+
+    if returnLogs:
+        if verbose:
+            report( "\taction required : %s"%action_required )
+        return action_required, Logs
+    else:
+        if verbose:
+            report( "\taction required : %s"%action_required )
+        return action_required
+
+def segment_summary( gdb, gdb_id, flags=[], verbose=False, returnLogs=False ):
+    """
+    checks that summary statements have been posted for the flags listed.
+    checks for both xml files attached to the event and summary log messages.
+    """
+    if verbose:
+        report( "%s : segment_summary"%(gdb_id) )
+        report ("\tretrieving event files" )
+    files = gdb.files( gdb_id ).json().keys()
+    xmlfiles = [filename for filename in files if filename.endswith(".xml.gz")]
+
+    if verbose:
+        report( "\tretrieving log messages" )
+    logs = gdb.logs( gdb_id ).json()['log']
+
+    ### iterate through flags and look for corresponding files and log messages
+    Logs = []
+    result = [0]*len(flags)
+    for ind, flag in enumerate(flags):
+        f = flag.replace(":","_")
+        for filename in xmlfiles:
+            if f in filename:
+                if returnLogs:
+                    Logs.append( log_for_filename( filename, logs, verbose=verbose ) )
+                break
+        else:
+            result[ind] += 1
+            continue
+        for log in logs:
+            comment = log['comment']
+            if "%s defined"%flag in comment:
+                if returnLogs:
+                    Logs.append( log )
+                break
+        else:
+            result[ind] += 2
+            
+    action_required = np.sum( result ) > 0
+
+    if verbose:
+        for flag, r in zip(flags, result):
+            if r == 0:
+               report( "\tfound both xml.gz file and summary log message for %s"%flag )
+            elif r == 1:
+               report( "\tfound summary log message but could not find xml.gz file for %s"%flag )
+            elif r == 2:
+               report( "\tfound xml.gz file but could not find summary log message for %s"%flag )
+            else:
+                report( "\tcould not find xml.gz file or summary log message for %s"%flag )
+        report( "\taction_required : %s"% action_required )
+    if returnLogs:
+        return action_required, Logs
+    else:
+        return action_required
 
 #=================================================
 # tasks managed by skyviewer and friends
