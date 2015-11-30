@@ -45,6 +45,21 @@ def quantile( a, q, kind='linear', notSorted=True ):
 
     return ans
 
+def defineBins( l , nbins ):
+    n = len( l )
+#    return np.linspace( min(l)-1, max(l)+1, nbins+1 )
+    m = np.mean( l )
+    s = np.std( l )
+    old_l = l[:]
+    while (2*len( l ) > n) and len([L for L in l if L > m+5*s]):
+        l = [L for L in l if L < m+3*s]
+        m = np.mean( l )
+        s = np.std( l )
+    if 2*len( l ) <= n:
+        l = old_l
+
+    return np.linspace( min(l)-1, max(l)+1 , nbins+1 )
+    
 #=================================================
 
 parser = OptionParser(usage=usage, description=description)
@@ -105,7 +120,7 @@ for key in keys:
         continue ### don't plot
 
     nbins = N/5
-    bins = np.linspace( min(l)-1, max(l)+1, nbins+1 )
+    bins = defineBins( l, nbins )
 
     ### quantiles!
 #    quantiles = np.percentile( l, opts.quantile*100 ) ### not implemented until version 1.5.x
@@ -121,7 +136,7 @@ for key in keys:
 
     axc.plot( l, 1.0*(1+np.arange(N))/N, color='k' )
 
-#    ax.set_xlim(xmin=bins[0]-1, xmax=bins[-1]+1)
+    ax.set_xlim(xmin=bins[0]-1, xmax=bins[-1]+1)
     ax.set_xlabel('latency [sec]')
     ax.set_ylabel('count')
 
