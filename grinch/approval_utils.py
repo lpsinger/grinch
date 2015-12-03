@@ -200,3 +200,13 @@ def getIdqAndJointFapValues(idq_pipelines, client, logger, graceid):
 		return idqvalues, joint_FAP_values
 	os.remove('/tmp/idqmessages_{0}.tmp'.format(graceid))
 
+def flag2filename( flag, start, dur, output_dir='.' ):
+	return '{0}/{1}-{2}-{3}.xml.gz'.format(output_dir, flag.replace(':','_'), start, dur)
+
+def segDBcmd( url, flag, start, end, outfilename, dmt=False ):
+   	### ligolw_segment_query_dqsegdb -t https://segments.ligo.org -q -a H1:DMT-ANALYSIS_READY:1 -s 1130950800 -e 1131559200
+   	if dmt:
+		return 'ligolw_segment_query_dqsegdb --dmt-files -q -a {0} -s {1} -e {2} -o {3}'.format(flag, start, end, outfilename)
+	else:
+		return 'ligolw_segment_query_dqsegdb -t {0} -q -a {1} -s {2} -e {3} -o {4}'.format(url, flag, start, end, outfilename)
+
