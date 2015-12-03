@@ -5,7 +5,7 @@ from sys import stdin
 from ligo.gracedb.rest import GraceDb, HTTPError
 import re
 import ConfigParser
-from lal import gpstime
+from lal import gpstime as lal_gpstime
 import time
 import datetime
 import urllib
@@ -13,7 +13,7 @@ import urllib
 import logging
 
 from grinch.approval_utils import get_farthresh, get_idqthresh, process_alert, checkSignoffs, checkAdvocateSignoff 
-from grinch.approval_utils import checkLabels, checkIdqStatus, getIdqAndJointFapValues
+from grinch.approval_utils import checkLabels, checkIdqStatus, getIdqAndJointFapValues, flag2filename, segDBcmd
 from grinch.workflow_helper import home
 
 # Activate a virtualenv in order to be able to use Comet.
@@ -106,7 +106,7 @@ except Exception, e:
 	logger.error('{0} -- {1} -- Connection to GraceDB failed: {2}.'.format(st, graceid, str(e)))
 	exit()
 
-begintime = gpstime.gps_time_now()
+begintime = lal_gpstime.gps_time_now()
 
 # XXX If the graceid starts with 'M' for MDCs or 'S' for Simulation, we want to ignore the event.
 if re.match('M', graceid) or re.match('S', graceid):
@@ -259,6 +259,15 @@ elif alert_type == 'new':
 		logger.info('{0} -- {1} -- Ignoring new event due to INJ or DQV.'.format(st, graceid))
 		r = g.writeLog(graceid, 'AP: Candidate event rejected due to INJ or DQV label.', tagname = 'em_follow')
 	else:
+		overflow_dict = {}
+		execfile(home + '/opt/bin/seglogic')
+		if min(overflow_dict.values()) > 0:
+			r = g.writeLog(graceid, 'AP: Candidate event failed SegDB overflow check.', tagname = 'em_follow')
+			r = g.writeLabel(graceid, 'DQV')
+			exit()
+		else:
+			r = g.writeLog(graceid, 'AP: Candidate event passed SegDB overflow check.', tagname = 'em_follow')
+			pass
 		# Set internal value settings for VOEvents
 		if force_all_internal == 'yes':
 			internal = 1
@@ -567,6 +576,6 @@ else:
 #--------------------------------------------------------------------------------------
 # Wrap up
 #--------------------------------------------------------------------------------------
-endtime = gpstime.gps_time_now()
+endtime = lal_gpstime.gps_time_now()
 processtime = endtime - begintime
 #logger.info('{0} -- {1} -- Process time: {2} s.'.format(st, graceid, processtime))
