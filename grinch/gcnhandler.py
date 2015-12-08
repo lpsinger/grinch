@@ -95,11 +95,11 @@ def archive(payload, root=None, test=False):
 
     # Let SNEWS test events through, but ignore all other tests.
     elif stream != 'ivo://nasa.gsfc.gcn/SNEWS' and role == 'test':
-        logger.info( "Test events not used here; rejecting %s" % id )
+        logger.info( "Non-SNEWS test events not used here; rejecting %s" % id )
         return
 
     # Is the role variable something weird?
-    elif role != 'observation':
+    elif (role != 'observation') and (role != 'utility') and (role != 'test'):
         logger.error( "Role %s not recognized; rejecting %s" % (role, id) )
         return
 
