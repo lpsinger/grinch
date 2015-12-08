@@ -213,10 +213,10 @@ else:
 contents   = """\
 universe            = local
 
-executable          = /usr/bin/env
+executable          = /home/gracedb.processor/local/bin/bayestar_localize_lvalert
 environment         = OMP_NUM_THREADS=32
 request_memory      = 1400 MB
-arguments           = " bayestar_localize_lvalert %(uid)s "
+arguments           = " %(uid)s "
 getenv              = True
 notification        = never
 accounting_group = ligo.prod.o1.cbc.pe.bayestar
