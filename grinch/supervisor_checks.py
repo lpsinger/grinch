@@ -1613,7 +1613,7 @@ def bayestar_skymap( gdb, gdb_id, far=None, lvem=None, verbose=False, returnLogs
         report( "\tchecking for Bayestar FITS file" )
     Logs = []
     for filename in files:
-        if "skymap.fits.gz" == filename: ### may be fragile
+        if "bayestar.fits.gz" == filename: ### may be fragile
             if returnLogs:
                 Logs.append( log_for_filename( filename, logs, verbose=verbose ) )
             if verbose:
@@ -1973,7 +1973,9 @@ def segment_summary( gdb, gdb_id, flags=[], verbose=False, returnLogs=False ):
     Logs = []
     result = [0]*len(flags)
     for ind, flag in enumerate(flags):
-        f = flag.replace(":","_")
+        f = flag.split(":")
+        f = "%s-%s"%(f[0], "_".join(F.replace("-","_") for F in f[1:]))
+#        f = flag.replace(":","_")
         for filename in xmlfiles:
             if f in filename:
                 if returnLogs:
