@@ -393,8 +393,8 @@ elif alert_type=='update':
 				logger.info('{0} -- {1} -- Labeling with EM_READY.'.format(st, graceid))
 				r = g.writeLabel(graceid, 'EM_READY')
 
-	# Log comments have no files attached but could still contain iDQ information
-	if len(filename)==0:
+	# iDQ minimum glitch-FAP information now loaded with a json file
+	if filename.endswith('.json'):
 		comment = streamdata['object']['comment']
 		if not re.match('minimum glitch-FAP', comment):
 			exit()
