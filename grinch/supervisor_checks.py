@@ -1243,7 +1243,7 @@ def lib_start( gdb, gdb_id, far=None, verbose=False, returnLogs=False ):
             if returnLogs:
                 return False, [log]
             else:
-                return False, 
+                return False 
 
     if verbose:
         report( "\taction required : True" )

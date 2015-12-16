@@ -159,7 +159,7 @@ for dt, foo, kwargs, email, description in schedule:
         if action_required: ### perform this check. (foo -> True) means the check failed!
             if opts.no_email:
                 if opts.verbose:
-                    report( "\tevet_supervisor checked : %s. Action required! no email sent"%(description) )
+                    report( "\tevent_supervisor checked : %s. Action required! no email sent"%(description) )
             elif email:
                 os.system( "echo \"action required for GraceDB event : %s (%s)\n%s\" | mail -s \"action required for GraceDB event : %s (%s)\" %s"%(event_url, event_type, description, gdb_id, event_type, " ".join(email)) )
                 if opts.annotate_gracedb:
