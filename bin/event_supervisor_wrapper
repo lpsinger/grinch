@@ -33,6 +33,7 @@ parser.add_option('-a', '--annotate-gracedb', default=False, action="store_true"
 parser.add_option('-n', '--no-email', default=False, action="store_true", help="do not send emails if alerts require action. Useful for debugging")
 
 parser.add_option("", "--dont-submit", default=False, action="store_true", help="don't sumbit the dag after it has been written")
+parser.add_option('-i', '--ignore-INJ', default=False, action="store_true", help="if supplied, we check for the \"INJ\" label before each check and exit if it is present.")
 
 parser.add_option("", "--subprocess", default=False, action="store_true", help="submit via subprocess rather than through Condor")
 parser.add_option("", "--executable", default="event_supervisor", type="string", help="the location of the executable. ONLY USED when running with --subprocess, otherwise this is read from  --subfile")
@@ -87,6 +88,8 @@ if opts.subprocess: ### submit via subprocess
         cmd += " --annotate-gracedb"
     if opts.no_email:
         cmd += " --no-email"
+    if opts.ignore_INJ:
+        cmd += " --ignore-INJ"
 
     log_obj = open(log, "w")
     print >> log_obj, cmd
