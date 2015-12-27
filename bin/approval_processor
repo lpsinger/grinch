@@ -394,7 +394,8 @@ elif alert_type=='update':
 				r = g.writeLabel(graceid, 'EM_READY')
 
 	# iDQ minimum glitch-FAP information now loaded with a json file
-	if filename.endswith('.json'):
+	#if filename.endswith('.json'):
+	else:
 		comment = streamdata['object']['comment']
 		if not re.match('minimum glitch-FAP', comment):
 			exit()
