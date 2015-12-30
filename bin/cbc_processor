@@ -17,6 +17,9 @@ from glue.ligolw     import ligolw
 from glue.ligolw     import utils
 
 
+# Initialize instance of GraceDB client.
+gracedb = GraceDb()
+
 # Create a dictionary from the gracedb table.
 streamdata = json.loads( stdin.read() )
 
@@ -209,14 +212,21 @@ else:
 #with open('emlabel.sub', 'w') as f:
 #	f.write(contents%{'gracedbcommand': gracedbcommand, 'directory': wdir, 'uid': streamdata['uid']})
 
-# Write localize.sub.
+# Write localize.sub for BAYESTAR localization. If the search type is LowMass, use a TaylorF2threePointFivePN waveform;
+# else, use BAYESTAR's default settings.
+search = gracedb.event(streamdata['uid']).json()['search']
+if search == 'LowMass':
+    waveform_arg = '--waveform=TaylorF2threePointFivePN'
+else:
+    waveform_arg = ''
+
 contents   = """\
 universe            = local
 
 executable          = /home/gracedb.processor/local/bin/bayestar_localize_lvalert
 environment         = OMP_NUM_THREADS=32
 request_memory      = 1400 MB
-arguments           = " %(uid)s "
+arguments           = " %(waveform_arg)s %(uid)s "
 getenv              = True
 notification        = never
 accounting_group = ligo.prod.o1.cbc.pe.bayestar
@@ -230,7 +240,8 @@ output              = %(directory)s/localize_%(uid)s.out
 Queue
 """
 with open('localize.sub', 'w') as f:
-	f.write(contents%{'directory': wdir, 'uid': streamdata['uid']})
+	f.write(contents%{'directory': wdir, 'uid': streamdata['uid'],
+		'waveform_arg': waveform_arg})
 
 # Write coinc_search.sub.
 contents = """\
@@ -321,7 +332,6 @@ subprocess.call(condorargs)
 if cp.has_section('lalinference'):
 	print "Starting LALInference follow-up"
 	far_threshold = cp.get('lalinference', 'far_threshold')
-	gracedb = GraceDb()  # Initialize instance of GraceDB client
 	far = list(gracedb.events( streamdata['uid'] ))[0]['far']
 	if far <= eval(far_threshold):
 		print "FAR low enough"
