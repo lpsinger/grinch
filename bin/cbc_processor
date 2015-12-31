@@ -214,7 +214,12 @@ else:
 
 # Write localize.sub for BAYESTAR localization. If the search type is LowMass, use a TaylorF2threePointFivePN waveform;
 # else, use BAYESTAR's default settings.
-search = gracedb.event(streamdata['uid']).json()['search']
+try:
+    search = gracedb.event(streamdata['uid']).json()['search']
+except KeyError:
+    print 'WARNING: GraceDB event %s does not have an associated Search; setting this to the empty string.'
+    search = ''
+
 if search == 'LowMass':
     waveform_arg = '--waveform=TaylorF2threePointFivePN'
 else:
