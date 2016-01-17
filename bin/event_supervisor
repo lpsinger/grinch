@@ -130,7 +130,10 @@ event_url = "%s/events/view/%s"%(gracedb.service_url[:-4], gdb_id)
 
 ### wait for a few seconds to give the first injection label a chance to be applied (only if opts.ingore_INJ)
 if opts.ignore_INJ:
-    time.sleep( 10 ) ### hard coded, but should suffice for most purposes
+    ignoreINJ_delay = config.getfloat('general', 'ignoreINJ_delay')
+    if opts.verbose:
+        report( "waiting for %.3f seconds to allow INJ labels to be applied"%ignoreINJ_delay )
+    time.sleep( ignoreINJ_delay ) 
 
 for dt, foo, kwargs, email, description in schedule:
     ### check current time stamp
