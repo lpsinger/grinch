@@ -126,8 +126,11 @@ if opts.verbose:
 #to = time.time() ### start time of our checking proceedures
 to = time.mktime(time.strptime(gdb_entry['created'], '%Y-%m-%d %H:%M:%S %Z')) ### parse creation time from GraceDB
 
-
 event_url = "%s/events/view/%s"%(gracedb.service_url[:-4], gdb_id)
+
+### wait for a few seconds to give the first injection label a chance to be applied (only if opts.ingore_INJ)
+if opts.ignore_INJ:
+    time.sleep( 10 ) ### hard coded, but should suffice for most purposes
 
 for dt, foo, kwargs, email, description in schedule:
     ### check current time stamp
