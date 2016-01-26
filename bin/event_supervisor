@@ -150,11 +150,20 @@ for dt, foo, kwargs, email, description in schedule:
         try:
             if checks.isINJ( gracedb, gdb_id, verbose=opts.verbose ):
                 if opts.annotate_gracedb:
-                    log = "event_supervisor ignoring this event because it is labeled \"INJ\"."
+                    log = "event_supervisor ignoring this event because it is labeled \"INJ\" and cancelling checks : %s"
+                    cancelled_checks = []
+                    append = False
+                    for _, _, _, _, d in schedule:
+                        if d == description:
+                            append = True
+                        if append:
+                            cancelled_checks.append( d )
+                    log = log%(", ".join(cancelled_checks))
                     gracedb.writeLog( gdb_id, log )
                 if opts.verbose:
+                    report( log )
                     report( "ignoring %s"%(gdb_id) )
-                sys.exit( 0 ) ### if it is labeled INJ, we ignore the event by exiting
+                break ### if it is labeled INJ, we ignore the event by exiting
         except Exception as e:
             report( "INJ check failed" )
             errReport( "INJ check failed\n%s"%(tracedback.format_exc()) )
