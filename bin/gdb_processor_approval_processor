@@ -41,7 +41,7 @@ getenv              = True
 notification        = never
 environment         = DISPLAY=localhost:10.0
 accounting_group = ligo.prod.o1.cbc.grb.raven
-accounting_group_user = mina.cho
+accounting_group_user = min-a.cho
 
 ## add attribute""" % home + r"""
 ## condor_q -format "%s " Owner -format "%s " ClusterId -format "%s\n" lvalert_listen
