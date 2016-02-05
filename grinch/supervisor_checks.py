@@ -241,6 +241,8 @@ def config_to_schedule( config, event_type, verbose=False, freq=None, returnLogs
         if verbose:
             report( "\tcheck idq_timeseries" )
         kwargs = {"ifos":config.get("idq","ifos").split(), 'verbose':verbose, 'returnLogs':returnLogs}
+        if config.has_option("idq","chan_stripchart"):
+            kwargs["chan_stripchart"] = config.getboolean("idq", "chan_stripchart")
         for dt in get_dt( config.get("idq", "timeseries") ):
             schedule.append( (dt, idq_timeseries, kwargs, checks['idq_timeseries'].split(), "idq_timeseries") )
 
@@ -250,6 +252,13 @@ def config_to_schedule( config, event_type, verbose=False, freq=None, returnLogs
         kwargs = {"ifos":config.get("idq","ifos").split(), 'verbose':verbose, 'returnLogs':returnLogs}
         for dt in get_dt( config.get("idq", "tables") ):
             schedule.append( (dt, idq_tables, kwargs, checks['idq_tables'].split(), "idq_tables") )
+
+    if checks.has_key("idq_performance"):
+        if verbose:
+            report( "\tcheck idq_performance" )
+        kwargs = {"ifos":config.get("idq","ifos").split(), 'verbose':verbose, 'returnLogs':returnLogs}
+        for dt in get_dt( config.get("idq", "performance") ):
+            schedule.append( (dt, idq_performance, kwargs, checks['idq_performance'].split(), "idq_performance") )
 
     #=== cWB
     if checks.has_key("cwb_skymap"):
@@ -1010,7 +1019,7 @@ def idq_finish( gdb, gdb_id, ifos=['H','L'], verbose=False, returnLogs=False ):
     else: 
         return sum(result) > 0
 
-def idq_timeseries( gdb, gdb_id, ifos=['H', 'L'], verbose=False, returnLogs=False, minfap_statement=True ):
+def idq_timeseries( gdb, gdb_id, ifos=['H', 'L'], verbose=False, returnLogs=False, minfap_statement=True, chan_stripchart=False ):
     """
     check that iDQ timeseries jobs completed at each site
     checks for the presences of "idq_fap.gwf" files in GDB
@@ -1079,10 +1088,28 @@ def idq_timeseries( gdb, gdb_id, ifos=['H', 'L'], verbose=False, returnLogs=Fals
                 else:
                     report( "\tidq minimum glitch-FAP message found for ifo : %s"%ifo )
 
+    if chan_stripchart:
+        csc_result = [1]*len(ifos)
+        for filename in files:
+            if filename.endswith(".json") and ("chanlist" in filename):
+                for ind, ifo in enumerate(ifos):
+                    if csc_result[ind] and (ifo in filename):
+                        csc_result[ind] = 0
+                        Logs.append( log_for_filename( filename, logs, verbose=verbose ) )
+
+        if verbose:
+            for r, ifo in zip(csc_result, ifos):
+                if r:
+                    report( "\tWARNING: no chanlist.json found for ifo : %s"%ifo )
+                else:
+                    report( "\tchanlist.json found for ifo : %s"%ifo )
+
+    action_required = sum(result) + sum(log_result)
     if minfap_statement:
-        action_required = sum(result) + sum(log_result) + sum(fap_result) > 0
-    else:
-        action_required = sum(result) + sum(log_result) > 0
+        action_required += sum(fap_result)
+    if chan_stripchart:
+        action_required += sum(csc_result)
+    action_required = action_required > 0
 
     if verbose:
         report( "\taction required : %s"% action_required )
@@ -1154,8 +1181,113 @@ def idq_tables( gdb, gdb_id, ifos=['H', 'L'], verbose=False, returnLogs=False ):
     else:
         return action_required
 
+def idq_performance( gdb, gdb_id, ifos=['H', 'L'], verbose=False, returnLogs=False ):
+    """
+    checks that iDQ local performance jobs completed at each site
+    checks for the presence of ROC and FAP calibration figures
+    Also checks for the absence of FAILED statements
+    """
+    if verbose:
+        report( "%s : idq_performance"%(gdb_id) )
+        report( "\tretrieving files" )
+    files = gdb.files( gdb_id ).json().keys() ### we only care about filenames
+
+    if verbose:
+        report( "\tretrieving log messages" )
+    logs = gdb.logs( gdb_id ).json()['log']
+
+    if verbose:
+        report( "\tchecking filenames" )
+    result = [1]*len(ifos)
+    Logs = []
+
+    roc_result = [1]*len(ifos)
+    for filename in files:
+        if filename.endswith(".json") and ("_ROC-" in filename):
+            for ind, ifo in enumerate(ifos):
+                if roc_result[ind] and (ifo in filename):
+                    roc_result[ind] = 0
+                    Logs.append( log_for_filename( filename, logs, verbose=verbose ) )
+
+    if verbose:
+        for r, ifo in zip(roc_result, ifos):
+            if r:
+                report( "\tWARNING: no ROC.json found for ifo : %s"%ifo )
+            else:
+                report( "\tROC.json found for ifo : %s"%ifo )
+
+    cal_result = [1]*len(ifos)
+    for filename in files:
+        if filename.endswith(".json") and ("_calib-" in filename):
+            for ind, ifo in enumerate(ifos):
+                if cal_result[ind] and (ifo in filename):
+                    cal_result[ind] = 0
+                    Logs.append( log_for_filename( filename, logs, verbose=verbose ) )
+
+    if verbose:
+        for r, ifo in zip(roc_result, ifos):
+            if r:
+                report( "\tWARNING: no calib.json found for ifo : %s"%ifo )
+            else:
+                report( "\tcalib.json found for ifo : %s"%ifo )
+
+    trainStat_result = [1]*len(ifos)
+    for filename in files:
+        if filename.endswith(".json") and ("_trainStats-" in filename):
+            for ind, ifo in enumerate(ifos):
+                if trainStat_result[ind] and (ifo in filename):
+                    trainStat_result[ind] = 0
+                    Logs.append( log_for_filename( filename, logs, verbose=verbose ) )
+
+    if verbose:
+        for r, ifo in zip(roc_result, ifos):
+            if r:
+                report( "\tWARNING: no trainStats.json found for ifo : %s"%ifo )
+            else:
+                report( "\ttrainStats.json found for ifo : %s"%ifo )
+
+    calibStat_result = [1]*len(ifos)
+    for filename in files:
+        if filename.endswith(".json") and ("_calibStats-" in filename):
+            for ind, ifo in enumerate(ifos):
+                if calibStat_result[ind] and (ifo in filename):
+                    calibStat_result[ind] = 0
+                    Logs.append( log_for_filename( filename, logs, verbose=verbose ) )
+
+    if verbose:
+        for r, ifo in zip(roc_result, ifos):
+            if r:
+                report( "\tWARNING: no calibStats.json found for ifo : %s"%ifo )
+            else:
+                report( "\tcalibStats.json found for ifo : %s"%ifo )
+
+    log_result = [0]*len(ifos)
+    for log in logs:
+        comment = log['comment']
+        if ("FAILED: iDQ local performance for" in comment):
+            for ind, ifo in enumerate(ifos):
+                if (1 - log_result[ind]) and (ifo in comment):
+                    log_result[ind] = 1
+                    Logs.append( log )
+
+    if verbose:
+        for r, ifo in zip(log_result, ifos):
+            if r:
+                report( "\tWARNING: idq local-performance FAILED message found for ifo : %s"%ifo )
+            else:
+                report( "\tno idq local-performance FAILED message found for ifo : %s"%ifo )
+
+    action_required = sum(roc_result) + sum(cal_result) + sum(trainStat_result) + sum(calibStat_result) + sum(log_result) > 0
+    if verbose:
+        report( "\taction_required : %s"% action_required )
+
+    if returnLogs:
+        return action_required, Logs
+    else:
+        return action_required
+
 #=================================================
-# methods that check whether cWB processes wer triggered and completed
+# methods that check whether cWB processes were triggered and completed
 #=================================================
 
 def cwb_skymap( gdb, gdb_id, lvem=None, verbose=False, returnLogs=False ):
