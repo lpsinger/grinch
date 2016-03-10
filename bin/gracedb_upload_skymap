@@ -1,0 +1,32 @@
+#!/usr/bin/python
+
+usage = "upload_skymap [--options] uid plotfile fitsfile"
+description = "a wrapper that avoids Condor POST script's rigid parsing requirements"
+author = "reed.essick@ligo.org"
+
+#-------------------------------------------------
+
+from optparse import OptionParser
+from ligo.gracedb.rest import GraceDb
+
+#-------------------------------------------------
+
+parser = OptionParser()
+
+parser.add_option("", "--tag-name", default=[], action="append", type="string")
+parser.add_option("", "--gdb-url", default=None, type="string")
+
+opts, args = parser.parse_args()
+
+if len(args)!=3:
+    raise ValueError("must supply exactly 3 input arguments\n%s"%(usage))
+uid, plotfilename, fitsfilename = args
+
+#-------------------------------------------------
+
+if opts.gdb_url:
+    gdb = GraceDb(opts.gdb_url)
+else:
+    gdb = GraceDb()
+
+gdb.writeLog( uid, message="Mollweide projection of <a href=\"https://gracedb.ligo.org/events/%s/files/%s\">%s</a>"%(uid, fitsfilename, fitsfilename), filename=plotfilename, tagname=opts.tag_name )

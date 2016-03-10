@@ -31,9 +31,11 @@ etc = home + '/opt/etc/'
 cp.read( etc + 'burst_config.ini' )
 
 gracedbcommand     = cp.get('executable', 'gracedbcommand')
+gracedbuploadplot  = cp.get('executable', 'gracedbuploadplot')
 coinc_search       = cp.get('executable', 'coincscript')
 #vetodefinerfile    = cp.get('veto', 'vetodefinerfile')
 
+universe = cp.get('general', 'universe')
 
 # Build and move to a unique working directory.
 working = directory(streamdata['uid'])
@@ -57,12 +59,12 @@ elif streamdata['alert_type'] == 'update' and ( streamdata['file'].endswith('.fi
         if log['filename'] == fitsfile:
             tags = ','.join(log['tag_names'])  # Comma-separated list of tags associated with this FITS file
             break
-    if tags: tag_option = "--tag-name=%s" % tags
+    if tags: tag_option = "--tag-name=" + " --tag-name=".join(tags.split(','))
     else: tag_option = ""
 
     # Write emlabel.sub.
 #    contents   = """\
-#universe            = local
+#universe            = %(universe)s
 #
 #executable          = %(gracedbcommand)s
 #arguments           = " label %(uid)s EM_READY "
@@ -71,16 +73,17 @@ elif streamdata['alert_type'] == 'update' and ( streamdata['file'].endswith('.fi
 #
 #error               = %(directory)s/emlabel_%(uid)s.err
 #output              = %(directory)s/emlabel_%(uid)s.out
+#log                 = %(directory)s/emlable_%(uid)s.log
 #
 #+LVAlertListen      = %(uid)s_emlabel
 #Queue
 #"""
 #    with open('emlabel.sub', 'w') as f:
-#        f.write(contents%{'gracedbcommand': gracedbcommand, 'directory': wdir, 'uid': streamdata['uid']})
+#        f.write(contents%{'universe':universe, 'gracedbcommand': gracedbcommand, 'directory': wdir, 'uid': streamdata['uid']})
 
     # Write plot_allsky.sub.
     contents = """\
-universe            = local
+universe            = %(universe)s
 
 executable          = /usr/bin/env
 arguments           = " bayestar_plot_allsky -o %(directory)s/%(plot)s --colormap=OrRd %(directory)s/%(fits)s "
@@ -91,17 +94,18 @@ accounting_group_user = alexander.urban
 
 error               = %(directory)s/allsky_%(uid)s.err
 output              = %(directory)s/allsky_%(uid)s.out
+log                 = %(directory)s/allsky_%(uid)s.log
 
 +LVAlertListen      = %(uid)s_plot_allsky
 
 Queue
 """
     with open('plot_allsky.sub', 'w') as f:
-        f.write(contents%{'fits':fitsfile, 'plot':plotfile, 'directory':wdir, 'uid':streamdata['uid']})
+        f.write(contents%{'universe':universe, 'fits':fitsfile, 'plot':plotfile, 'directory':wdir, 'uid':streamdata['uid']})
 
 #    # Write plot_inj.sub.
 #    contents   = """\
-#universe            = local
+#universe            = %(universe)s
 #
 #executable          = /usr/bin/env
 #arguments           = " unblind_inj_search --graceid %(uid)s --sky-map %(directory)s/%(fits)s"
@@ -110,17 +114,18 @@ Queue
 #
 #error               = %(directory)s/plot_inj_%(uid)s.err
 #output              = %(directory)s/plot_inj_%(uid)s.out
+#log                 = %(directory)s/plot_inj_%(uid)s.log
 #
 #+LVAlertListen      = %(uid)s_plot_inj
 #
 #Queue
 #"""
 #    with open('plot_inj.sub', 'w') as f:
-#        f.write(contents%{'fits':fitsfile, 'directory':wdir, 'uid': streamdata['uid']})
+#        f.write(contents%{'universe':universe, 'fits':fitsfile, 'directory':wdir, 'uid': streamdata['uid']})
 
     # Write coinc_search_with_sky_map.sub.
     contents = """\
-universe            = local
+universe            = %(universe)s
 
 executable          = %(script)s
 arguments           = " -g %(uid)s -t gw -w -1 5 -w -60 600 -s %(directory)s/%(fits)s "
@@ -131,19 +136,20 @@ accounting_group_user = alexander.urban
 
 output              = %(directory)s/coinc_search_with_sky_map_%(uid)s.out
 error               = %(directory)s/coinc_search_with_sky_map_%(uid)s.error
+log                 = %(directory)s/coinc_search_with_sky_map_%(uid)s.log
 
 +LVAlertListen      = %(uid)s_coinc_search
 
 Queue
 """
     with open('coinc_search_with_sky_map.sub', 'w') as f:
-        f.write(contents%{'script': coinc_search, 'directory': wdir, 'fits': fitsfile, 'uid': streamdata['uid']})
+        f.write(contents%{'univserse':universe, 'script': coinc_search, 'directory': wdir, 'fits': fitsfile, 'uid': streamdata['uid']})
 
     # Write and submit fits_followup.dag.
     contents = """\
 JOB PLOTALLSKY plot_allsky.sub
 SCRIPT PRE PLOTALLSKY %(gracedbcommand)s download %(uid)s %(fits)s
-SCRIPT POST PLOTALLSKY %(gracedbcommand)s %(tags)s upload %(uid)s %(plot)s
+SCRIPT POST PLOTALLSKY %(gracedbuploadplot)s %(uid)s %(plot)s %(fits)s %(tags)s 
 
 #JOB COINCSEARCH coinc_search_with_sky_map.sub
 #SCRIPT PRE COINCSEARCH %(gracedbcommand)s download %(uid)s %(fits)s
@@ -152,7 +158,7 @@ SCRIPT POST PLOTALLSKY %(gracedbcommand)s %(tags)s upload %(uid)s %(plot)s
 """
     with tempfile.NamedTemporaryFile(mode='w', suffix='.dag', prefix='fits_followup_', dir='.', delete=False) as dagfile:
         dagfilename = dagfile.name
-        print >>dagfile, contents%{'gracedbcommand': gracedbcommand, 'uid': streamdata['uid'], 'fits': fitsfile, 'tags': tag_option, 'plot': plotfile}
+        print >>dagfile, contents%{'gracedbcommand': gracedbcommand, 'uid': streamdata['uid'], 'fits': fitsfile, 'tags': tag_option, 'plot': plotfile, 'gracedbuploadplot': gracedbuploadplot}
 
     # Create a uniquely-named log file.
     logfid, logpath = tempfile.mkstemp(suffix='.nodes.log', prefix=streamdata['uid'])
@@ -184,7 +190,7 @@ else:
 
 # Write coinc_search.sub.
 contents = """\
-universe            = local
+universe            = %(universe)s
 
 executable          = %(script)s
 arguments           = " -g %(uid)s -t gw -w -1 5 -w -60 600 "
@@ -195,17 +201,18 @@ accounting_group_user = alexander.urban
 
 output              = %(directory)s/coinc_search_%(uid)s.out
 error               = %(directory)s/coinc_search_%(uid)s.error
+log                 = %(directory)s/coinc_search_%(uid)s.log
 
 +LVAlertListen      = %(uid)s_coinc_search
 
 Queue
 """
 with open('coinc_search.sub', 'w') as f:
-    f.write(contents%{'script': coinc_search, 'directory': wdir, 'uid': streamdata['uid']})
+    f.write(contents%{'universe':universe, 'script': coinc_search, 'directory': wdir, 'uid': streamdata['uid']})
 
 ## Write find_inj.sub.
 #contents   = """\
-#universe            = local
+#universe            = %(universe)s
 #
 #executable          = /usr/bin/env
 #arguments           = " unblind_inj_search --graceid %(uid)s --label 1"
@@ -214,13 +221,14 @@ with open('coinc_search.sub', 'w') as f:
 #
 #error               = %(directory)s/find_inj_%(uid)s.err
 #output              = %(directory)s/find_inj_%(uid)s.out
+#log                 = %(directory)s/find_inj_%(uid)s.log
 #
 #+LVAlertListen      = %(uid)s_find_inj
 #
 #Queue
 #"""
 #with open('find_inj.sub', 'w') as f:
-#    f.write(contents%{'directory':wdir, 'uid': streamdata['uid']})
+#    f.write(contents%{'universe':universe, 'directory':wdir, 'uid': streamdata['uid']})
 
 
 #################################
