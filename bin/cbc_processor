@@ -59,6 +59,7 @@ elif streamdata['alert_type'] == 'update' and ( streamdata['file'].endswith('.fi
 	# Obtain the tags with which this FITS file was uploaded.
 	gracedb = GraceDb()  # Initialize an instance of GraceDB
 	logs = gracedb.logs(streamdata['uid']).json()['log'][::-1]  # Reverse-sorted list of log messages
+        tags = ""
 	for log in logs:  # Iterate over log messages, find the one containing this FITS file
 		if log['filename'] == fitsfile:
 			tags = ','.join(log['tag_names'])  # Comma-separated list of tags associated with this FITS file

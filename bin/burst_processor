@@ -55,6 +55,7 @@ elif streamdata['alert_type'] == 'update' and ( streamdata['file'].endswith('.fi
     # Obtain the tags with which this FITS file was uploaded.
     gracedb = GraceDb()  # Initialize an instance of GraceDB
     logs = gracedb.logs(streamdata['uid']).json()['log'][::-1]  # Reverse-sorted list of log messages
+    tags = ""
     for log in logs:  # Iterate over log messages, find the one containing this FITS file
         if log['filename'] == fitsfile:
             tags = ','.join(log['tag_names'])  # Comma-separated list of tags associated with this FITS file
@@ -143,7 +144,7 @@ log                 = %(directory)s/coinc_search_with_sky_map_%(uid)s.log
 Queue
 """
     with open('coinc_search_with_sky_map.sub', 'w') as f:
-        f.write(contents%{'univserse':universe, 'script': coinc_search, 'directory': wdir, 'fits': fitsfile, 'uid': streamdata['uid']})
+        f.write(contents%{'universe':universe, 'script': coinc_search, 'directory': wdir, 'fits': fitsfile, 'uid': streamdata['uid']})
 
     # Write and submit fits_followup.dag.
     contents = """\
