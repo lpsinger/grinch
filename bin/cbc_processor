@@ -40,7 +40,7 @@ coinc_search       = cp.get('executable', 'coincscript')
 universe = cp.get('general', 'universe')
 
 # Build and move to a unique working directory.
-working = directory(streamdata['uid']+'test')
+working = directory(streamdata['uid'])
 working.build_and_move()
 wdir = working.name
 
