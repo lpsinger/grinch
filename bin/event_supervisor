@@ -40,6 +40,8 @@ parser.add_option('-a', '--annotate-gracedb', default=False, action="store_true"
 
 parser.add_option('-n', '--no-email', default=False, action="store_true", help="do not send emails if alerts require action. Useful for debugging")
 
+parser.add_option('-t', '--tagname', default=['event_supervisor'], action='append', type='string', help='tags applied to GraceDB messages')
+
 opts, args = parser.parse_args()
 
 if len(args)!=1:
@@ -118,7 +120,7 @@ schedule = checks.config_to_schedule( config, event_type, **kwargs )
 ### annotate gracedb with list of scheduled checks
 if opts.annotate_gracedb:
     log = "event_supervisor scheduled to check: %s"%(", ".join([description for dt, foo, kwargs, email, description in schedule]))
-    gracedb.writeLog( gdb_id, log )
+    gracedb.writeLog( gdb_id, log, tagname=opts.tagname )
 
 ### perform the scheduled checks
 if opts.verbose:
@@ -159,7 +161,7 @@ for dt, foo, kwargs, email, description in schedule:
                         if append:
                             cancelled_checks.append( d )
                     log = log%(", ".join(cancelled_checks))
-                    gracedb.writeLog( gdb_id, log )
+                    gracedb.writeLog( gdb_id, log, tagname=opts.tagname )
                 if opts.verbose:
                     report( log )
                     report( "ignoring %s"%(gdb_id) )
@@ -179,21 +181,21 @@ for dt, foo, kwargs, email, description in schedule:
                 os.system( "echo \"action required for GraceDB event : %s (%s)\n%s\" | mail -s \"action required for GraceDB event : %s (%s)\" %s"%(event_url, event_type, description, gdb_id, event_type, " ".join(email)) )
                 if opts.annotate_gracedb:
                     log = "event_supervisor checked : %s. Action required! email sent to %s"%(description, ", ".join(email))
-                    gracedb.writeLog( gdb_id, log )
+                    gracedb.writeLog( gdb_id, log, tagname=opts.tagname )
                 if opts.verbose:
                     report( "\tevent_supervisor checked : %s. Action required! email sent to %s"%(description, ", ".join(email)) )
             else:
                 report( "WARNING: check requires action but no email recipients specified! No warning messages will be sent!" )
                 if opts.annotate_gracedb:
                     log = "event_supervisor checked : %s. Action required! but no email specified"%(description)
-                    gracedb.writeLog( gdb_id, log )
+                    gracedb.writeLog( gdb_id, log, tagname=opts.tagname )
                 if opts.verobse:
                     report( "\tevent_supervisor checked : %s. Action required! but no email specified"%(description) )
 
         elif opts.annotate_gracedb or opts.verbose:
             if opts.annotate_gracedb:
                 log = "event_supervisor checked : %s. No action required."%(description)
-                gracedb.writeLog( gdb_id, log )
+                gracedb.writeLog( gdb_id, log, tagname=opts.tagname )
             if opts.verbose:
                 report( "\tevent_supervisor checked : %s. No action required."%(description) )
 
@@ -208,14 +210,14 @@ for dt, foo, kwargs, email, description in schedule:
             os.system( "echo \"check failed for GraceDB event : %s (%s)\n%s\" | mail -s \"check failed for GraceDB event : %s (%s)\" %s"%(event_url, event_type, description, gdb_id, event_type, " ".join(email)) )
             if opts.annotate_gracedb:
                 log = "event_supervisor attempted to check : %s, but FAILED! email sent to %s"%(description, " ".join(email))
-                gracedb.writeLog( gdb_id, log )
+                gracedb.writeLog( gdb_id, log, tagname=opts.tagname )
             if opts.verbose:
                 report( "\tcheck failed : %s. email sent to %s"%(description, " ".join(email)) )
         else:
             report( "WARNING: check failed but no email recipients specified! No warning message will be sent!" )
             if opts.annotate_gracedb:
                 log = "event_supervisor attempted to check : %s, but FAILED! no email specified"%(description)
-                gracedb.writeLog( gdb_id, log )
+                gracedb.writeLog( gdb_id, log, tagname=opts.tagname )
             if opts.verbose:
                 report( "\tcheck failed : %s. but no email specified"%(description) )
 
@@ -225,7 +227,7 @@ for dt, foo, kwargs, email, description in schedule:
 
 if opts.annotate_gracedb:
     log = "event_supervisor completed all scheduled checks"
-    gracedb.writeLog( gdb_id, log )
+    gracedb.writeLog( gdb_id, log, tagname=opts.tagname )
 
 if opts.verbose:
     report( "Done" )
