@@ -1,0 +1,44 @@
+#!/usr/bin/env python
+from __future__ import print_function
+import json
+import logging
+import os
+import subprocess
+import sys
+import tempfile
+
+logging.basicConfig(level=logging.INFO)
+log = logging.getLogger(os.path.basename(sys.argv[0]))
+
+# Parse alert from stdin
+log.info('parsing LVAlert')
+alert = json.load(sys.stdin)
+
+# Continue only for updates that include VOEvents
+if not(alert['alert_type'] == 'update' and 'voevent_type' in alert['object']):
+    log.info('ignoring, not a VOEvent update')
+    raise SystemExit
+
+# Continue only for mock data challenge ("M") events
+graceid = alert['uid']
+if not graceid.startswith('M'):
+    log.info('ignoring, not an MDC event')
+    raise SystemExit
+
+# Get VOEvent text
+text = alert['object']['text']
+log.info('Got payload:\n%s', text)
+
+# Write VOEvent text to temporary file, then replace stdin with it
+with tempfile.TemporaryFile() as tmpfile:
+    tmpfile.write(text)
+    tmpfile.flush()
+    tmpfile.seek(0)
+    os.dup2(tmpfile.fileno(), sys.stdin.fileno())
+
+# Temporary file has been deleted by now but remains open because
+# it is associate with stdin
+
+# Call comet-sendvo (replaces current process)
+log.info('Sending with comet-sendvo')
+os.execl('/home/gracedb.processor/users/bstephens/cometenv/bin/comet-sendvo', 'comet-sendvo', '-p', '5340')

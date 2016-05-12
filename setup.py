@@ -57,7 +57,8 @@ setup(
         'bin/gdb_processor_event_supervisor',
         'bin/lvalert-init_event_supervisor',
         'bin/lvalert-run_event_supervisor_wrapper',
-        'bin/gracedb_upload_skymap'
+        'bin/gracedb_upload_skymap',
+        'bin/mdc_processor'
     ],
     data_files=[('etc',['etc/cbc_config.ini', 'etc/burst_config.ini', 'etc/exttrig_config.ini',
         'etc/grinch_lvalert.ini', 'etc/gcn_config.ini', 'etc/approval_processor_config.ini',
