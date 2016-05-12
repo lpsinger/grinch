@@ -67,15 +67,12 @@ Queue
         f.write(contents)
     condorargs = ['condor_submit', 'gcnlisten.sub']
     os.execlp('condor_submit', *condorargs)
-    print 'I am now listening for GCN notices.'
-    sys.exit()
 
 # If run with argument 'status', print a short summary of the job to screen.
 elif args.command == 'status':
     user = os.getenv("USER")
     condorargs = ['condor_q', user]
     os.execlp('condor_q', *condorargs)
-    sys.exit()
 
 # If run with argument 'stop', kill the pygcn_listen job.
 elif args.command == 'stop':
@@ -85,7 +82,6 @@ elif args.command == 'stop':
         user = os.getenv("USER")
         condorargs = ['condor_rm', user]
         os.execlp('condor_rm', *condorargs)
-        sys.exit()
     else:
         print 'I thought as much!'
         sys.exit()

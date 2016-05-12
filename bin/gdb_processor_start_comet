@@ -57,15 +57,12 @@ Queue
 		f.write(contents)
 	condorargs = ['condor_submit','start_comet_listener.sub']
 	os.execlp('condor_submit', *condorargs)
-	print 'comet is now able to send alerts to GCN.'
-	exit()
 
 # if run with argument 'status', print a short summary of the job to screen
 elif args.command == 'status':
 	user = os.getenv("USER")
 	condorargs = ['condor_q', user]
 	os.execlp('condor_q', *condorargs)
-	exit()
 
 # if run with argument 'stop', kill the lvalertlisten job
 elif args.command == 'stop':
@@ -75,7 +72,6 @@ elif args.command == 'stop':
 		user = os.getenv("USER")
 		condorargs = ['condor_rm',user]
 		os.execlp('condor_rm', *condorargs)
-		exit()
 	else:
 		print 'I thought as much!'
 		exit()
