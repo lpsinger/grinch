@@ -65,6 +65,3 @@ setup(
         'etc/approval_processor_lvalert.ini', 'etc/event_supervisor_config.ini',
         'etc/event_supervisor-lvalertconfig.ini', 'etc/event_supervisor.sub'])]
 )
-
-
-
